@@ -1,0 +1,28 @@
+export const UI_STRINGS = {
+  reportTitle: { en: "ClawDoc Health Report", zh: "ClawDoc 健康报告" },
+  overallHealth: { en: "Overall Health", zh: "综合健康" },
+  grade: { en: "Grade", zh: "等级" },
+  coverage: { en: "Coverage", zh: "覆盖率" },
+  mode: { en: "Mode", zh: "模式" },
+  prescriptions: { en: "Prescriptions", zh: "处方" },
+  pending: { en: "pending", zh: "待处理" },
+  causalChain: { en: "Causal Chain Detected", zh: "发现因果链" },
+  quickActions: { en: "Quick Actions", zh: "快捷操作" },
+  checksSkipped: { en: "checks skipped due to limited data", zh: "项检查因数据不足被跳过" },
+  installPlugin: { en: "Install ClawDoc plugin for full diagnostics", zh: "安装 ClawDoc 插件以获取完整诊断" },
+  partialDataWarning: { en: "Score based on partial data — install plugin for full report", zh: "分数基于部分数据 — 安装插件获取完整报告" },
+  // Department names
+  vitals: { en: "System Vitals", zh: "基础体征" },
+  skill: { en: "Skill & Tool", zh: "技能工具" },
+  memory: { en: "Memory Cognition", zh: "记忆认知" },
+  behavior: { en: "Agent Behavior", zh: "行为模式" },
+  cost: { en: "Cost Metabolism", zh: "成本代谢" },
+  security: { en: "Security Immunity", zh: "安全免疫" },
+  // Grade names
+  gradeA: { en: "Excellent", zh: "优秀" },
+  gradeB: { en: "Good", zh: "良好" },
+  gradeC: { en: "Fair", zh: "一般" },
+  gradeD: { en: "Poor", zh: "较差" },
+  gradeF: { en: "Critical", zh: "危险" },
+  gradeNA: { en: "Insufficient data", zh: "数据不足" },
+} as const;
