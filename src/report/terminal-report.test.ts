@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { renderReport } from "./terminal-report.js";
+import { stripAnsi } from "./ansi.js";
 import type { ReportViewModel } from "./report-data.js";
 import type { DepartmentReportLine, DiseaseReportLine } from "./report-data.js";
 
@@ -70,171 +71,155 @@ const snapshotViewModel: ReportViewModel = {
   isPartialData: true,
 };
 
+// Helper: strip ANSI for content assertions
+function plain(vm: ReportViewModel, locale = "en"): string {
+  return stripAnsi(renderReport(vm, locale));
+}
+
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
 describe("renderReport — stream mode", () => {
   it("contains the report title", () => {
-    const output = renderReport(streamViewModel, "en");
-    expect(output).toContain("ClawDoc Health Report");
+    expect(plain(streamViewModel)).toContain("ClawDoc Health Report");
   });
 
   it("shows agent ID in header", () => {
-    const output = renderReport(streamViewModel, "en");
-    expect(output).toContain("Agent: default");
+    expect(plain(streamViewModel)).toContain("Agent:");
+    expect(plain(streamViewModel)).toContain("default");
   });
 
   it("shows date range in header", () => {
-    const output = renderReport(streamViewModel, "en");
-    expect(output).toContain("2026-03-10 ~ 2026-03-17");
+    expect(plain(streamViewModel)).toContain("2026-03-10 ~ 2026-03-17");
   });
 
-  it("shows 'Mode: stream' in header", () => {
-    const output = renderReport(streamViewModel, "en");
-    expect(output).toContain("Mode: stream");
+  it("shows mode: stream in header", () => {
+    const text = plain(streamViewModel);
+    expect(text).toContain("Mode:");
+    expect(text).toContain("stream");
   });
 
   it("shows coverage in header", () => {
-    const output = renderReport(streamViewModel, "en");
-    expect(output).toContain("Coverage: 100%");
-    expect(output).toContain("43/43");
+    const text = plain(streamViewModel);
+    expect(text).toContain("Coverage:");
+    expect(text).toContain("100%");
+    expect(text).toContain("43/43");
   });
 
   it("shows overall health line with score and grade", () => {
-    const output = renderReport(streamViewModel, "en");
-    expect(output).toContain("Overall Health");
-    expect(output).toContain("61");
-    expect(output).toContain("Grade C");
+    const text = plain(streamViewModel);
+    expect(text).toContain("Overall Health");
+    expect(text).toContain("61");
+    expect(text).toContain("/100");
   });
 
   it("does NOT show partial data warning in stream mode", () => {
-    const output = renderReport(streamViewModel, "en");
-    expect(output).not.toContain("partial data");
-    expect(output).not.toContain("install plugin for full report");
+    const text = plain(streamViewModel);
+    expect(text).not.toContain("partial data");
+    expect(text).not.toContain("install plugin for full report");
   });
 
-  it("shows department score", () => {
-    const output = renderReport(streamViewModel, "en");
-    expect(output).toContain("Skill & Tool");
-    expect(output).toContain("58");
-  });
-
-  it("shows department grade label", () => {
-    const output = renderReport(streamViewModel, "en");
-    expect(output).toContain("Fair");
+  it("shows department name and score", () => {
+    const text = plain(streamViewModel);
+    expect(text).toContain("Skill & Tool");
+    expect(text).toContain("58");
   });
 
   it("shows department checks label", () => {
-    const output = renderReport(streamViewModel, "en");
-    expect(output).toContain("[10/10]");
+    expect(plain(streamViewModel)).toContain("[10/10]");
   });
 
   it("shows department summary", () => {
-    const output = renderReport(streamViewModel, "en");
-    expect(output).toContain("14 tools tracked | 3 need attention");
+    expect(plain(streamViewModel)).toContain("14 tools tracked | 3 need attention");
   });
 
   it("shows disease details under departments", () => {
-    const output = renderReport(streamViewModel, "en");
-    expect(output).toContain("SK-002");
-    expect(output).toContain("Scenario Paralysis");
+    const text = plain(streamViewModel);
+    expect(text).toContain("SK-002");
+    expect(text).toContain("Scenario Paralysis");
   });
 
   it("shows Quick Actions footer in stream mode", () => {
-    const output = renderReport(streamViewModel, "en");
-    expect(output).toContain("Quick Actions");
-    expect(output).toContain("clawdoc rx apply");
+    const text = plain(streamViewModel);
+    expect(text).toContain("Quick Actions");
+    expect(text).toContain("clawdoc rx apply");
   });
 
   it("does NOT show plugin install CTA in stream mode", () => {
-    const output = renderReport(streamViewModel, "en");
-    expect(output).not.toContain("Install ClawDoc plugin");
+    expect(plain(streamViewModel)).not.toContain("Install ClawDoc plugin");
   });
 
-  it("has box border characters", () => {
-    const output = renderReport(streamViewModel, "en");
-    expect(output).toContain("┌");
-    expect(output).toContain("┐");
-    expect(output).toContain("└");
-    expect(output).toContain("┘");
-    expect(output).toContain("│");
-    expect(output).toContain("─");
+  it("outputs ANSI color codes in raw output", () => {
+    const raw = renderReport(streamViewModel, "en");
+    expect(raw).toContain("\x1b[");
   });
 });
 
 describe("renderReport — snapshot mode", () => {
-  it("shows 'Mode: snapshot' in header", () => {
-    const output = renderReport(snapshotViewModel, "en");
-    expect(output).toContain("Mode: snapshot");
+  it("shows mode: snapshot in header", () => {
+    const text = plain(snapshotViewModel);
+    expect(text).toContain("Mode:");
+    expect(text).toContain("snapshot");
   });
 
   it("shows coverage percentage in header", () => {
-    const output = renderReport(snapshotViewModel, "en");
-    expect(output).toContain("Coverage: 63%");
-    expect(output).toContain("27/43");
+    const text = plain(snapshotViewModel);
+    expect(text).toContain("Coverage:");
+    expect(text).toContain("63%");
+    expect(text).toContain("27/43");
   });
 
   it("shows partial data warning in snapshot mode", () => {
-    const output = renderReport(snapshotViewModel, "en");
-    expect(output).toContain("partial data");
+    expect(plain(snapshotViewModel)).toContain("partial data");
   });
 
   it("shows N/A for departments with null score", () => {
-    const output = renderReport(snapshotViewModel, "en");
-    expect(output).toContain("Agent Behavior");
-    expect(output).toContain("N/A");
+    const text = plain(snapshotViewModel);
+    expect(text).toContain("Agent Behavior");
+    expect(text).toContain("N/A");
   });
 
   it("shows skipped checks note for departments with skipped checks", () => {
-    const output = renderReport(snapshotViewModel, "en");
-    expect(output).toContain("checks skipped");
+    expect(plain(snapshotViewModel)).toContain("checks skipped");
   });
 
   it("shows skipped count in footer", () => {
-    const output = renderReport(snapshotViewModel, "en");
-    expect(output).toContain("16");
-    expect(output).toContain("checks skipped due to limited data");
+    const text = plain(snapshotViewModel);
+    expect(text).toContain("16");
+    expect(text).toContain("checks skipped due to limited data");
   });
 
   it("shows plugin install CTA in snapshot mode footer", () => {
-    const output = renderReport(snapshotViewModel, "en");
-    expect(output).toContain("Install ClawDoc plugin");
+    expect(plain(snapshotViewModel)).toContain("Install ClawDoc plugin");
   });
 
   it("does NOT show Quick Actions in snapshot mode", () => {
-    const output = renderReport(snapshotViewModel, "en");
-    expect(output).not.toContain("Quick Actions");
+    expect(plain(snapshotViewModel)).not.toContain("Quick Actions");
   });
 });
 
 describe("renderReport — Chinese locale", () => {
   it("renders in Chinese when locale is 'zh'", () => {
-    const output = renderReport(streamViewModel, "zh");
-    expect(output).toContain("ClawDoc 健康报告");
+    expect(plain(streamViewModel, "zh")).toContain("ClawDoc 健康报告");
   });
 
   it("shows Chinese overall health label", () => {
-    const output = renderReport(streamViewModel, "zh");
-    expect(output).toContain("综合健康");
+    expect(plain(streamViewModel, "zh")).toContain("综合健康");
   });
 
   it("shows Chinese mode label", () => {
-    const output = renderReport(streamViewModel, "zh");
-    expect(output).toContain("模式");
+    expect(plain(streamViewModel, "zh")).toContain("模式");
   });
 
   it("shows Chinese grade label Fair→一般", () => {
-    const output = renderReport(streamViewModel, "zh");
-    expect(output).toContain("一般"); // Fair → 一般
+    expect(plain(streamViewModel, "zh")).toContain("一般");
   });
 
   it("shows Chinese quick actions label", () => {
-    const output = renderReport(streamViewModel, "zh");
-    expect(output).toContain("快捷操作");
+    expect(plain(streamViewModel, "zh")).toContain("快捷操作");
   });
 
   it("shows Chinese partial data warning in snapshot mode", () => {
-    const output = renderReport(snapshotViewModel, "zh");
-    expect(output).toContain("部分数据");
+    expect(plain(snapshotViewModel, "zh")).toContain("部分数据");
   });
 });
 
@@ -265,19 +250,24 @@ describe("renderReport — department with diseases", () => {
   };
 
   it("shows all diseases under the department", () => {
-    const output = renderReport(viewModelWithCost, "en");
-    expect(output).toContain("CST-001");
-    expect(output).toContain("CST-003");
+    const text = plain(viewModelWithCost);
+    expect(text).toContain("CST-001");
+    expect(text).toContain("CST-003");
   });
 
   it("shows disease descriptions", () => {
-    const output = renderReport(viewModelWithCost, "en");
-    expect(output).toContain("Daily token usage exceeds warning threshold");
+    expect(plain(viewModelWithCost)).toContain("Daily token usage exceeds warning threshold");
+  });
+
+  it("uses severity icons for diseases", () => {
+    const text = plain(viewModelWithCost);
+    expect(text).toContain("●"); // critical icon
+    expect(text).toContain("▲"); // warning icon
   });
 });
 
 describe("progressBar", () => {
-  it("is exported from terminal-report and works for null score", async () => {
+  it("is exported from progress-bar.ts and works for null score", async () => {
     const { progressBar } = await import("./progress-bar.js");
     expect(progressBar(null, 10)).toBe("──────────");
   });

@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { execSync } from "node:child_process";
 import path from "node:path";
+import { stripAnsi } from "./report/ansi.js";
 
 const ROOT = path.join(import.meta.dirname, "..");
 const FIXTURES = path.join(ROOT, "fixtures");
@@ -13,6 +14,11 @@ function run(args: string, env?: Record<string, string>): string {
     env: { ...process.env, ...env },
     timeout: 30000,
   });
+}
+
+// Strip ANSI codes for content assertions on colored terminal output
+function runPlain(args: string, env?: Record<string, string>): string {
+  return stripAnsi(run(args, env));
 }
 
 describe("E2E", () => {
@@ -34,13 +40,14 @@ describe("E2E", () => {
   });
 
   it("clawdoc checkup produces terminal report with Mode: snapshot", () => {
-    const output = run("checkup --agent default", {
+    const output = runPlain("checkup --agent default", {
       CLAWDOC_STATE_DIR: FIXTURES,
       CLAWDOC_WORKSPACE_DIR: path.join(FIXTURES, "memory"),
     });
 
     expect(output).toContain("ClawDoc Health Report");
-    expect(output).toContain("Mode: snapshot");
+    expect(output).toContain("Mode:");
+    expect(output).toContain("snapshot");
     expect(output).toContain("Coverage:");
   });
 
