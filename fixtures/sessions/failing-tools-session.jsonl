@@ -1,0 +1,5 @@
+{"type":"session","id":"sess-002"}
+{"role":"user","content":"Read the config file"}
+{"role":"assistant","content":[{"type":"toolUse","id":"call_002","name":"file_read","input":{"path":"/nonexistent/file.txt"}}]}
+{"role":"toolResult","toolUseId":"call_002","content":"","isError":true,"errorMessage":"ENOENT: no such file or directory","timestamp":1710600100000}
+{"role":"assistant","content":"I couldn't find that file.","usage":{"input":800,"output":200}}

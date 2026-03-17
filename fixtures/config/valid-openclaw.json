@@ -1,0 +1,14 @@
+{
+  "agentId": "agent-test-001",
+  "model": "claude-3-5-sonnet-20241022",
+  "modelProvider": "anthropic",
+  "sandboxEnabled": false,
+  "plugins": [
+    { "id": "clawdoc", "enabled": true },
+    { "id": "web-search", "enabled": true }
+  ],
+  "channels": [
+    { "id": "telegram", "type": "telegram" },
+    { "id": "cli", "type": "cli" }
+  ]
+}

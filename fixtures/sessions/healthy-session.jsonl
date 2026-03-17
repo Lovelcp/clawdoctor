@@ -1,0 +1,5 @@
+{"type":"session","id":"sess-001"}
+{"role":"user","content":"Search for TypeScript best practices"}
+{"role":"assistant","content":[{"type":"toolUse","id":"call_001","name":"web_search","input":{"query":"TypeScript best practices","limit":10}}]}
+{"role":"toolResult","toolUseId":"call_001","content":"Results: 1. Use strict mode...","timestamp":1710600000000}
+{"role":"assistant","content":"Here are the best practices...","usage":{"input":1200,"output":450}}
