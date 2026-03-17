@@ -555,7 +555,7 @@ interface ClawDocEvent {
   sessionKey?: string;
   sessionId?: string;
   type: EventType;
-  data: EventData;
+  data: EventDataMap[EventType];
 }
 
 type EventType =
@@ -1195,14 +1195,16 @@ function apdexScore(
 }
 
 // Aggregate metrics (totals, ratios) → linear threshold mapping
+// Note: higherIsBetter is NOT needed — threshold values encode direction.
+//   success rate: satisfied=0.75 > critical=0.50 → higher is better (implicit)
+//   daily tokens: satisfied=100K < critical=500K → lower is better (implicit)
 function linearScore(
   value: number,
   threshold: { satisfied: number; critical: number },
-  higherIsBetter: boolean,
 ): number {
-  const [lo, hi] = higherIsBetter
-    ? [threshold.critical, threshold.satisfied]
-    : [threshold.satisfied, threshold.critical];
+  const lo = threshold.critical;   // worst value → score 0
+  const hi = threshold.satisfied;  // best value → score 100
+  if (lo === hi) return 50;        // degenerate case: no range
   return Math.max(0, Math.min(100, ((value - lo) / (hi - lo)) * 100));
 }
 ```
@@ -1346,6 +1348,7 @@ interface ExecutionResult {
     error?: string;
   }>;
   backup: PrescriptionBackup;
+  preApplyMetrics: MetricSnapshot;       // captured before apply, persisted for follow-up comparison
   immediateVerification: VerificationResult;
 }
 ```
@@ -1490,6 +1493,7 @@ CREATE TABLE prescriptions (
   status          TEXT NOT NULL DEFAULT 'pending',
   -- pending | applied | rolled_back | dismissed
   backup_json     TEXT,
+  pre_apply_metrics_json TEXT,   -- MetricSnapshot at apply time (for follow-up comparison)
   applied_at      INTEGER,
   rolled_back_at  INTEGER,
   created_at      INTEGER NOT NULL DEFAULT (unixepoch('subsec') * 1000)
