@@ -369,7 +369,7 @@ ID prefix convention:
 | MEM-004 | Memory Conflict | 记忆冲突 | LLM: contradictory information across files | warning |
 | MEM-005 | Stale Memory | 记忆过期 | Rule: last modified > threshold days | info |
 | MEM-006 | Memory Fragmentation | 记忆碎片化 | Rule: many small files + LLM merge analysis | info |
-| MEM-007 | Config Drift | 配置漂移 | Rule: CLAUDE.md/AGENTS.md vs actual behavior inconsistency | warning |
+| MEM-007 | Config Drift | 配置漂移 | Hybrid: rule detects stale CLAUDE.md/AGENTS.md (age/size heuristic) + LLM compares content vs recent behavior | warning |
 
 **Agent Behavior (LLM primary)**
 
@@ -388,8 +388,8 @@ ID prefix convention:
 | ID | Name (en) | Name (zh) | Detection | Severity |
 |----|-----------|-----------|-----------|----------|
 | CST-001 | Metabolic Overload | 代谢亢进 | Rule: daily tokens > threshold | warning |
-| CST-002 | Luxury Invocation | 奢侈调用 | Rule: simple task on expensive model | warning |
-| CST-003 | Cache Miss Epidemic | 缓存失效 | Rule: cacheRead/(cacheRead+input) < threshold | warning |
+| CST-002 | Luxury Invocation | 奢侈调用 | Rule: session total tokens < threshold AND model in expensive-model list (configurable) | warning |
+| CST-003 | Cache Miss Epidemic | 缓存失效 | Rule: cacheRead/(cacheRead+input) < threshold (stream-only; skipped in snapshot mode) | warning |
 | CST-004 | Sunk Cost | 沉没成本 | Rule: failed session token ratio > threshold | warning |
 | CST-005 | Cost Spike | 成本尖峰 | Rule: daily tokens > N * 7-day average | warning |
 | CST-006 | Compaction Drain | 压缩消耗 | Rule: compaction token ratio > threshold | info |
@@ -429,6 +429,7 @@ interface ClawDocConfig {
     "skill.singleCallTokens": { warning: 50_000; critical: 200_000 };
     "skill.zombieDays": { warning: 14; critical: 30 };
     "skill.repetitionCount": { warning: 3; critical: 5 };
+    "skill.contextTokenRatio": { warning: 0.30; critical: 0.50 };
 
     // Memory
     "memory.staleAgeDays": { warning: 30; critical: 90 };
@@ -991,6 +992,7 @@ interface MetricSet {
     }>;
     unusedPlugins: string[];
     tokenPerToolCall: Record<string, number>;
+    contextTokenRatio: Record<string, number>;  // per-skill: skill context tokens / total context window
   };
 
   memory: {
@@ -1195,15 +1197,16 @@ function apdexScore(
 }
 
 // Aggregate metrics (totals, ratios) → linear threshold mapping
-// Note: higherIsBetter is NOT needed — threshold values encode direction.
-//   success rate: satisfied=0.75 > critical=0.50 → higher is better (implicit)
-//   daily tokens: satisfied=100K < critical=500K → lower is better (implicit)
+// Uses same { warning, critical } shape as ClawDocConfig.thresholds.
+// Direction is implicit in the threshold values:
+//   success rate: warning=0.75 > critical=0.50 → higher is better
+//   daily tokens: warning=100K < critical=500K → lower is better
 function linearScore(
   value: number,
-  threshold: { satisfied: number; critical: number },
+  threshold: { warning: number; critical: number },
 ): number {
   const lo = threshold.critical;   // worst value → score 0
-  const hi = threshold.satisfied;  // best value → score 100
+  const hi = threshold.warning;    // boundary of "OK" → score 100
   if (lo === hi) return 50;        // degenerate case: no range
   return Math.max(0, Math.min(100, ((value - lo) / (hi - lo)) * 100));
 }
@@ -1841,11 +1844,11 @@ Week 3-4: Rule Engine + Six-Department Shallow Diagnosis
   - Rule Engine framework (threshold evaluation + evidence collection)
   - Disease Registry: register all rule-based diseases
       VIT-001~005, SK-001/004/006/007/009,
-      MEM-003/005/007, BHV-005/007,
+      MEM-003/005, BHV-005/007,
       CST-001~006, SEC-001~004/006~008
   - Health Scorer (Apdex + linear + AHP weights + grades)
   - Unit tests: every rule has a test case
-  - (28 rule-based diseases total)
+  - (27 rule-based diseases total)
 
 Week 5-6: Terminal Report + First Release
   - Terminal health report rendering (Ink)
@@ -1859,7 +1862,7 @@ Week 5-6: Terminal Report + First Release
 
 **Phase 1 deliverables:**
 - `npx clawdoc checkup` zero-config checkup (rules only, no LLM cost)
-- 28 rule-based disease detections across 6 departments
+- 27 rule-based disease detections across 6 departments
 - Terminal health report (scores, grades, disease list)
 - English default, Chinese switchable
 - Standalone CLI, no OpenClaw plugin required
@@ -1872,7 +1875,7 @@ Goal: LLM deep diagnosis live, prescription system fully functional, Plugin mode
 Week 7-8: LLM Analyzer
   - LLM Analyzer framework (prompt templates, structured output)
   - Hybrid Detection: rule pre-filter → LLM confirm
-      SK-002/003/005/008/010, MEM-001/002/004/006,
+      SK-002/003/005/008/010, MEM-001/002/004/006/007,
       BHV-001~004/006, SEC-005
   - Cross-Department Linker (causal chain reasoning)
   - LLM call optimization: batching, token budget, failure degradation
@@ -1899,7 +1902,7 @@ Week 11-12: OpenClaw Plugin + Stream Collector
 ```
 
 **Phase 2 deliverables:**
-- Full LLM deep diagnosis (43 diseases fully covered)
+- Full LLM deep diagnosis (27 rule + 16 LLM/hybrid = 43 diseases fully covered)
 - Cross-department causal chain analysis
 - Prescription system (preview → apply → verify → rollback)
 - Follow-up scheduling (auto in plugin mode)
