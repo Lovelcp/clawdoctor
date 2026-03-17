@@ -1287,7 +1287,87 @@ interface CausalChain {
 - AHP (Analytic Hierarchy Process, Saaty 1980) — for department weight determination
 - SonarQube Quality Model — for A-F grade mapping
 
-**Dual scoring method:**
+#### 6.6.1 Data Coverage Model
+
+Snapshot and stream modes have fundamentally different data density. The scoring
+system must make this visible, not hide it behind identical-looking scores.
+
+**Core principle: a score only reflects what was measurable. Missing data is "unknown", not "healthy".**
+
+```typescript
+type DataMode = "snapshot" | "stream" | "hybrid"; // hybrid = stream DB exists + fresh snapshot supplement
+
+interface HealthScore {
+  overall: number;              // 0-100, weighted from evaluable departments only
+  overallGrade: Grade;
+  dataMode: DataMode;
+  coverage: DataCoverage;       // how much of the possible analysis was performed
+  departments: Record<Department, DepartmentScore>;
+}
+
+interface DataCoverage {
+  evaluableMetrics: number;     // metrics with data
+  totalMetrics: number;         // metrics attempted
+  ratio: number;                // evaluableMetrics / totalMetrics (0-1)
+  skippedDiseases: Array<{      // diseases that couldn't be evaluated
+    diseaseId: string;
+    reason: "no_data" | "stream_only" | "llm_disabled";
+  }>;
+}
+
+interface DepartmentScore {
+  score: number | null;         // null = insufficient data to score this department
+  grade: Grade | "N/A";        // "N/A" when score is null
+  weight: number;
+  coverage: number;             // 0-1: what fraction of this dept's checks had data
+  evaluatedDiseases: number;
+  skippedDiseases: number;      // due to missing data
+  activeDiseases: number;
+  criticalCount: number;
+  warningCount: number;
+  infoCount: number;
+}
+```
+
+**Per-mode coverage expectations:**
+
+```
+Department       Snapshot coverage    Stream coverage    Gap
+───────────────  ─────────────────    ────────────────   ────────────────────
+System Vitals    100%                 100%               (none)
+Skill & Tool     ~60%                 100%               durationMs, precise error context
+Memory Cognition 100%                 100%               (none — filesystem-based)
+Agent Behavior   ~40%                 100%               precise step timing, subagent details
+Cost Metabolism  ~50%                 100%               cache hit/miss, per-call breakdown
+Security         100%                 100%               (none — config/filesystem-based)
+```
+
+**Overall score computation with coverage:**
+
+```typescript
+function computeOverallScore(
+  departments: Record<Department, DepartmentScore>,
+  weights: Record<Department, number>,
+): { overall: number; grade: Grade } {
+  let weightedSum = 0;
+  let totalWeight = 0;
+
+  for (const [dept, score] of Object.entries(departments)) {
+    if (score.score === null) continue;  // skip departments with insufficient data
+    const w = weights[dept as Department];
+    weightedSum += score.score * w;
+    totalWeight += w;
+  }
+
+  if (totalWeight === 0) return { overall: 0, grade: "N/A" as Grade };
+
+  // Re-normalize weights to sum to 1 over evaluable departments
+  const overall = weightedSum / totalWeight;
+  return { overall, grade: scoreToGrade(overall) };
+}
+```
+
+#### 6.6.2 Scoring Functions
 
 ```typescript
 // Per-event metrics (success rate, duration) → Apdex
@@ -1295,8 +1375,8 @@ function apdexScore(
   values: number[],
   threshold: { satisfied: number; frustrated: number },
   higherIsBetter: boolean,
-): number {
-  if (values.length === 0) return 100; // no data = healthy by default
+): number | null {
+  if (values.length === 0) return null;  // NO DATA = UNKNOWN, not healthy
   let satisfied = 0, tolerating = 0;
   for (const v of values) {
     if (higherIsBetter) {
@@ -1310,21 +1390,51 @@ function apdexScore(
   return ((satisfied + tolerating * 0.5) / values.length) * 100;
 }
 
-// Aggregate metrics (totals, ratios) → linear threshold mapping
+// Aggregate metrics → linear threshold mapping
 // Uses same { warning, critical } shape as ClawDocConfig.thresholds.
 // Direction is implicit in the threshold values:
 //   success rate: warning=0.75 > critical=0.50 → higher is better
 //   daily tokens: warning=100K < critical=500K → lower is better
 function linearScore(
-  value: number,
+  value: number | null,
   threshold: { warning: number; critical: number },
-): number {
-  const lo = threshold.critical;   // worst value → score 0
-  const hi = threshold.warning;    // boundary of "OK" → score 100
-  if (lo === hi) return 50;        // degenerate case: no range
+): number | null {
+  if (value === null) return null;     // NO DATA = UNKNOWN
+  const lo = threshold.critical;
+  const hi = threshold.warning;
+  if (lo === hi) return 50;
   return Math.max(0, Math.min(100, ((value - lo) / (hi - lo)) * 100));
 }
 ```
+
+#### 6.6.3 Department Score Aggregation
+
+```typescript
+function computeDepartmentScore(
+  metricScores: Array<{ metric: string; score: number | null }>,
+): DepartmentScore {
+  const evaluable = metricScores.filter(m => m.score !== null);
+  const skipped = metricScores.length - evaluable.length;
+
+  if (evaluable.length === 0) {
+    return { score: null, grade: "N/A", coverage: 0, /* ... */ };
+  }
+
+  const avg = evaluable.reduce((s, m) => s + m.score!, 0) / evaluable.length;
+  const coverage = evaluable.length / metricScores.length;
+
+  return {
+    score: avg,
+    grade: scoreToGrade(avg),
+    coverage,
+    evaluatedDiseases: evaluable.length,
+    skippedDiseases: skipped,
+    /* ... */
+  };
+}
+```
+
+#### 6.6.4 Weights, Grades, Special Rules
 
 **Department weights (AHP defaults):**
 
@@ -1343,18 +1453,19 @@ const DEFAULT_AHP_WEIGHTS: Record<Department, number> = {
 **Grade mapping (SonarQube style):**
 
 ```
-A: 90-100  Excellent
-B: 70-89   Good
-C: 50-69   Fair
-D: 25-49   Poor
-F: 0-24    Critical
+A:   90-100  Excellent
+B:   70-89   Good
+C:   50-69   Fair
+D:   25-49   Poor
+F:   0-24    Critical
+N/A: —       Insufficient data
 ```
 
 **Security department special rule (CVSS-inspired):**
 
 Any critical security disease → department score forced to 0 (grade F).
 
-**Threshold ↔ Score relationship (explicit contract):**
+#### 6.6.5 Threshold ↔ Score Relationship (explicit contract)
 
 Detection thresholds (from `ClawDocConfig.thresholds`) serve a dual purpose:
 1. **Disease detection**: `warning` and `critical` determine when a disease triggers
@@ -1365,10 +1476,11 @@ When a user adjusts `cost.dailyTokens.warning` from 100K to 200K, it simultaneou
 - Relaxes the CST-001 disease trigger (needs > 200K to warn)
 - Shifts the Cost department score curve (200K now maps to score 100 instead of 0)
 
-The mapping is: `linearScore(actualValue, { warning: threshold.warning, critical: threshold.critical })`
-where `warning` → score 100 (everything at or better than this is "healthy")
-and `critical` → score 0 (at or worse than this is "failing").
+The mapping is: `linearScore(actualValue, { warning, critical })`
+where `warning` → score 100 (at or better = "healthy")
+and `critical` → score 0 (at or worse = "failing").
 Values between are linearly interpolated.
+`null` input → `null` output → excluded from aggregation.
 
 ---
 
@@ -1655,8 +1767,10 @@ CREATE TABLE health_scores (
   id          TEXT PRIMARY KEY,
   agent_id    TEXT NOT NULL,
   timestamp   INTEGER NOT NULL,
-  overall     REAL NOT NULL,
-  vitals      REAL,
+  data_mode   TEXT NOT NULL,           -- 'snapshot' | 'stream' | 'hybrid'
+  coverage    REAL NOT NULL,           -- 0-1: fraction of metrics evaluable
+  overall     REAL,                    -- NULL if no departments evaluable
+  vitals      REAL,                    -- NULL if insufficient data
   skill       REAL,
   memory      REAL,
   behavior    REAL,
@@ -1793,42 +1907,45 @@ clawdoc config show                   # show current config
 
 ### 9.2 Terminal Health Report
 
+**Example: stream mode report (full data)**
+
 ```
 ┌──────────────────────────────────────────────────────────────────┐
 │                                                                  │
 │   ClawDoc Health Report                                          │
-│   Agent: default | Data: 2026-03-10 ~ 2026-03-17 (stream)       │
+│   Agent: default | Data: 2026-03-10 ~ 2026-03-17                │
+│   Mode: stream | Coverage: 100% (43/43 checks)                  │
 │                                                                  │
 │   Overall Health: 61/100  Grade C  ██████░░░░  Fair              │
 │                                                                  │
 ├──────────────────────────────────────────────────────────────────┤
 │                                                                  │
-│   System Vitals          95  A  ██████████  Excellent            │
+│   System Vitals          95  A  ██████████  Excellent  [6/6]     │
 │     Gateway: online | Config: valid | Plugins: 8 loaded          │
 │     > VIT-003 Stale Gateway Version (2026.3.5 -> 2026.3.13)     │
 │                                                                  │
-│   Skill & Tool           58  C  ██████░░░░  Fair                 │
+│   Skill & Tool           58  C  ██████░░░░  Fair       [10/10]  │
 │     14 tools tracked | 3 need attention                          │
 │     > SK-002 web_search: scenario paralysis (success 45%)        │
 │     > SK-006 file_edit: repetition compulsion (8x in 1 session)  │
 │     > SK-007 browser: zombie skill (0 calls in 14d)              │
 │                                                                  │
-│   Memory Cognition       52  C  █████░░░░░  Fair                 │
+│   Memory Cognition       52  C  █████░░░░░  Fair       [7/7]    │
 │     47 memory files | 12 stale | 2 conflicts detected            │
 │     > MEM-004 Conflicting entries about tool preferences         │
 │     > MEM-005 12 files not accessed in 30+ days                  │
 │                                                                  │
-│   Agent Behavior         68  B  ███████░░░  Good                 │
+│   Agent Behavior         68  B  ███████░░░  Good       [7/7]    │
 │     Task completion: 76% | Avg 4.8 steps/task                    │
 │     > BHV-002 Potential death loop in code review workflow        │
 │                                                                  │
-│   Cost Metabolism        48  D  █████░░░░░  Poor                 │
+│   Cost Metabolism        48  D  █████░░░░░  Poor       [6/6]    │
 │     7d total: 842K tokens ($18.40) | Daily trend: +23%           │
-│     Cache hit rate: 12% (stream data)                            │
+│     Cache hit rate: 12%                                          │
 │     > CST-001 Daily token usage exceeds warning threshold        │
 │     > CST-003 Cache hit rate critically low (12%)                │
 │                                                                  │
-│   Security Immunity      85  B  █████████░  Good                 │
+│   Security Immunity      85  B  █████████░  Good       [8/8]    │
 │     Sandbox: ON | Credential scan: clean                         │
 │     > SEC-004 plugin "custom-tool" requests unused permissions   │
 │                                                                  │
@@ -1868,6 +1985,68 @@ clawdoc config show                   # show current config
 │                                                                  │
 └──────────────────────────────────────────────────────────────────┘
 ```
+
+**Example: snapshot mode report (partial data)**
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│                                                                  │
+│   ClawDoc Health Report                                          │
+│   Agent: default | Data: 2026-03-10 ~ 2026-03-17                │
+│   Mode: snapshot | Coverage: 63% (27/43 checks)                 │
+│                                                                  │
+│   Overall Health: 72/100  Grade B  ███████░░░  Good              │
+│   ! Score based on partial data — install plugin for full report │
+│                                                                  │
+├──────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│   System Vitals          95  A  ██████████  Excellent  [5/5]     │
+│     Gateway: online | Config: valid | Plugins: 8 loaded          │
+│     > VIT-003 Stale Gateway Version (2026.3.5 -> 2026.3.13)     │
+│                                                                  │
+│   Skill & Tool           70  B  ███████░░░  Good       [5/10]   │
+│     14 tools tracked | 1 need attention                          │
+│     > SK-006 file_edit: repetition compulsion (8x in 1 session)  │
+│     > SK-007 browser: zombie skill (0 calls in 14d)              │
+│     ~ 5 checks skipped (need plugin for tool duration, error     │
+│       pattern analysis)                                          │
+│                                                                  │
+│   Memory Cognition       52  C  █████░░░░░  Fair       [2/7]    │
+│     47 memory files | 12 stale                                   │
+│     > MEM-005 12 files not accessed in 30+ days                  │
+│     ~ 5 checks skipped (need LLM for content quality analysis)   │
+│                                                                  │
+│   Agent Behavior         --  N/A                       [2/7]    │
+│     ~ Insufficient data for scoring (40% coverage)               │
+│     > BHV-005 agent_end success rate 68% (from session metadata) │
+│     ~ 5 checks skipped (need plugin for behavioral analysis)     │
+│                                                                  │
+│   Cost Metabolism        65  C  ██████░░░░  Fair        [3/6]    │
+│     7d total: 842K tokens (estimated from session metadata)      │
+│     ~ Cache analysis unavailable (need plugin)                   │
+│     > CST-001 Daily token usage exceeds warning threshold        │
+│                                                                  │
+│   Security Immunity      85  B  █████████░  Good       [7/8]    │
+│     Sandbox: ON | Credential scan: clean                         │
+│     > SEC-004 plugin "custom-tool" requests unused permissions   │
+│     ~ 1 check skipped (SEC-005 needs LLM for code analysis)     │
+│                                                                  │
+├──────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│   ! 16 checks skipped due to limited data                        │
+│     Install ClawDoc plugin for full diagnostics:                 │
+│     npm install clawdoc && openclaw config set plugins.clawdoc…  │
+│                                                                  │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+**Key report differences by mode:**
+- Header shows `Mode:` and `Coverage:` explicitly
+- Snapshot mode adds a warning line below the overall score
+- Each department shows `[evaluated/total]` check count
+- Departments with < 50% coverage show `N/A` instead of a potentially misleading score
+- Skipped checks are listed with brief reason
+- Snapshot report ends with plugin installation CTA instead of prescriptions
 
 ### 9.3 Web Dashboard
 
