@@ -103,7 +103,7 @@ Overlap exists in the `VIT-*` (System Vitals) department, which checks some of t
 │    BHV-*             │ death loop detection, conversation       │
 │                      │ efficiency                               │
 │                      │ Sources: agent_end + tool hooks + session │
-│                      │ Analysis: LLM primary (pattern recognition│
+│                      │ Analysis: LLM primary (pattern recognition)│
 ├──────────────────────┼──────────────────────────────────────────┤
 │ 5. Cost Metabolism   │ Token consumption, cache hit rate, model  │
 │    CST-*             │ routing, per-session/tool/model breakdown │
@@ -215,6 +215,7 @@ interface DiseaseDefinition {
 
 // ─── Disease Instance (runtime diagnosis result) ───
 interface DiseaseInstance {
+  id: string;                        // unique instance ID (ULID)
   definitionId: string;
   severity: Severity;
   evidence: Evidence[];
@@ -524,7 +525,13 @@ const SK001: DiseaseDefinition = {
     direction: "higher_is_worse",
     defaultThresholds: { warning: 50_000, critical: 200_000 },
   },
-  prescriptionTemplate: { /* see Section 6.3 */ },
+  prescriptionTemplate: {
+    level: "guided",
+    actionTypes: ["file_edit"],
+    promptTemplate: "Suggest how to reduce token usage for this skill...",
+    estimatedImprovementTemplate: { en: "-{value}% token consumption", zh: "Token 消耗降低 {value}%" },
+    risk: "low",
+  },
   relatedDiseases: ["CST-001", "SK-009"],
   defaultSeverity: "warning",
   tags: ["performance", "cost", "skill"],
