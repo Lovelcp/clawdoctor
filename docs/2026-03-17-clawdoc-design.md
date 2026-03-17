@@ -521,7 +521,7 @@ const SK001: DiseaseDefinition = {
   detection: {
     type: "rule",
     metric: "skill.singleCallTokens",
-    condition: { operator: "gt" },
+    direction: "higher_is_worse",
     defaultThresholds: { warning: 50_000, critical: 200_000 },
   },
   prescriptionTemplate: { /* see Section 6.3 */ },
@@ -1698,7 +1698,7 @@ clawdoc config show                   # show current config
 
 Launched via `clawdoc dashboard` or registered at `/clawdoc/*` in Plugin mode.
 
-**Tech:** embedded Hono server + single-file SPA, zero external dependencies.
+**Tech:** embedded Hono server + single-file SPA (all dependencies bundled, no runtime CDN required).
 
 **Pages:**
 
@@ -1817,9 +1817,10 @@ Week 3-4: Rule Engine + Six-Department Shallow Diagnosis
   - Disease Registry: register all rule-based diseases
       VIT-001~005, SK-001/004/006/007/009,
       MEM-003/005/007, BHV-005/007,
-      CST-001~006, SEC-001~004/007/008
+      CST-001~006, SEC-001~004/006~008
   - Health Scorer (Apdex + linear + AHP weights + grades)
   - Unit tests: every rule has a test case
+  - (28 rule-based diseases total)
 
 Week 5-6: Terminal Report + First Release
   - Terminal health report rendering (Ink)
@@ -1833,7 +1834,7 @@ Week 5-6: Terminal Report + First Release
 
 **Phase 1 deliverables:**
 - `npx clawdoc checkup` zero-config checkup (rules only, no LLM cost)
-- 27 rule-based disease detections across 6 departments
+- 28 rule-based disease detections across 6 departments
 - Terminal health report (scores, grades, disease list)
 - English default, Chinese switchable
 - Standalone CLI, no OpenClaw plugin required
@@ -1917,7 +1918,7 @@ Week 16-18: Continuous Monitoring + Polish
   - ClawHub integration (display health scores in skill marketplace)
   - Multi-agent comparison analysis
   - Team mode (shared dashboard)
-  - Lv.1 Auto prescriptions (ultra-low-risk only)
+  - `auto`-level prescriptions (ultra-low-risk only)
 ```
 
 ---
