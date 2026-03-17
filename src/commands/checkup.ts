@@ -51,8 +51,8 @@ export function registerCheckupCommand(program: Command): void {
     .option("--agent <agentId>", "Agent ID", "default")
     .action(async (opts) => {
       try {
-        const stateDir = join(homedir(), ".openclaw");
-        const workspaceDir = process.cwd();
+        const stateDir = process.env.CLAWDOC_STATE_DIR ?? join(homedir(), ".openclaw");
+        const workspaceDir = process.env.CLAWDOC_WORKSPACE_DIR ?? process.cwd();
 
         const since = parseSince(opts.since ?? "7d");
 
