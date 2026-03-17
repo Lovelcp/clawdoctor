@@ -1,0 +1,40 @@
+{
+  "name": "clawdoc",
+  "version": "0.1.0",
+  "description": "Health diagnostics for OpenClaw agents",
+  "type": "module",
+  "bin": {
+    "clawdoc": "./dist/bin.js"
+  },
+  "exports": {
+    ".": "./dist/index.js",
+    "./plugin": "./dist/plugin.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/bin.ts",
+    "test": "vitest",
+    "test:coverage": "vitest --coverage",
+    "check": "tsc --noEmit"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "better-sqlite3": "^12.8.0",
+    "commander": "^14.0.3",
+    "ink": "^6.8.0",
+    "react": "^19.2.4",
+    "ulid": "^3.0.2"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^25.5.0",
+    "@types/react": "^19.2.14",
+    "ink-testing-library": "^4.0.0",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.0"
+  }
+}
