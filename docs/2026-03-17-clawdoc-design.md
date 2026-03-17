@@ -1180,6 +1180,7 @@ function apdexScore(
   threshold: { satisfied: number; frustrated: number },
   higherIsBetter: boolean,
 ): number {
+  if (values.length === 0) return 100; // no data = healthy by default
   let satisfied = 0, tolerating = 0;
   for (const v of values) {
     if (higherIsBetter) {
@@ -1393,7 +1394,7 @@ type FollowUpVerdict =
   | { status: "resolved"; message: I18nString }
   | { status: "improving"; message: I18nString }
   | { status: "unchanged"; message: I18nString }
-  | { status: "worsened"; suggestRollback: boolean };
+  | { status: "worsened"; message: I18nString; suggestRollback: boolean };
 ```
 
 **Follow-up schedule:**
@@ -1564,10 +1565,19 @@ Automated cleanup based on `config.retention`:
 ```typescript
 function cleanupExpiredData(db: Database, config: ClawDocConfig): void {
   const now = Date.now();
-  db.exec(`DELETE FROM events WHERE timestamp < ${now - config.retention.eventMaxAgeDays * 86400000}`);
-  db.exec(`DELETE FROM diagnoses WHERE last_seen < ${now - config.retention.diagnosisMaxAgeDays * 86400000}`);
-  db.exec(`DELETE FROM health_scores WHERE timestamp < ${now - config.retention.healthScoreMaxAgeDays * 86400000}`);
+  const eventCutoff = now - config.retention.eventMaxAgeDays * 86400000;
+  const diagnosisCutoff = now - config.retention.diagnosisMaxAgeDays * 86400000;
+  const scoreCutoff = now - config.retention.healthScoreMaxAgeDays * 86400000;
+
+  db.prepare("DELETE FROM events WHERE timestamp < ?").run(eventCutoff);
+  db.prepare("DELETE FROM diagnoses WHERE last_seen < ?").run(diagnosisCutoff);
+  db.prepare("DELETE FROM health_scores WHERE timestamp < ?").run(scoreCutoff);
   // cascade: delete followups for deleted prescriptions
+  db.prepare(`
+    DELETE FROM followups WHERE prescription_id NOT IN (
+      SELECT id FROM prescriptions
+    )
+  `).run();
 }
 ```
 
@@ -1720,6 +1730,10 @@ Launched via `clawdoc dashboard` or registered at `/clawdoc/*` in Plugin mode.
 | **Rx** | Prescription list (pending/applied/rolled_back), diff preview, apply/rollback buttons, follow-up timeline |
 | **Timeline** | Global event timeline (all departments merged), filterable by event type |
 | **Settings** | Threshold editor, language switch, weight adjustment, LLM toggle, retention policy |
+
+**Dashboard API authentication:**
+- Plugin mode: uses `auth: "gateway"` (leverages OpenClaw gateway's existing token auth)
+- Standalone mode (`clawdoc dashboard`): localhost-only binding by default; write endpoints (`PUT /api/config`, `POST /api/prescriptions/:id/apply`, `POST /api/prescriptions/:id/rollback`) require a simple bearer token generated on first launch and printed to the terminal
 
 **Dashboard API:**
 
@@ -1937,7 +1951,7 @@ Week 16-18: Continuous Monitoring + Polish
 | Aspect | Detail |
 |--------|--------|
 | Meaning | Claw (lobster) + Doc (Doctor / Document) |
-| Pronunciation | /kl??d?k/ |
+| Pronunciation | /klɔːdɒk/ |
 | Tone | Professional, trustworthy — like a real doctor |
 | Extensibility | Not limited to skills; naturally covers "full-spectrum diagnostics" |
 | Ecosystem | Claw prefix aligns with OpenClaw / ClawHub |
