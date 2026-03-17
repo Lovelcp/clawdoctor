@@ -273,10 +273,12 @@ interface VerificationResult {
 interface RollbackResult {
   success: boolean;
   restoredFiles: string[];
+  skippedFiles: string[];            // already reverted (currentHash === preApplyHash)
   conflicts: Array<{                 // files modified after Rx application
     path: string;
-    backupHash: string;
-    currentHash: string;
+    preApplyHash: string;
+    postApplyHash: string;
+    currentHash: string;             // !== postApplyHash AND !== preApplyHash
   }>;
   error?: string;
 }
@@ -447,6 +449,8 @@ interface ClawDocConfig {
     "cost.dailyTokens": { warning: 100_000; critical: 500_000 };
     "cost.cacheHitRate": { warning: 0.30; critical: 0.10 };
     "cost.singleCallTokens": { warning: 50_000; critical: 200_000 };
+    "cost.luxurySessionTokenCeiling": { warning: 2000; critical: 1000 };
+    // CST-002: sessions below this token count are "simple" — if routed to an expensive model, flag it
     "cost.spikeMultiplier": { warning: 2.0; critical: 5.0 };
     "cost.failedSessionTokenRatio": { warning: 0.30; critical: 0.50 };
     "cost.compactionTokenRatio": { warning: 0.20; critical: 0.40 };
@@ -613,9 +617,13 @@ interface LLMCallData {
 
 interface ToolCallData {
   toolName: string;
-  params: Record<string, unknown>;
-  result?: unknown;
-  error?: string;
+  // PRIVACY: params and result are stored as REDACTED summaries, not raw values.
+  // - params: only key names + value types (e.g. { "query": "string", "limit": "number" })
+  // - result: only success/failure + size (e.g. { "type": "string", "length": 1234 })
+  // - Raw params/result are available via RawSampleProvider at analysis time, not persisted.
+  paramsSummary: Record<string, string>;  // key → value type descriptor
+  resultSummary?: { type: string; length?: number };
+  error?: string;                     // first 200 chars, redacted via redactPatterns
   durationMs?: number;                // stream only (precise)
   success: boolean;
 }
@@ -792,9 +800,9 @@ const clawdocPlugin: OpenClawPluginDefinition = {
         sessionKey: ctx.sessionKey,
         data: {
           toolName: event.toolName,
-          params: event.params,
-          result: event.result,
-          error: event.error,
+          paramsSummary: summarizeParams(event.params),   // keys + types only
+          resultSummary: summarizeResult(event.result),   // type + length only
+          error: redactAndTruncate(event.error, 200),
           durationMs: event.durationMs,
           success: !event.error,
         },
@@ -892,7 +900,35 @@ Stream Collector write strategy:
   - This limits write lock acquisition to brief, infrequent bursts.
 ```
 
-### 5.5 Event Deduplication
+### 5.5 Session Identity Canonicalization
+
+The snapshot and stream collectors produce different raw session identifiers:
+- **Snapshot**: reads `{ "type": "session", "id": "..." }` from JSONL header — this is a session UUID
+- **Stream**: receives `ctx.sessionKey` from plugin hooks — this is a routing key (e.g. `"telegram:12345"`)
+
+These are different concepts. OpenClaw internally maps `sessionKey → sessionId` but both are
+useful: `sessionKey` is stable across resets (identifies the conversation partner), while
+`sessionId` is ephemeral (regenerated on `/new` and `/reset`).
+
+**Canonical identity for ClawDoc:**
+
+```
+ClawDocEvent.sessionKey  = OpenClaw sessionKey (e.g. "telegram:12345")
+                           This is the primary grouping key for dedup and analysis.
+                           Snapshot collector derives it from the JSONL file path
+                           (session files are stored at sessions/<sessionKey>.jsonl).
+
+ClawDocEvent.sessionId   = OpenClaw sessionId (UUID, optional)
+                           Stream gets it from ctx.sessionId.
+                           Snapshot gets it from the JSONL header's id field.
+                           Used for per-conversation-instance analysis only.
+```
+
+Both collectors MUST normalize to the same `sessionKey` format. The snapshot collector
+derives `sessionKey` from the filename (not the header's `id`), ensuring it matches
+the stream collector's `ctx.sessionKey`.
+
+### 5.6 Event Deduplication
 
 When both snapshot and stream data coexist, use a **source-priority merge** strategy
 rather than per-event dedup (which is fragile with timestamp windows):
@@ -934,39 +970,115 @@ because stream data is a strict superset in quality.
 ### 6.1 Pipeline
 
 ```
-events (SQLite)
-  │
-  ▼
-Step 1: Metric Aggregation
-  Aggregate per-department metrics from events table.
-  Pure SQL computation, no LLM.
-  │
-  ▼
-Step 2: Rule Engine
-  Pure-rule diseases: threshold evaluation → confirmed DiseaseInstance
-  Hybrid diseases: rule pre-filter → mark as "suspect"
-  │
-  ▼
-Step 3: LLM Analyzer (if enabled)
-  Receives suspects + LLM-only disease definitions
-  Batch analysis: confirm / rule out / attribute root cause
-  Degrades gracefully on failure: "rule-based results only"
+                  ┌──────────────────────┐
+                  │  RawSampleProvider   │  ← live filesystem reads (not persisted)
+                  │  session transcripts │
+                  │  memory file content │
+                  │  skill definitions   │
+                  └──────────┬───────────┘
+                             │ (on-demand, per-analysis)
+events (SQLite)              │
+  │                          │
+  ▼                          ▼
+Step 1: Metric Aggregation   │
+  from events table (SQL)    │
+  │                          │
+  ▼                          │
+Step 2: Rule Engine          │
+  threshold checks           │
+  │                          │
+  ▼                          │
+Step 3: LLM Analyzer  ◄─────┘  (raw samples fed here)
+  confirm suspects + deep analysis
   │
   ▼
 Step 4: Cross-Department Linker
-  Causal chain reasoning across all active diagnoses
   │
   ▼
 Step 5: Prescription Generator
-  Generate prescriptions for each confirmed diagnosis
   │
   ▼
 Step 6: Health Scorer
-  Aggregate department scores → overall health score
   │
   ▼
 Output: diagnoses, prescriptions, health_scores → SQLite + report
 ```
+
+### 6.1.1 RawSampleProvider
+
+The LLM Analyzer, Prescription Generator, and Dashboard detail pages all need
+access to raw content (session transcripts, memory files, skill code) that is
+intentionally **not persisted** in the events table (see §8.3 Data Privacy).
+
+This is resolved by a `RawSampleProvider` — a read-only, on-demand filesystem
+accessor that fetches live data at analysis time. It is **not** a data store;
+it reads the current state of the filesystem each time it is called.
+
+```typescript
+interface RawSampleProvider {
+  // Session transcript excerpts (for LLM behavioral analysis)
+  // Reads live from ~/.openclaw/agents/<id>/sessions/*.jsonl
+  getRecentSessionSamples(
+    agentId: string,
+    limit: number,
+  ): Promise<SessionSample[]>;
+
+  // Memory file contents (for LLM memory quality analysis)
+  // Reads live from workspace memory directory
+  getMemoryFileContents(
+    limit: number,
+    maxTokensPerFile: number,
+  ): Promise<MemoryFileSample[]>;
+
+  // Skill/Plugin definitions (for SEC-005 code analysis)
+  // Reads live from plugin manifests / node_modules
+  getSkillDefinitions(
+    pluginIds: string[],
+  ): Promise<SkillDefinitionSample[]>;
+}
+
+interface SessionSample {
+  sessionKey: string;
+  messageCount: number;
+  // Only structural data: tool call sequences, roles, errors
+  // Message bodies are REDACTED before passing to LLM
+  toolCallSequence: Array<{
+    toolName: string;
+    success: boolean;
+    errorSummary?: string;  // first 200 chars, redacted
+  }>;
+  tokenUsage?: { input: number; output: number };
+}
+
+interface MemoryFileSample {
+  path: string;
+  content: string;          // truncated to maxTokensPerFile
+  frontmatter?: Record<string, unknown>;
+  modifiedAt: number;
+}
+
+interface SkillDefinitionSample {
+  pluginId: string;
+  source: string;
+  // Code content for security analysis (SEC-005)
+  codeSnippets: string[];   // truncated, relevant files only
+}
+```
+
+**Data flow for each consumer:**
+
+```
+Consumer                    Data Source              Persistence
+─────────────────────────  ─────────────────────    ────────────
+checkup (LLM analysis)     RawSampleProvider        none (live read)
+follow-up re-check         RawSampleProvider        none (live read)
+Dashboard detail pages      RawSampleProvider        none (live read)
+Dashboard overview/trends   events table (SQLite)    persisted
+Rule Engine                 MetricSet (from events)  persisted
+```
+
+All three consumers that need raw content call `RawSampleProvider` at request
+time. Raw content never enters SQLite. This closes the data provenance loop.
 
 ### 6.2 Metric Aggregation
 
@@ -1009,6 +1121,8 @@ interface MetricSet {
     avgStepsPerSession: number;
     subagentSpawnCount: number;
     subagentFailureRate: number;
+    verboseRatio: number | null;      // (total assistant tokens) / (tool call count)
+                                      // high ratio = agent talking more than acting
   };
 
   cost: {
@@ -1240,6 +1354,22 @@ F: 0-24    Critical
 
 Any critical security disease → department score forced to 0 (grade F).
 
+**Threshold ↔ Score relationship (explicit contract):**
+
+Detection thresholds (from `ClawDocConfig.thresholds`) serve a dual purpose:
+1. **Disease detection**: `warning` and `critical` determine when a disease triggers
+2. **Health scoring**: the same values define the score curve via `linearScore`
+
+This is intentional — a single source of truth avoids config fragmentation.
+When a user adjusts `cost.dailyTokens.warning` from 100K to 200K, it simultaneously:
+- Relaxes the CST-001 disease trigger (needs > 200K to warn)
+- Shifts the Cost department score curve (200K now maps to score 100 instead of 0)
+
+The mapping is: `linearScore(actualValue, { warning: threshold.warning, critical: threshold.critical })`
+where `warning` → score 100 (everything at or better than this is "healthy")
+and `critical` → score 0 (at or worse than this is "failing").
+Values between are linearly interpolated.
+
 ---
 
 ## 7. Prescription System
@@ -1367,14 +1497,18 @@ interface PrescriptionBackup {
     type: "file_content" | "config_snapshot";
     path: string;
     originalContent: string;
-    contentHash: string;              // for conflict detection on rollback
+    preApplyHash: string;             // hash of file BEFORE prescription was applied
+    postApplyHash: string;            // hash of file AFTER prescription was applied
   }>;
 }
 
 // Rollback conflict detection:
-// Before restoring, compare current file hash with backup's contentHash.
-// If they differ, the file was modified after Rx application.
-// In that case: warn user, show diff between current and backup, ask for confirmation.
+// At apply time: store preApplyHash (original) and postApplyHash (after edit).
+// At rollback time: compute currentHash of the file on disk.
+//   - currentHash === postApplyHash → file untouched since Rx → safe to rollback
+//   - currentHash === preApplyHash → file was already reverted → skip (idempotent)
+//   - currentHash !== either → file was modified by user/another Rx after apply
+//     → warn user, show three-way diff (original / applied / current), ask for confirmation
 ```
 
 ### 7.5 Follow-up System
@@ -1559,11 +1693,28 @@ const MIGRATIONS: Record<number, (db: Database) => void> = {
 
 ### 8.3 Data Privacy
 
-- SQLite stores **aggregated metrics**, not raw conversation content
-- LLM analysis inputs are sanitized using OpenClaw's `logging.redactPatterns`
-- Dashboard API exposes statistics and diagnosis results, not raw conversations
-- Memory file content is read for LLM analysis but not persisted in events table
-- Session JSONL content is parsed for structure (tool calls, roles) but message bodies are not stored
+**What is persisted in SQLite (safe for long-term storage):**
+- `LLMCallData`: model, provider, token counts, success/error — no prompt content
+- `ToolCallData`: tool name, param key names + types (not values), result type + size (not content), redacted error snippets
+- `SessionLifecycleData`, `AgentLifecycleData`: counts and durations only
+- Diagnoses, prescriptions, health scores: derived analytics, no raw user data
+- `ConfigSnapshotData`: config hash + aggregate counts, not config values
+
+**What is NOT persisted (accessed live via RawSampleProvider when needed):**
+- Session message bodies / conversation text
+- Tool call parameter values and result content
+- Memory file content
+- Skill/plugin source code
+
+**Redaction strategy:**
+- `ToolCallData.error` is truncated to 200 chars and processed through OpenClaw's `logging.redactPatterns` before storage
+- `ToolCallData.paramsSummary` stores only key names and value type descriptors (e.g. `{ "query": "string" }`), never actual values
+- `RawSampleProvider` applies the same `redactPatterns` before passing data to LLM Analyzer
+
+**Dashboard API privacy:**
+- `GET /api/events` returns persisted events (redacted summaries only)
+- Dashboard detail pages that show raw content (e.g. memory file preview) call `RawSampleProvider` live and never cache/persist the result
+- All API endpoints respect the same redaction pipeline
 
 ### 8.4 Data Retention
 
