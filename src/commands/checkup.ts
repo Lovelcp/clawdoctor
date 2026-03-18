@@ -123,22 +123,18 @@ export function registerCheckupCommand(program: Command): void {
         process.exitCode = determineExitCode(result.diseases, opts.failOn);
 
         if (opts.autoFix && result.prescriptions?.length) {
+          const { autoApplyPrescriptions } = await import("../prescription/auto-apply.js");
           const applicable = filterAutoApplicable(result.prescriptions);
           if (applicable.length > 0) {
             console.log(`\nAuto-applying ${applicable.length} low-risk prescription(s)...`);
             const dbPath = join(homedir(), ".clawdoc", "clawdoc.db");
-            const configFilePath = join(stateDir, "clawdoc.json");
-            const config = loadConfig(configFilePath);
             const db = openDatabase(dbPath);
             const executor = createPrescriptionExecutor(db, config);
-            for (const rx of applicable) {
-              try {
-                const execResult = await executor.execute(rx.id);
-                console.log(`  ✓ ${rx.id}: ${execResult.success ? "applied" : "failed"}`);
-              } catch (e) {
-                console.log(`  ✗ ${rx.id}: ${e}`);
-              }
+            const autoResult = await autoApplyPrescriptions(applicable, executor);
+            for (const r of autoResult.results) {
+              console.log(r.success ? `  ✓ ${r.prescriptionId}: applied` : `  ✗ ${r.prescriptionId}: ${r.error}`);
             }
+            console.log(`\nAuto-fix summary: ${autoResult.applied} applied, ${autoResult.failed} failed`);
             db.close();
           }
         }

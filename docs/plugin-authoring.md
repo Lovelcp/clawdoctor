@@ -72,49 +72,58 @@ Tag your package with `clawdoc-plugin` so it is discoverable on npm.
 ## DiseaseDefinition Schema
 
 ```typescript
-import type { DiseaseDefinition } from 'clawdoc/plugin';
+import type { DiseaseDefinition } from 'clawdoc';
 
 const myDisease: DiseaseDefinition = {
-  // Unique ID — use `<plugin-name>.<disease-slug>` to avoid collisions
-  id: 'my-rules.excessive-retries',
+  // Unique ID — use a prefix to avoid collisions with built-in diseases
+  id: 'CUSTOM-001',
 
-  // Human-readable name shown in reports
-  name: 'Excessive Retry Syndrome',
-
-  // One of: 'vitals' | 'skill' | 'memory' | 'behavior' | 'cost' | 'security'
+  // Department: 'vitals' | 'skill' | 'memory' | 'behavior' | 'cost' | 'security'
   department: 'behavior',
 
-  // One of: 'info' | 'warning' | 'error' | 'critical'
-  severity: 'warning',
+  // Category within department (for grouping)
+  category: 'reliability',
 
-  // Short description shown in the report summary
-  description: 'Agent retries the same operation more than 5 times in a row.',
+  // Multi-language name (en required, others optional)
+  name: { en: 'Excessive Retry Syndrome', zh: '过度重试综合症' },
 
-  // Optional: longer explanation with markdown support
-  details: `
-    Repeated retries without backoff can indicate a stuck loop or a misunderstanding
-    of tool error semantics. Investigate the tool that is being retried.
-  `,
-
-  // Optional: tags for filtering and grouping
-  tags: ['loop', 'retry', 'stability'],
-
-  // The detection function — see Detection Context API below
-  detect(context) {
-    const retries = context.events.filter(e => e.type === 'retry');
-    if (retries.length > 5) {
-      return {
-        detected: true,
-        evidence: [`${retries.length} retries observed in session`],
-        // Health score contribution: 0 (healthy) to 100 (critically ill)
-        score: Math.min(100, retries.length * 8),
-      };
-    }
-    return { detected: false };
+  // Multi-language description
+  description: {
+    en: 'Agent retries the same operation more than 5 times in a row.',
+    zh: 'Agent 对同一操作重试超过5次。',
   },
 
-  // Optional: list of prescriptions (fixes)
-  prescriptions: [],
+  // Possible root causes
+  rootCauses: [
+    { en: 'Missing retry limit in agent config', zh: '缺少重试限制配置' },
+    { en: 'Tool error not properly propagated', zh: '工具错误未正确传播' },
+  ],
+
+  // Detection strategy: 'rule' (threshold-based), 'llm' (LLM analysis), or 'hybrid'
+  detection: {
+    type: 'rule',
+    metric: 'behavior.loopDetectionThreshold',
+    direction: 'higher_is_worse',
+    defaultThresholds: { warning: 3, critical: 5 },
+  },
+
+  // Prescription template for auto-generating fixes
+  prescriptionTemplate: {
+    level: 'guided',
+    actionTypes: ['file_edit'],
+    promptTemplate: 'Suggest adding a retry limit to the agent configuration...',
+    estimatedImprovementTemplate: { en: 'Reduce retries by {value}%', zh: '减少 {value}% 重试' },
+    risk: 'low',
+  },
+
+  // Related disease IDs for cross-referencing
+  relatedDiseases: ['BHV-002'],
+
+  // Default severity: 'info' | 'warning' | 'critical'
+  defaultSeverity: 'warning',
+
+  // Tags for filtering and grouping
+  tags: ['loop', 'retry', 'stability'],
 };
 ```
 

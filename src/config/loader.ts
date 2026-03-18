@@ -99,6 +99,13 @@ function deepMerge(
     }
   }
 
+  // plugins — array of plugin package names
+  if (Array.isArray(user["plugins"])) {
+    result.plugins = (user["plugins"] as unknown[]).filter(
+      (p): p is string => typeof p === "string",
+    );
+  }
+
   // retention — shallow merge
   if (isRecord(user["retention"])) {
     const userRetention = user["retention"];

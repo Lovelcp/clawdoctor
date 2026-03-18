@@ -154,8 +154,17 @@ export async function runCheckup(opts: CheckupOptions): Promise<CheckupResult> {
     };
     const metrics = aggregateMetrics(db, agentId, timeRange);
 
-    // ── 6. Evaluate rules (now includes hybrid preFilter) ────────────────────
-    const ruleResults = evaluateRules(metrics, config, registry);
+    // ── 6. Evaluate rules (now includes hybrid preFilter + custom plugin rules)
+    const customRules: Record<string, import("../plugins/plugin-types.js").CustomRuleEvaluator> = {};
+    if (opts.plugins) {
+      for (const p of opts.plugins) {
+        if (p.rules) Object.assign(customRules, p.rules);
+      }
+    }
+    const ruleResults = evaluateRules(
+      metrics, config, registry,
+      Object.keys(customRules).length > 0 ? customRules : undefined,
+    );
 
     // ── 7. Convert RuleResults → DiseaseInstance[] ───────────────────────────
     const diseases: DiseaseInstance[] = ruleResults.map((r) => {
