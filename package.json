@@ -21,11 +21,11 @@
     "node": ">=22"
   },
   "keywords": ["openclaw", "diagnostics", "health", "agent", "ai", "lobster", "clawdoctor", "llm"],
-  "homepage": "https://github.com/openclaw/clawdoctor",
-  "repository": { "type": "git", "url": "https://github.com/openclaw/clawdoctor.git" },
-  "bugs": { "url": "https://github.com/openclaw/clawdoctor/issues" },
+  "homepage": "https://github.com/Lovelcp/clawdoctor",
+  "repository": { "type": "git", "url": "https://github.com/Lovelcp/clawdoctor.git" },
+  "bugs": { "url": "https://github.com/Lovelcp/clawdoctor/issues" },
   "files": ["dist/", "README.md", "LICENSE"],
-  "license": "MIT",
+  "license": "Apache-2.0",
   "dependencies": {
     "@hono/node-server": "^1.19.11",
     "better-sqlite3": "^12.8.0",

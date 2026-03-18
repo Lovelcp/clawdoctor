@@ -15,7 +15,7 @@ Thank you for your interest in contributing to ClawDoctor! This document explain
 
 ## Bug Reports
 
-Before filing a bug report, please check the [existing issues](https://github.com/openclaw/clawdoctor/issues) to avoid duplicates.
+Before filing a bug report, please check the [existing issues](https://github.com/Lovelcp/clawdoctor/issues) to avoid duplicates.
 
 When filing a bug report, include:
 
@@ -26,7 +26,7 @@ When filing a bug report, include:
 5. **Expected behavior** vs **actual behavior**
 6. **Full error output** (use `clawdoctor checkup --verbose` if applicable)
 
-Use the [Bug Report issue template](https://github.com/openclaw/clawdoctor/issues/new?template=bug_report.md) on GitHub.
+Use the [Bug Report issue template](https://github.com/Lovelcp/clawdoctor/issues/new?template=bug_report.md) on GitHub.
 
 ---
 
@@ -142,7 +142,7 @@ Examples:
 
 ```bash
 # Clone the repo
-git clone https://github.com/openclaw/clawdoctor.git
+git clone https://github.com/Lovelcp/clawdoctor.git
 cd clawdoctor
 
 # Install dependencies (requires pnpm)
