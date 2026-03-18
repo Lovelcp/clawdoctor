@@ -620,14 +620,28 @@ export function createDashboardApp(opts: DashboardOptions): Hono {
 
 GET /api/health reads the `health_score_json` column directly — no reconstruction from flat scores.
 
-**Standalone dashboard data flow:** When dashboard opens `:memory:` DB (no persistent plugin DB), it runs a fresh snapshot checkup on startup to populate events/diagnoses/health_scores. This ensures all API endpoints return real data even without the plugin:
+**Standalone dashboard data flow:** When no persistent plugin DB exists, the dashboard command:
+1. Creates `~/.clawdoc/clawdoc.db` (persistent, not in-memory)
+2. Runs `runCheckup({ db, noLlm: config.llm.enabled ? false : true, ... })` to populate it
+3. Starts the Hono server using the same `db`
+
+This ensures all API endpoints (including `/api/metrics/:dept`, `/api/health`, `/api/prescriptions`) return real data from the checkup results. The DB persists across dashboard restarts.
+
 ```typescript
-// In dashboard startup (dashboard-cmd.ts):
-if (dbPath === ":memory:") {
-  const checkupDb = openDatabase(":memory:");
-  const result = await runCheckup({ agentId: "default", stateDir, workspaceDir, noLlm: true, db: checkupDb });
-  // Copy events + diagnoses + scores into the dashboard's DB
+// In dashboard-cmd.ts:
+const dbDir = join(process.env.HOME ?? "~", ".clawdoc");
+mkdirSync(dbDir, { recursive: true });
+const dbPath = join(dbDir, "clawdoc.db");
+const db = openDatabase(dbPath);
+
+// If no recent health score, run a fresh checkup to populate
+const scoreStore = createScoreStore(db);
+const latest = scoreStore.queryLatestScore("default");
+if (!latest || Date.now() - latest.timestamp > 3600_000) {
+  await runCheckup({ agentId: "default", stateDir, workspaceDir, db, noLlm: !config.llm.enabled });
 }
+
+await startDashboard({ db, config, port, authToken });
 ```
 
 - [ ] **Step 2: Write server.test.ts testing ALL 14 endpoints**
@@ -990,7 +1004,43 @@ describe("evaluateRules — hybrid diseases", () => {
 });
 ```
 
-- [ ] **Step 3: Extend analysis pipeline with LLM step**
+- [ ] **Step 3: Refactor runCheckup DB lifecycle (ROOT FIX for data persistence)**
+
+**The core problem:** Phase 1's `runCheckup()` creates an in-memory DB, writes all data, returns `CheckupResult`, and closes the DB. In Phase 2, three consumers need persistent data: prescription CLI (`rx list`), dashboard (all API routes), and follow-up scheduler (plugin mode). The ephemeral DB means LLM diagnoses, prescriptions, causal chains, and health scores are all lost.
+
+**Fix:** Add `db?: Database.Database` to `CheckupOptions`. When provided, the pipeline uses the caller's DB and does NOT close it. When not provided, behavior is unchanged (ephemeral, auto-close).
+
+```typescript
+export interface CheckupOptions {
+  agentId: string;
+  stateDir: string;
+  workspaceDir: string;
+  departments?: Department[];
+  since?: number;
+  noLlm: boolean;
+  configPath?: string;
+  db?: Database.Database;  // NEW: caller-provided persistent DB (caller owns lifecycle)
+}
+
+// In runCheckup():
+const db = opts.db ?? openDatabase(":memory:");
+const callerOwnsDb = !!opts.db;
+try {
+  // ... full pipeline ...
+} finally {
+  if (!callerOwnsDb) db.close();
+}
+```
+
+This enables:
+- **CLI mode (`clawdoc checkup`):** No DB provided → ephemeral, same as Phase 1.
+- **CLI mode (`clawdoc checkup` then `clawdoc rx list`):** `checkup` saves to `~/.clawdoc/clawdoc.db`, `rx list` reads from same.
+- **Dashboard standalone:** `dashboard-cmd.ts` opens `~/.clawdoc/clawdoc.db`, runs `runCheckup({ db })` to populate it, then serves the Hono app using the same DB.
+- **Plugin mode:** Plugin opens persistent DB, passes it to checkup calls.
+
+**Also add:** explicit `prescriptionStore.insertPrescription()` and `diagnosisStore.insertDiagnosis()` calls for LLM-confirmed diseases in the pipeline, and `causalChainStore.insertChain()` for causal chains. These must happen BEFORE `db.close()`.
+
+- [ ] **Step 4: Extend analysis pipeline with LLM step**
 
 Update `CheckupResult`:
 ```typescript
@@ -1011,15 +1061,19 @@ When `noLlm` is false and LLM provider is available:
 3. Fetch raw samples via RawSampleProvider
 4. Call analyzeLLM()
 5. Merge LLM results with rule results (convert evidence: string → { en: string }, set type: "llm_analysis")
-6. Persist causal chains to causal_chain_store
-7. Generate prescriptions for confirmed diseases
-8. Persist HealthScore as JSON via insertHealthScoreWithJson()
+6. **Persist** LLM-confirmed diseases: `diagnosisStore.insertDiagnosis()` for each new DiseaseInstance
+7. **Persist** causal chains: `causalChainStore.insertChain()` for each chain
+8. Generate prescriptions for confirmed diseases via `generatePrescription()`
+9. **Persist** prescriptions: `prescriptionStore.insertPrescription()` for each
+10. Schedule follow-ups: `prescriptionStore.insertFollowup()` with T+1h/24h/7d checkpoints
+11. Backfill `CausalChain.unifiedPrescription` for chains whose root cause has a generated prescription
+12. Persist HealthScore as JSON via `insertHealthScoreWithJson()`
 
 When LLM fails: set `llmDegradationReason`, keep rule-only results.
 
-- [ ] **Step 4: Update terminal report for causal chains + prescriptions**
-- [ ] **Step 5: Run full test suite, fix any broken tests**
-- [ ] **Step 6: Commit**
+- [ ] **Step 5: Update terminal report for causal chains + prescriptions**
+- [ ] **Step 6: Run full test suite, fix any broken tests**
+- [ ] **Step 7: Commit**
 
 ```bash
 git add src/analysis/ src/commands/checkup.ts src/report/ src/store/score-store.ts
