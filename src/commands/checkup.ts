@@ -10,6 +10,7 @@ import { join } from "node:path";
 import { runCheckup } from "../analysis/analysis-pipeline.js";
 import { renderReport } from "../report/terminal-report.js";
 import { buildReportViewModel } from "./report-builder.js";
+import { loadPlugins } from "../plugins/plugin-loader.js";
 import type { Department } from "../types/domain.js";
 import type { CheckupOptions } from "../analysis/analysis-pipeline.js";
 
@@ -38,6 +39,19 @@ export function parseSince(since: string): number {
   }
 }
 
+// ─── determineExitCode ────────────────────────────────────────────────────────
+
+export function determineExitCode(
+  diseases: Array<{ severity: string }>,
+  failOn?: string,
+): number {
+  if (!failOn) return 0;
+  const severityRank: Record<string, number> = { info: 1, warning: 2, critical: 3 };
+  const threshold = severityRank[failOn] ?? 3;
+  const hasFailure = diseases.some(d => (severityRank[d.severity] ?? 0) >= threshold);
+  return hasFailure ? 1 : 0;
+}
+
 // ─── registerCheckupCommand ───────────────────────────────────────────────────
 
 export function registerCheckupCommand(program: Command): void {
@@ -49,6 +63,8 @@ export function registerCheckupCommand(program: Command): void {
     .option("--no-llm", "Rules only, no LLM analysis")
     .option("--json", "Output as JSON")
     .option("--agent <agentId>", "Agent ID", "default")
+    .option("--fail-on <severity>", "Exit with code 1 if diseases at or above this severity (critical, warning, info)")
+    .option("--plugins <list>", "Comma-separated list of community plugin package names to load")
     .action(async (opts) => {
       try {
         const stateDir = process.env.CLAWDOC_STATE_DIR ?? join(homedir(), ".openclaw");
@@ -60,6 +76,12 @@ export function registerCheckupCommand(program: Command): void {
           ? (opts.dept as string).split(",").map((d: string) => d.trim() as Department)
           : undefined;
 
+        // ── Load community plugins ────────────────────────────────────────────
+        const pluginNames: string[] = opts.plugins
+          ? (opts.plugins as string).split(",").map((p: string) => p.trim()).filter(Boolean)
+          : [];
+        const plugins = pluginNames.length > 0 ? await loadPlugins(pluginNames) : [];
+
         const checkupOpts: CheckupOptions = {
           agentId: opts.agent ?? "default",
           stateDir,
@@ -67,6 +89,7 @@ export function registerCheckupCommand(program: Command): void {
           since,
           noLlm: opts.llm === false,
           departments,
+          plugins: plugins.length > 0 ? plugins : undefined,
         };
 
         const result = await runCheckup(checkupOpts);
@@ -87,6 +110,8 @@ export function registerCheckupCommand(program: Command): void {
           const report = renderReport(viewModel, "en");
           console.log(report);
         }
+
+        process.exitCode = determineExitCode(result.diseases, opts.failOn);
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         console.error(`[clawdoc] checkup failed: ${message}`);
