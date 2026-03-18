@@ -131,20 +131,22 @@ const myDisease: DiseaseDefinition = {
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `id` | `string` | Globally unique disease ID |
-| `name` | `string` | Display name |
-| `department` | `Department` | Which department owns this disease |
-| `severity` | `Severity` | Default severity level |
-| `description` | `string` | One-sentence summary |
-| `detect` | `DetectFn` | Detection function |
+| `id` | `string` | Globally unique disease ID (use prefix to avoid collisions) |
+| `department` | `Department` | `"vitals" \| "skill" \| "memory" \| "behavior" \| "cost" \| "security"` |
+| `category` | `string` | Grouping within department (e.g., `"reliability"`) |
+| `name` | `I18nString` | `{ en: "...", zh: "..." }` — display name |
+| `description` | `I18nString` | `{ en: "...", zh: "..." }` — one-sentence summary |
+| `rootCauses` | `I18nString[]` | Possible root causes |
+| `detection` | `DetectionStrategy` | `{ type: "rule", metric, direction, defaultThresholds }` or `"llm"` / `"hybrid"` |
+| `prescriptionTemplate` | `PrescriptionTemplate` | Template for auto-generating fixes |
+| `defaultSeverity` | `Severity` | `"info" \| "warning" \| "critical"` |
 
 ### Optional Fields
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `details` | `string` | Markdown explanation |
-| `tags` | `string[]` | Tags for filtering |
-| `prescriptions` | `Prescription[]` | Auto-fix definitions |
+| `relatedDiseases` | `string[]` | IDs of related diseases for cross-referencing |
+| `tags` | `string[]` | Tags for filtering and grouping |
 
 ---
 

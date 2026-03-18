@@ -11,6 +11,11 @@ export interface BadgeOptions {
   label?: string;  // default "ClawDoc"
 }
 
+// XML entity escaping to prevent SVG injection
+function escapeXml(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&apos;");
+}
+
 // ─── Grade → badge color ───
 
 const GRADE_COLORS: Record<string, string> = {
@@ -44,7 +49,7 @@ function textWidth(text: string): number {
  * Colors: label panel is #555, value panel is grade-dependent.
  */
 export function generateBadge(opts: BadgeOptions): string {
-  const label = opts.label ?? "ClawDoc";
+  const label = escapeXml(opts.label ?? "ClawDoc");
   const grade = opts.grade;
   const score = opts.score;
 
