@@ -37,7 +37,8 @@ export interface CausalChain {
   rootCause: DiagnosisRef;
   chain: DiagnosisRef[];
   impact: I18nString;
-  unifiedPrescription: Prescription;
+  unifiedPrescription?: Prescription;  // optional: populated by Prescription Engine after causal analysis
+  // Pipeline order: Rule Engine → LLM Analyzer (creates chain without Rx) → Prescription Engine (fills Rx)
 }
 
 export interface PrescriptionPreview {
@@ -558,6 +559,30 @@ describe("LLMAnalyzer", () => {
     expect(result.error).toBeDefined();
   });
 
+  it("evaluates LLM-only diseases even with empty suspects", async () => {
+    const mockClient = {
+      analyze: vi.fn()
+        .mockResolvedValueOnce({
+          diagnoses: [{ diseaseId: "MEM-001", status: "confirmed", severity: "warning", confidence: 0.8, evidence: [], rootCause: "test" }],
+          tokensUsed: { input: 500, output: 200 },
+        })
+        .mockResolvedValueOnce({ diagnoses: [], tokensUsed: { input: 500, output: 200 } })
+        .mockResolvedValueOnce({ diagnoses: [], tokensUsed: { input: 500, output: 200 } }),
+    };
+
+    const result = await analyzeLLM({
+      client: mockClient,
+      suspects: [],  // no suspects from rule engine
+      llmOnlyDiseases: [{ id: "MEM-001", detection: { type: "llm" } }],
+      metrics: {} as any,
+      samples: { recentSessions: [], memoryFiles: [], skillDefinitions: [] },
+      config: { maxTokensPerCheckup: 50000, maxTokensPerDiagnosis: 10000 },
+    });
+
+    expect(result.confirmed).toHaveLength(1);
+    expect(result.confirmed[0].diseaseId).toBe("MEM-001");
+  });
+
   it("skips remaining rounds when token budget exceeded", async () => {
     const mockClient = {
       analyze: vi.fn().mockResolvedValue({
@@ -596,11 +621,13 @@ git commit -m "feat: add 3-round LLM analyzer with budget enforcement and degrad
 
 ---
 
-### Task 4: Causal Chain Linker
+### Task 4: Causal Chain Linker + Store
 
 **Files:**
 - Create: `src/llm/causal-linker.ts`
 - Create: `src/llm/causal-linker.test.ts`
+- Create: `src/store/causal-chain-store.ts`
+- Create: `src/store/causal-chain-store.test.ts`
 
 - [ ] **Step 1: Write failing test**
 
@@ -847,7 +874,9 @@ export function registerHealthRoutes(app: Hono, db: Database): void {
   app.get("/api/health", (c) => {
     const scoreStore = createScoreStore(db);
     const diagnosisStore = createDiagnosisStore(db);
-    const latestScores = scoreStore.queryScoreHistory({ agentId: "default", limit: 1 });
+    // NOTE: existing queryScoreHistory sorts ASC. Use since/until to get latest,
+    // or add a getLatestScore() helper to score-store.ts that uses ORDER BY timestamp DESC LIMIT 1.
+    const latestScores = scoreStore.queryLatestScore("default");
     if (latestScores.length === 0) return c.json({ error: "No health data" }, 404);
 
     const activeDiseases = diagnosisStore.queryDiagnoses({ agentId: "default", status: "active" });
@@ -1229,8 +1258,8 @@ git commit -m "feat: add OpenClaw plugin with stream collector and event bufferi
 - Create: `src/prescription/prescription-generator.test.ts`
 - Create: `src/prescription/prescription-executor.ts`
 - Create: `src/prescription/prescription-executor.test.ts`
-- Create: `src/prescription/prescription-store.ts`
-- Create: `src/prescription/prescription-store.test.ts`
+- Create: `src/store/prescription-store.ts` (follows existing store convention)
+- Create: `src/store/prescription-store.test.ts`
 - Create: `src/prescription/backup.ts`
 - Create: `src/prescription/backup.test.ts`
 - Create: `src/prescription/followup.ts`
@@ -1325,8 +1354,10 @@ git commit -m "feat: add prescription engine with generate, execute, backup, rol
 ### Task 13: Pipeline Integration
 
 **Files:**
-- Modify: `src/analysis/analysis-pipeline.ts`
-- Modify: `src/commands/checkup.ts`
+- Modify: `src/analysis/rule-engine.ts` (extend evaluateRules for hybrid preFilters)
+- Modify: `src/analysis/analysis-pipeline.ts` (add LLM analyzer step, causal chains, prescriptions)
+- Modify: `src/commands/checkup.ts` (remove noLlm hardcode, support --no-llm flag)
+- Modify: `src/report/terminal-report.ts` (add causal chain + prescription sections)
 
 - [ ] **Step 1: Extend analysis pipeline with LLM step**
 
