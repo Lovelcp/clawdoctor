@@ -1,6 +1,6 @@
 // ═══════════════════════════════════════════════
 //  Badge Command
-//  clawinsight badge — generate a Skill Quality Badge
+//  clawdoctor badge — generate a Skill Quality Badge
 //  Design spec: Phase 3, Task 1
 // ═══════════════════════════════════════════════
 
@@ -26,12 +26,12 @@ export function registerBadgeCommand(program: Command): void {
       "Output format: svg (default) | markdown",
       "svg",
     )
-    .option("--label <label>", "Badge label text", "ClawInsight")
+    .option("--label <label>", "Badge label text", "ClawDoctor")
     .action(async (opts) => {
       try {
-        const dbDir = join(homedir(), ".clawinsight");
+        const dbDir = join(homedir(), ".clawdoctor");
         mkdirSync(dbDir, { recursive: true });
-        const dbPath = join(dbDir, "clawinsight.db");
+        const dbPath = join(dbDir, "clawdoctor.db");
         const db = openDatabase(dbPath);
         const scoreStore = createScoreStore(db);
 
@@ -47,7 +47,7 @@ export function registerBadgeCommand(program: Command): void {
         const svg = generateBadge({
           grade,
           score,
-          label: opts.label ?? "ClawInsight",
+          label: opts.label ?? "ClawDoctor",
         });
 
         // ── Output handling ──
@@ -62,7 +62,7 @@ export function registerBadgeCommand(program: Command): void {
             mkdirSync(dir, { recursive: true });
           }
           writeFileSync(outputFile, svg, "utf-8");
-          const altText = `ClawInsight: ${grade} ${grade === "N/A" ? "" : Math.round(score)}`.trim();
+          const altText = `ClawDoctor: ${grade} ${grade === "N/A" ? "" : Math.round(score)}`.trim();
           process.stdout.write(`![${altText}](${outputFile})\n`);
           return;
         }
@@ -80,7 +80,7 @@ export function registerBadgeCommand(program: Command): void {
         }
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
-        process.stderr.write(`[clawinsight] badge failed: ${message}\n`);
+        process.stderr.write(`[clawdoctor] badge failed: ${message}\n`);
         process.exit(1);
       }
     });

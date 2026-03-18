@@ -1,19 +1,19 @@
-import type { ClawInsightEvent } from "../types/events.js";
+import type { ClawDoctorEvent } from "../types/events.js";
 
 export interface EventBufferOptions {
   maxSize: number;           // flush when buffer reaches this size (default: 100)
   flushIntervalMs: number;   // flush on interval (default: 5000)
-  onFlush: (events: ClawInsightEvent[]) => void;
+  onFlush: (events: ClawDoctorEvent[]) => void;
 }
 
 export interface EventBuffer {
-  push(event: ClawInsightEvent): void;
+  push(event: ClawDoctorEvent): void;
   stop(): void;  // flush remaining + clear interval
 }
 
 export function createEventBuffer(opts: EventBufferOptions): EventBuffer {
   const { maxSize = 100, flushIntervalMs = 5000, onFlush } = opts;
-  let buffer: ClawInsightEvent[] = [];
+  let buffer: ClawDoctorEvent[] = [];
 
   function flush(): void {
     if (buffer.length === 0) return;
@@ -25,7 +25,7 @@ export function createEventBuffer(opts: EventBufferOptions): EventBuffer {
   const intervalId = setInterval(flush, flushIntervalMs);
 
   return {
-    push(event: ClawInsightEvent): void {
+    push(event: ClawDoctorEvent): void {
       buffer.push(event);
       if (buffer.length >= maxSize) {
         flush();

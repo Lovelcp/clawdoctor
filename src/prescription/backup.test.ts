@@ -36,7 +36,7 @@ describe("backup", () => {
   let tmpDir: string;
 
   beforeEach(() => {
-    tmpDir = mkdtempSync(join(tmpdir(), "clawinsight-backup-test-"));
+    tmpDir = mkdtempSync(join(tmpdir(), "clawdoctor-backup-test-"));
   });
 
   afterEach(() => {

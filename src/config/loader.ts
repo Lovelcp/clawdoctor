@@ -6,7 +6,7 @@
 // ═══════════════════════════════════════════════
 
 import { readFileSync, existsSync } from "node:fs";
-import { type ClawInsightConfig, DEFAULT_CONFIG } from "../types/config.js";
+import { type ClawDoctorConfig, DEFAULT_CONFIG } from "../types/config.js";
 
 /**
  * Load and merge a config file with defaults.
@@ -19,7 +19,7 @@ import { type ClawInsightConfig, DEFAULT_CONFIG } from "../types/config.js";
  * its { warning, critical } pair replaces the default for that key entirely.
  * All other threshold keys retain their default values.
  */
-export function loadConfig(configPath: string): ClawInsightConfig {
+export function loadConfig(configPath: string): ClawDoctorConfig {
   if (!existsSync(configPath)) {
     return structuredClone(DEFAULT_CONFIG);
   }
@@ -46,15 +46,15 @@ export function loadConfig(configPath: string): ClawInsightConfig {
 }
 
 /**
- * Deep merge: returns a new ClawInsightConfig where user values override defaults.
+ * Deep merge: returns a new ClawDoctorConfig where user values override defaults.
  * Special handling for `thresholds`: merge at the threshold-key level so that
  * providing one threshold key doesn't wipe out all others.
  */
 function deepMerge(
-  defaults: ClawInsightConfig,
+  defaults: ClawDoctorConfig,
   user: Record<string, unknown>,
-): ClawInsightConfig {
-  const result: ClawInsightConfig = structuredClone(defaults);
+): ClawDoctorConfig {
+  const result: ClawDoctorConfig = structuredClone(defaults);
 
   // locale
   if (typeof user["locale"] === "string") {

@@ -1,6 +1,6 @@
 // ═══════════════════════════════════════════════
 //  Security Command
-//  clawinsight security audit — focused security department checkup
+//  clawdoctor security audit — focused security department checkup
 // ═══════════════════════════════════════════════
 
 import { Command } from "commander";

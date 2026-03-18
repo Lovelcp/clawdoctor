@@ -10,7 +10,7 @@ const repoRoot = join(__dirname, "..", "..");
 const fixturesRoot = join(repoRoot, "fixtures");
 
 describe("collectSnapshot", () => {
-  it("returns an array of ClawInsightEvents", async () => {
+  it("returns an array of ClawDoctorEvents", async () => {
     const events = await collectSnapshot({
       agentId: "agent-test",
       // stateDir with sessions subdir

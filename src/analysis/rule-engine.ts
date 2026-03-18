@@ -4,7 +4,7 @@
 // ═══════════════════════════════════════════════
 
 import type { Severity, Evidence, RuleDetection, HybridDetection } from "../types/domain.js";
-import type { ClawInsightConfig } from "../types/config.js";
+import type { ClawDoctorConfig } from "../types/config.js";
 import type { MetricSet } from "./metric-aggregator.js";
 import type { getDiseaseRegistry } from "../diseases/registry.js";
 import type { CustomRuleEvaluator } from "../plugins/plugin-types.js";
@@ -27,7 +27,7 @@ export interface RuleResult {
  */
 export function evaluateRules(
   metrics: MetricSet,
-  config: ClawInsightConfig,
+  config: ClawDoctorConfig,
   registry: ReturnType<typeof getDiseaseRegistry>,
   customRules?: Record<string, CustomRuleEvaluator>,
 ): RuleResult[] {
@@ -65,7 +65,7 @@ export function evaluateRules(
         if (result) results.push(result);
       } catch (err) {
         // Plugin rule threw — skip it, don't crash the engine
-        console.warn(`[clawinsight] Custom rule "${ruleId}" threw: ${err}`);
+        console.warn(`[clawdoctor] Custom rule "${ruleId}" threw: ${err}`);
       }
     }
   }
@@ -84,7 +84,7 @@ export function evaluateSingleRule(
   diseaseId: string,
   detection: RuleDetection,
   metrics: MetricSet,
-  config: ClawInsightConfig,
+  config: ClawDoctorConfig,
 ): RuleResult | null {
   return evaluateGeneric(diseaseId, detection, metrics, config);
 }
@@ -98,7 +98,7 @@ function evaluateDisease(
   diseaseId: string,
   detection: RuleDetection,
   metrics: MetricSet,
-  config: ClawInsightConfig,
+  config: ClawDoctorConfig,
 ): RuleResult | null {
   // Special-case diseases that cannot be reduced to a single scalar metric
   switch (diseaseId) {
@@ -120,7 +120,7 @@ function evaluateGeneric(
   diseaseId: string,
   detection: RuleDetection,
   metrics: MetricSet,
-  config: ClawInsightConfig,
+  config: ClawDoctorConfig,
 ): RuleResult | null {
   const value = resolveMetricValue(detection.metric, metrics);
   if (value === null) return null;
@@ -382,7 +382,7 @@ function makeMetricEvidence(
  */
 function evaluateSK006(
   metrics: MetricSet,
-  config: ClawInsightConfig,
+  config: ClawDoctorConfig,
 ): RuleResult | null {
   const threshold = config.thresholds["skill.repetitionCount"] ?? { warning: 3, critical: 5 };
   const patterns = metrics.skill.repeatCallPatterns;
@@ -518,7 +518,7 @@ function evaluateSEC007(metrics: MetricSet): RuleResult | null {
  */
 function evaluateCST002(
   metrics: MetricSet,
-  config: ClawInsightConfig,
+  config: ClawDoctorConfig,
 ): RuleResult | null {
   const threshold = config.thresholds["cost.luxurySessionTokenCeiling"] ?? {
     warning: 2000,
@@ -570,7 +570,7 @@ function evaluateCST002(
  */
 function evaluateCST005(
   metrics: MetricSet,
-  config: ClawInsightConfig,
+  config: ClawDoctorConfig,
 ): RuleResult | null {
   const trend = metrics.cost.dailyTrend;
   if (trend.length < 2) return null;

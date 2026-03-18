@@ -10,7 +10,7 @@ export interface ThresholdPair {
   critical: number;
 }
 
-export interface ClawInsightConfig {
+export interface ClawDoctorConfig {
   // ─── Display ───
   locale: string;                    // default "en", supports "zh" etc.
 
@@ -76,10 +76,10 @@ export interface ClawInsightConfig {
   };
 
   // ─── Community Plugins ───
-  plugins?: string[];                // e.g. ["clawinsight-plugin-security-extra"]
+  plugins?: string[];                // e.g. ["clawdoctor-plugin-security-extra"]
 }
 
-export const DEFAULT_CONFIG: ClawInsightConfig = {
+export const DEFAULT_CONFIG: ClawDoctorConfig = {
   locale: "en",
 
   thresholds: {

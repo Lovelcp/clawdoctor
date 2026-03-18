@@ -1,6 +1,6 @@
 // ═══════════════════════════════════════════════
 //  Behavior Command
-//  clawinsight behavior report — focused behavior department checkup
+//  clawdoctor behavior report — focused behavior department checkup
 // ═══════════════════════════════════════════════
 
 import { Command } from "commander";

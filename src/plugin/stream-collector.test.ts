@@ -7,7 +7,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { registerStreamCollector } from "./stream-collector.js";
 import type { EventBuffer } from "./event-buffer.js";
 import type { OpenClawPluginApi } from "./openclaw-types.js";
-import type { ClawInsightEvent } from "../types/events.js";
+import type { ClawDoctorEvent } from "../types/events.js";
 
 // ─── Mock helpers ─────────────────────────────────────────────────────────────
 
@@ -19,8 +19,8 @@ function createMockApi() {
   const hooks: Record<string, Array<(...args: any[]) => any>> = {};
 
   const api: OpenClawPluginApi = {
-    id: "clawinsight",
-    name: "ClawInsight",
+    id: "clawdoctor",
+    name: "ClawDoctor",
     config: {},
     logger: {
       info: vi.fn(),
@@ -52,10 +52,10 @@ function createMockApi() {
  * Build a minimal mock EventBuffer that records pushed events.
  */
 function createMockBuffer() {
-  const pushed: ClawInsightEvent[] = [];
+  const pushed: ClawDoctorEvent[] = [];
 
   const buffer: EventBuffer = {
-    push: vi.fn((event: ClawInsightEvent) => {
+    push: vi.fn((event: ClawDoctorEvent) => {
       pushed.push(event);
     }),
     stop: vi.fn(),

@@ -28,12 +28,12 @@ function runPlain(args: string, env?: Record<string, string>): string {
 }
 
 describe("E2E", () => {
-  it("clawinsight checkup --json produces valid JSON with health score", () => {
+  it("clawdoctor checkup --json produces valid JSON with health score", () => {
     // Run checkup against fixtures directory
     // The snapshot collector needs a stateDir with sessions/
     const output = run("checkup --json --agent default", {
-      CLAWINSIGHT_STATE_DIR: FIXTURES,
-      CLAWINSIGHT_WORKSPACE_DIR: path.join(FIXTURES, "memory"),
+      CLAWDOCTOR_STATE_DIR: FIXTURES,
+      CLAWDOCTOR_WORKSPACE_DIR: path.join(FIXTURES, "memory"),
     });
 
     const result = JSON.parse(output);
@@ -45,30 +45,30 @@ describe("E2E", () => {
     expect(result.healthScore.departments).toBeDefined();
   });
 
-  it("clawinsight checkup produces terminal report with Mode: snapshot", () => {
+  it("clawdoctor checkup produces terminal report with Mode: snapshot", () => {
     const output = runPlain("checkup --agent default", {
-      CLAWINSIGHT_STATE_DIR: FIXTURES,
-      CLAWINSIGHT_WORKSPACE_DIR: path.join(FIXTURES, "memory"),
+      CLAWDOCTOR_STATE_DIR: FIXTURES,
+      CLAWDOCTOR_WORKSPACE_DIR: path.join(FIXTURES, "memory"),
     });
 
-    expect(output).toContain("ClawInsight Health Report");
+    expect(output).toContain("ClawDoctor Health Report");
     expect(output).toContain("Mode:");
     expect(output).toContain("snapshot");
     expect(output).toContain("Coverage:");
   });
 
-  it("clawinsight config show outputs valid JSON config", () => {
+  it("clawdoctor config show outputs valid JSON config", () => {
     const output = run("config show");
     expect(output).toContain("locale");
     expect(output).toContain("thresholds");
   });
 
-  it("clawinsight --version outputs version", () => {
+  it("clawdoctor --version outputs version", () => {
     const output = run("--version");
     expect(output.trim()).toBe("0.1.0");
   });
 
-  it("clawinsight --help lists available commands", () => {
+  it("clawdoctor --help lists available commands", () => {
     const output = run("--help");
     expect(output).toContain("checkup");
     expect(output).toContain("config");
@@ -80,29 +80,29 @@ describe("E2E", () => {
 });
 
 describe("E2E Phase 2", () => {
-  it("clawinsight checkup --json includes llmAvailable and llmDegradationReason", () => {
+  it("clawdoctor checkup --json includes llmAvailable and llmDegradationReason", () => {
     // Run with fixture data (no API key set → llmAvailable should be false)
     const output = runPlain("checkup --json --agent default", {
-      CLAWINSIGHT_STATE_DIR: FIXTURES,
-      CLAWINSIGHT_WORKSPACE_DIR: path.join(FIXTURES, "memory"),
+      CLAWDOCTOR_STATE_DIR: FIXTURES,
+      CLAWDOCTOR_WORKSPACE_DIR: path.join(FIXTURES, "memory"),
     });
     const result = JSON.parse(stripAnsi(output));
     expect(result.llmAvailable).toBe(false);
     expect(result.llmDegradationReason).toBeDefined();
   });
 
-  it("clawinsight rx list --json returns empty array when no prescriptions", () => {
+  it("clawdoctor rx list --json returns empty array when no prescriptions", () => {
     const output = run("rx list --json");
     const parsed = JSON.parse(output.trim());
     expect(Array.isArray(parsed)).toBe(true);
   });
 
-  it("clawinsight dashboard --help shows port option", () => {
+  it("clawdoctor dashboard --help shows port option", () => {
     const output = run("dashboard --help");
     expect(output).toContain("--port");
   });
 
-  it("clawinsight rx --help lists all subcommands", () => {
+  it("clawdoctor rx --help lists all subcommands", () => {
     const output = run("rx --help");
     expect(output).toContain("list");
     expect(output).toContain("preview");
@@ -114,7 +114,7 @@ describe("E2E Phase 2", () => {
 
   it("schema migration v1→v2: causal_chains table and health_score_json column created", () => {
     // Create a v1 database manually, then open with current code (triggers migration)
-    const tmpDb = path.join(os.tmpdir(), `clawinsight-migration-test-${Date.now()}.db`);
+    const tmpDb = path.join(os.tmpdir(), `clawdoctor-migration-test-${Date.now()}.db`);
     // openDatabase will auto-migrate from v1 to v2
     const db = openDatabaseFn(tmpDb);
     try {
@@ -133,7 +133,7 @@ describe("E2E Phase 2", () => {
   });
 
   it("repeated checkup does not create duplicate prescriptions", async () => {
-    const tmpDb = path.join(os.tmpdir(), `clawinsight-dedup-test-${Date.now()}.db`);
+    const tmpDb = path.join(os.tmpdir(), `clawdoctor-dedup-test-${Date.now()}.db`);
     try {
       // Run checkup twice with same fixtures
       // The second run should not create duplicates thanks to dedup strategy
@@ -164,22 +164,22 @@ describe("E2E Phase 2", () => {
 });
 
 describe("E2E Phase 3", () => {
-  it("clawinsight badge outputs valid SVG", () => {
+  it("clawdoctor badge outputs valid SVG", () => {
     const output = run("badge", {
-      CLAWINSIGHT_STATE_DIR: FIXTURES,
-      CLAWINSIGHT_WORKSPACE_DIR: path.join(FIXTURES, "memory"),
+      CLAWDOCTOR_STATE_DIR: FIXTURES,
+      CLAWDOCTOR_WORKSPACE_DIR: path.join(FIXTURES, "memory"),
     });
     expect(output).toContain("<svg");
-    expect(output).toContain("ClawInsight");
+    expect(output).toContain("ClawDoctor");
   });
 
-  it("clawinsight checkup --fail-on critical exits 0 with fixture data", () => {
+  it("clawdoctor checkup --fail-on critical exits 0 with fixture data", () => {
     // Should not throw (exit 0) since fixture data may not have criticals
     // Or may throw if fixtures have criticals — just verify it doesn't crash
     try {
       run("checkup --fail-on critical --json --agent default --no-llm", {
-        CLAWINSIGHT_STATE_DIR: FIXTURES,
-        CLAWINSIGHT_WORKSPACE_DIR: path.join(FIXTURES, "memory"),
+        CLAWDOCTOR_STATE_DIR: FIXTURES,
+        CLAWDOCTOR_WORKSPACE_DIR: path.join(FIXTURES, "memory"),
       });
     } catch (e: any) {
       // Exit code 1 is acceptable if critical diseases found in fixtures
@@ -187,18 +187,18 @@ describe("E2E Phase 3", () => {
     }
   });
 
-  it("clawinsight checkup --auto-fix does not crash", () => {
+  it("clawdoctor checkup --auto-fix does not crash", () => {
     run("checkup --auto-fix --agent default --no-llm", {
-      CLAWINSIGHT_STATE_DIR: FIXTURES,
-      CLAWINSIGHT_WORKSPACE_DIR: path.join(FIXTURES, "memory"),
+      CLAWDOCTOR_STATE_DIR: FIXTURES,
+      CLAWDOCTOR_WORKSPACE_DIR: path.join(FIXTURES, "memory"),
     });
   });
 
-  it("clawinsight badge --format markdown outputs markdown syntax", () => {
+  it("clawdoctor badge --format markdown outputs markdown syntax", () => {
     const output = run("badge --format markdown", {
-      CLAWINSIGHT_STATE_DIR: FIXTURES,
-      CLAWINSIGHT_WORKSPACE_DIR: path.join(FIXTURES, "memory"),
+      CLAWDOCTOR_STATE_DIR: FIXTURES,
+      CLAWDOCTOR_WORKSPACE_DIR: path.join(FIXTURES, "memory"),
     });
-    expect(output).toContain("![ClawInsight");
+    expect(output).toContain("![ClawDoctor");
   });
 });

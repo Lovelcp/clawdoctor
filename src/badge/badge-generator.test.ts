@@ -102,20 +102,20 @@ describe("generateBadge", () => {
       expect(svg).not.toContain("N/A 0");
     });
 
-    it("uses default label 'ClawInsight' when label not specified", () => {
+    it("uses default label 'ClawDoctor' when label not specified", () => {
       const svg = badgeFor({ grade: "A", score: 95 });
-      expect(svg).toContain("ClawInsight");
+      expect(svg).toContain("ClawDoctor");
     });
 
     it("uses custom label when specified", () => {
       const svg = badgeFor({ grade: "A", score: 95, label: "SkillScore" });
       expect(svg).toContain("SkillScore");
-      expect(svg).not.toContain("ClawInsight");
+      expect(svg).not.toContain("ClawDoctor");
     });
 
     it("includes aria-label with label and value", () => {
       const svg = badgeFor({ grade: "A", score: 95 });
-      expect(svg).toContain('aria-label="ClawInsight: A 95"');
+      expect(svg).toContain('aria-label="ClawDoctor: A 95"');
     });
 
     it("includes shadow text (fill-opacity=.3) for depth effect", () => {

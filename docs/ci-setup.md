@@ -1,6 +1,6 @@
 # CI Setup Guide
 
-ClawInsight integrates with any CI system that can run Node.js. Use `--fail-on` to gate your pipeline on agent health.
+ClawDoctor integrates with any CI system that can run Node.js. Use `--fail-on` to gate your pipeline on agent health.
 
 ## Exit Codes
 
@@ -39,7 +39,7 @@ on:
   pull_request:
 
 jobs:
-  clawinsight:
+  clawdoctor:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -48,43 +48,43 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Run ClawInsight health check
-        run: npx clawinsight checkup --fail-on critical --no-llm
+      - name: Run ClawDoctor health check
+        run: npx clawdoctor checkup --fail-on critical --no-llm
 ```
 
 ### With LLM Analysis
 
 ```yaml
-      - name: Run ClawInsight health check (with LLM)
+      - name: Run ClawDoctor health check (with LLM)
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-        run: npx clawinsight checkup --fail-on critical
+        run: npx clawdoctor checkup --fail-on critical
 ```
 
 ### With JSON Report as Artifact
 
 ```yaml
-      - name: Run ClawInsight and save report
-        run: npx clawinsight checkup --fail-on critical --no-llm --json > clawinsight-report.json || true
+      - name: Run ClawDoctor and save report
+        run: npx clawdoctor checkup --fail-on critical --no-llm --json > clawdoctor-report.json || true
 
-      - name: Upload ClawInsight report
+      - name: Upload ClawDoctor report
         uses: actions/upload-artifact@v4
         with:
-          name: clawinsight-report
-          path: clawinsight-report.json
+          name: clawdoctor-report
+          path: clawdoctor-report.json
 
       - name: Fail on critical issues
-        run: npx clawinsight checkup --fail-on critical --no-llm
+        run: npx clawdoctor checkup --fail-on critical --no-llm
 ```
 
 ### Per-Department Checks
 
 ```yaml
       - name: Security audit
-        run: npx clawinsight checkup --dept security --fail-on warning --no-llm
+        run: npx clawdoctor checkup --dept security --fail-on warning --no-llm
 
       - name: Memory health
-        run: npx clawinsight checkup --dept memory --fail-on warning --no-llm
+        run: npx clawdoctor checkup --dept memory --fail-on warning --no-llm
 ```
 
 ---
@@ -92,30 +92,30 @@ jobs:
 ## GitLab CI
 
 ```yaml
-clawinsight:
+clawdoctor:
   image: node:22
   stage: test
   script:
-    - npx clawinsight checkup --fail-on critical --no-llm
+    - npx clawdoctor checkup --fail-on critical --no-llm
   artifacts:
     when: always
     paths:
-      - clawinsight-report.json
+      - clawdoctor-report.json
     expire_in: 7 days
   before_script:
-    - npx clawinsight checkup --fail-on critical --no-llm --json > clawinsight-report.json || true
+    - npx clawdoctor checkup --fail-on critical --no-llm --json > clawdoctor-report.json || true
 ```
 
 ### With LLM and Secret Variable
 
 ```yaml
-clawinsight-full:
+clawdoctor-full:
   image: node:22
   stage: test
   variables:
     ANTHROPIC_API_KEY: $ANTHROPIC_API_KEY
   script:
-    - npx clawinsight checkup --fail-on critical
+    - npx clawdoctor checkup --fail-on critical
   only:
     - main
 ```
@@ -128,31 +128,31 @@ clawinsight-full:
 version: 2.1
 
 jobs:
-  clawinsight:
+  clawdoctor:
     docker:
       - image: cimg/node:22.0
     steps:
       - checkout
       - run:
           name: Agent Health Check
-          command: npx clawinsight checkup --fail-on critical --no-llm
+          command: npx clawdoctor checkup --fail-on critical --no-llm
 
 workflows:
   main:
     jobs:
-      - clawinsight
+      - clawdoctor
 ```
 
 ### Storing Report as Artifact
 
 ```yaml
       - run:
-          name: Run ClawInsight (JSON output)
+          name: Run ClawDoctor (JSON output)
           command: |
-            npx clawinsight checkup --fail-on critical --no-llm --json > clawinsight-report.json
+            npx clawdoctor checkup --fail-on critical --no-llm --json > clawdoctor-report.json
       - store_artifacts:
-          path: clawinsight-report.json
-          destination: clawinsight
+          path: clawdoctor-report.json
+          destination: clawdoctor
 ```
 
 ---
@@ -165,12 +165,12 @@ pipeline {
     stages {
         stage('Agent Health Check') {
             steps {
-                sh 'npx clawinsight checkup --fail-on critical --no-llm'
+                sh 'npx clawdoctor checkup --fail-on critical --no-llm'
             }
             post {
                 always {
-                    sh 'npx clawinsight checkup --fail-on critical --no-llm --json > clawinsight-report.json || true'
-                    archiveArtifacts artifacts: 'clawinsight-report.json', allowEmptyArchive: true
+                    sh 'npx clawdoctor checkup --fail-on critical --no-llm --json > clawdoctor-report.json || true'
+                    archiveArtifacts artifacts: 'clawdoctor-report.json', allowEmptyArchive: true
                 }
             }
         }
@@ -185,4 +185,4 @@ pipeline {
 - **Use `--no-llm` in CI** unless you have an API key configured — LLM analysis is optional and adds latency.
 - **Cache the npx download** using your CI's node_modules cache to speed up runs.
 - **Set `--fail-on warning`** for stricter pipelines where you want to catch all non-info issues.
-- **Run ClawInsight on a schedule** (e.g., nightly) in addition to per-commit checks to catch drift in long-running agents.
+- **Run ClawDoctor on a schedule** (e.g., nightly) in addition to per-commit checks to catch drift in long-running agents.

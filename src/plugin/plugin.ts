@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════
-//  ClawInsight OpenClaw Plugin Entry Point
+//  ClawDoctor OpenClaw Plugin Entry Point
 //  Design spec: Phase 2, Task 8
 // ═══════════════════════════════════════════════
 
@@ -33,19 +33,19 @@ const FOLLOWUP_INTERVAL_MS = 10 * 60 * 1000;
 
 // ─── Plugin definition ────────────────────────────────────────────────────────
 
-export const clawinsightPlugin: OpenClawPluginDefinition = {
-  id: "clawinsight",
-  name: "ClawInsight",
+export const clawdoctorPlugin: OpenClawPluginDefinition = {
+  id: "clawdoctor",
+  name: "ClawDoctor",
   description: "Agent health diagnostics",
 
   register(api: OpenClawPluginApi) {
-    // 1. Open persistent SQLite at ~/.clawinsight/clawinsight.db
-    const dbPath = join(homedir(), ".clawinsight", "clawinsight.db");
+    // 1. Open persistent SQLite at ~/.clawdoctor/clawdoctor.db
+    const dbPath = join(homedir(), ".clawdoctor", "clawdoctor.db");
     let db: Database.Database;
     try {
       db = openDatabase(dbPath);
     } catch (err) {
-      api.logger.error(`[clawinsight] Failed to open database at ${dbPath}: ${err}`);
+      api.logger.error(`[clawdoctor] Failed to open database at ${dbPath}: ${err}`);
       return;
     }
 
@@ -59,7 +59,7 @@ export const clawinsightPlugin: OpenClawPluginDefinition = {
           try {
             eventStore.insertEvent(event);
           } catch (err) {
-            api.logger.warn(`[clawinsight] Failed to persist event ${event.id}: ${err}`);
+            api.logger.warn(`[clawdoctor] Failed to persist event ${event.id}: ${err}`);
           }
         }
       },
@@ -72,11 +72,11 @@ export const clawinsightPlugin: OpenClawPluginDefinition = {
     let snapshotIntervalId: ReturnType<typeof setInterval> | undefined;
 
     api.registerService({
-      id: "clawinsight-snapshot",
+      id: "clawdoctor-snapshot",
       start(_ctx) {
-        api.logger.info("[clawinsight] Snapshot service started (interval: 30min)");
+        api.logger.info("[clawdoctor] Snapshot service started (interval: 30min)");
         snapshotIntervalId = setInterval(() => {
-          api.logger.info("[clawinsight] Periodic snapshot tick");
+          api.logger.info("[clawdoctor] Periodic snapshot tick");
           // Snapshot collection (plugin_snapshot, memory_snapshot, config_snapshot)
           // is deferred to Task 9 (snapshot collector); this service registers the
           // interval so the infrastructure is in place.
@@ -89,7 +89,7 @@ export const clawinsightPlugin: OpenClawPluginDefinition = {
         }
         // Flush any remaining buffered events on shutdown.
         buffer.stop();
-        api.logger.info("[clawinsight] Snapshot service stopped, buffer flushed");
+        api.logger.info("[clawdoctor] Snapshot service stopped, buffer flushed");
       },
     });
 
@@ -97,9 +97,9 @@ export const clawinsightPlugin: OpenClawPluginDefinition = {
     let followupIntervalId: ReturnType<typeof setInterval> | undefined;
 
     api.registerService({
-      id: "clawinsight-followup-scheduler",
+      id: "clawdoctor-followup-scheduler",
       start(_ctx) {
-        api.logger.info("[clawinsight] Follow-up scheduler started (interval: 10min)");
+        api.logger.info("[clawdoctor] Follow-up scheduler started (interval: 10min)");
         followupIntervalId = setInterval(() => {
           try {
             const now = Date.now();
@@ -117,13 +117,13 @@ export const clawinsightPlugin: OpenClawPluginDefinition = {
 
             for (const row of pending) {
               api.logger.info(
-                `[clawinsight] Follow-up due: ${row.id} (prescription: ${row.prescription_id}, checkpoint: ${row.checkpoint})`,
+                `[clawdoctor] Follow-up due: ${row.id} (prescription: ${row.prescription_id}, checkpoint: ${row.checkpoint})`,
               );
               // Full follow-up evaluation is deferred to Task 10 (executor/evaluator).
               // For now we log them so operators can see what's pending.
             }
           } catch (err) {
-            api.logger.warn(`[clawinsight] Follow-up scheduler tick failed: ${err}`);
+            api.logger.warn(`[clawdoctor] Follow-up scheduler tick failed: ${err}`);
           }
         }, FOLLOWUP_INTERVAL_MS);
       },
@@ -132,7 +132,7 @@ export const clawinsightPlugin: OpenClawPluginDefinition = {
           clearInterval(followupIntervalId);
           followupIntervalId = undefined;
         }
-        api.logger.info("[clawinsight] Follow-up scheduler stopped");
+        api.logger.info("[clawdoctor] Follow-up scheduler stopped");
       },
     });
 
@@ -140,38 +140,38 @@ export const clawinsightPlugin: OpenClawPluginDefinition = {
     api.registerCli((ctx: any) => {
       const program = ctx?.program;
       if (!program) {
-        api.logger.warn("[clawinsight] CLI context missing program; skipping CLI registration");
+        api.logger.warn("[clawdoctor] CLI context missing program; skipping CLI registration");
         return;
       }
 
-      // Register all clawinsight CLI subcommands under the openclaw CLI.
-      const clawinsightCmd = program
-        .command("clawinsight")
-        .description("ClawInsight — agent health diagnostics");
+      // Register all clawdoctor CLI subcommands under the openclaw CLI.
+      const clawdoctorCmd = program
+        .command("clawdoctor")
+        .description("ClawDoctor — agent health diagnostics");
 
-      registerCheckupCommand(clawinsightCmd);
-      registerConfigCommand(clawinsightCmd);
-      registerSkillCommand(clawinsightCmd);
-      registerMemoryCommand(clawinsightCmd);
-      registerCostCommand(clawinsightCmd);
-      registerBehaviorCommand(clawinsightCmd);
-      registerSecurityCommand(clawinsightCmd);
+      registerCheckupCommand(clawdoctorCmd);
+      registerConfigCommand(clawdoctorCmd);
+      registerSkillCommand(clawdoctorCmd);
+      registerMemoryCommand(clawdoctorCmd);
+      registerCostCommand(clawdoctorCmd);
+      registerBehaviorCommand(clawdoctorCmd);
+      registerSecurityCommand(clawdoctorCmd);
     });
 
-    // 7. Register dashboard HTTP route (/clawinsight/*)
+    // 7. Register dashboard HTTP route (/clawdoctor/*)
     api.registerHttpRoute({
-      path: "/clawinsight",
+      path: "/clawdoctor",
       match: "prefix",
       auth: "plugin",
       handler: async (req: any, res: any) => {
         try {
-          const configPath = join(homedir(), ".clawinsight", "clawinsight.json");
+          const configPath = join(homedir(), ".clawdoctor", "clawdoctor.json");
           const config = loadConfig(configPath);
           const app = createDashboardApp({ db, config });
 
-          // Strip the /clawinsight prefix so the inner Hono app sees its own routes.
+          // Strip the /clawdoctor prefix so the inner Hono app sees its own routes.
           const url = new URL(req.url, `http://${req.headers?.host ?? "localhost"}`);
-          const stripped = url.pathname.replace(/^\/clawinsight/, "") || "/";
+          const stripped = url.pathname.replace(/^\/clawdoctor/, "") || "/";
           const proxiedUrl = `${stripped}${url.search}`;
 
           const honoReq = new Request(
@@ -193,7 +193,7 @@ export const clawinsightPlugin: OpenClawPluginDefinition = {
           res.end(Buffer.from(body));
           return true;
         } catch (err) {
-          api.logger.error(`[clawinsight] Dashboard route error: ${err}`);
+          api.logger.error(`[clawdoctor] Dashboard route error: ${err}`);
           res.statusCode = 500;
           res.end("Internal Server Error");
           return true;
@@ -201,6 +201,6 @@ export const clawinsightPlugin: OpenClawPluginDefinition = {
       },
     });
 
-    api.logger.info("[clawinsight] Plugin registered successfully");
+    api.logger.info("[clawdoctor] Plugin registered successfully");
   },
 };

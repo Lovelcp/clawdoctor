@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { createEventBuffer } from "./event-buffer.js";
-import type { ClawInsightEvent } from "../types/events.js";
+import type { ClawDoctorEvent } from "../types/events.js";
 
-function makeEvent(id: string): ClawInsightEvent {
+function makeEvent(id: string): ClawDoctorEvent {
   return {
     id,
     source: "stream",
@@ -27,7 +27,7 @@ describe("createEventBuffer", () => {
   });
 
   it("buffers events and flushes when size limit is reached", () => {
-    const flushed: ClawInsightEvent[][] = [];
+    const flushed: ClawDoctorEvent[][] = [];
     const buffer = createEventBuffer({
       maxSize: 3,
       flushIntervalMs: 5000,
@@ -47,7 +47,7 @@ describe("createEventBuffer", () => {
   });
 
   it("flushes remaining events on stop", () => {
-    const flushed: ClawInsightEvent[][] = [];
+    const flushed: ClawDoctorEvent[][] = [];
     const buffer = createEventBuffer({
       maxSize: 100,
       flushIntervalMs: 5000,
@@ -64,7 +64,7 @@ describe("createEventBuffer", () => {
   });
 
   it("auto-flushes after interval fires", () => {
-    const flushed: ClawInsightEvent[][] = [];
+    const flushed: ClawDoctorEvent[][] = [];
     const buffer = createEventBuffer({
       maxSize: 100,
       flushIntervalMs: 5000,

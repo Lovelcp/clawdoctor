@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import type { ClawInsightPlugin } from "./plugin-types.js";
+import type { ClawDoctorPlugin } from "./plugin-types.js";
 import type { DiseaseDefinition } from "../types/domain.js";
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
@@ -29,14 +29,14 @@ const mockDisease: DiseaseDefinition = {
   tags: ["test"],
 };
 
-const validPluginWithDiseases: ClawInsightPlugin = {
-  name: "clawinsight-plugin-test",
+const validPluginWithDiseases: ClawDoctorPlugin = {
+  name: "clawdoctor-plugin-test",
   version: "1.0.0",
   diseases: [mockDisease],
 };
 
-const validPluginWithRules: ClawInsightPlugin = {
-  name: "clawinsight-plugin-rules-only",
+const validPluginWithRules: ClawDoctorPlugin = {
+  name: "clawdoctor-plugin-rules-only",
   rules: {
     "MY-001": (_metrics: any, _config: any) => null,
   },
@@ -47,8 +47,8 @@ const invalidPlugin = {
   version: "0.1.0",
 };
 
-const invalidPluginNoDiseaseOrRules: ClawInsightPlugin = {
-  name: "clawinsight-plugin-empty",
+const invalidPluginNoDiseaseOrRules: ClawDoctorPlugin = {
+  name: "clawdoctor-plugin-empty",
   // explicitly no diseases or rules
 };
 
@@ -67,47 +67,47 @@ describe("loadPlugins", () => {
   });
 
   it("loads a valid plugin that exports diseases", async () => {
-    vi.doMock("clawinsight-plugin-test-diseases", () => ({ default: validPluginWithDiseases }));
+    vi.doMock("clawdoctor-plugin-test-diseases", () => ({ default: validPluginWithDiseases }));
 
     const { loadPlugins } = await import("./plugin-loader.js");
-    const plugins = await loadPlugins(["clawinsight-plugin-test-diseases"]);
+    const plugins = await loadPlugins(["clawdoctor-plugin-test-diseases"]);
 
     expect(plugins).toHaveLength(1);
-    expect(plugins[0].name).toBe("clawinsight-plugin-test");
+    expect(plugins[0].name).toBe("clawdoctor-plugin-test");
     expect(plugins[0].diseases).toHaveLength(1);
     expect(plugins[0].diseases![0].id).toBe("PLG-001");
     expect(warnSpy).not.toHaveBeenCalled();
   });
 
   it("loads a valid plugin that exports only rules (no diseases)", async () => {
-    vi.doMock("clawinsight-plugin-rules-only", () => ({ default: validPluginWithRules }));
+    vi.doMock("clawdoctor-plugin-rules-only", () => ({ default: validPluginWithRules }));
 
     const { loadPlugins } = await import("./plugin-loader.js");
-    const plugins = await loadPlugins(["clawinsight-plugin-rules-only"]);
+    const plugins = await loadPlugins(["clawdoctor-plugin-rules-only"]);
 
     expect(plugins).toHaveLength(1);
-    expect(plugins[0].name).toBe("clawinsight-plugin-rules-only");
+    expect(plugins[0].name).toBe("clawdoctor-plugin-rules-only");
     expect(plugins[0].rules).toBeDefined();
     expect(warnSpy).not.toHaveBeenCalled();
   });
 
   it("warns and skips a plugin that has no diseases or rules", async () => {
-    vi.doMock("clawinsight-plugin-empty", () => ({ default: invalidPluginNoDiseaseOrRules }));
+    vi.doMock("clawdoctor-plugin-empty", () => ({ default: invalidPluginNoDiseaseOrRules }));
 
     const { loadPlugins } = await import("./plugin-loader.js");
-    const plugins = await loadPlugins(["clawinsight-plugin-empty"]);
+    const plugins = await loadPlugins(["clawdoctor-plugin-empty"]);
 
     expect(plugins).toHaveLength(0);
     expect(warnSpy).toHaveBeenCalledOnce();
-    expect(warnSpy.mock.calls[0][0]).toContain("clawinsight-plugin-empty");
+    expect(warnSpy.mock.calls[0][0]).toContain("clawdoctor-plugin-empty");
     expect(warnSpy.mock.calls[0][0]).toContain("invalid");
   });
 
   it("warns and skips a plugin whose shape is completely invalid (no name field)", async () => {
-    vi.doMock("clawinsight-plugin-bad-shape", () => ({ default: invalidPlugin }));
+    vi.doMock("clawdoctor-plugin-bad-shape", () => ({ default: invalidPlugin }));
 
     const { loadPlugins } = await import("./plugin-loader.js");
-    const plugins = await loadPlugins(["clawinsight-plugin-bad-shape"]);
+    const plugins = await loadPlugins(["clawdoctor-plugin-bad-shape"]);
 
     expect(plugins).toHaveLength(0);
     expect(warnSpy).toHaveBeenCalledOnce();
@@ -117,23 +117,23 @@ describe("loadPlugins", () => {
   it("handles import failure gracefully and warns", async () => {
     // This module is never mocked, so import() will throw a module-not-found error
     const { loadPlugins } = await import("./plugin-loader.js");
-    const plugins = await loadPlugins(["clawinsight-plugin-missing-nonexistent-xyz"]);
+    const plugins = await loadPlugins(["clawdoctor-plugin-missing-nonexistent-xyz"]);
 
     expect(plugins).toHaveLength(0);
     expect(warnSpy).toHaveBeenCalledOnce();
     expect(warnSpy.mock.calls[0][0]).toContain("Failed to load plugin");
-    expect(warnSpy.mock.calls[0][0]).toContain("clawinsight-plugin-missing-nonexistent-xyz");
+    expect(warnSpy.mock.calls[0][0]).toContain("clawdoctor-plugin-missing-nonexistent-xyz");
   });
 
   it("loads multiple plugins, skipping invalid ones", async () => {
-    vi.doMock("clawinsight-plugin-good", () => ({ default: validPluginWithDiseases }));
-    vi.doMock("clawinsight-plugin-bad", () => ({ default: invalidPluginNoDiseaseOrRules }));
+    vi.doMock("clawdoctor-plugin-good", () => ({ default: validPluginWithDiseases }));
+    vi.doMock("clawdoctor-plugin-bad", () => ({ default: invalidPluginNoDiseaseOrRules }));
 
     const { loadPlugins } = await import("./plugin-loader.js");
-    const plugins = await loadPlugins(["clawinsight-plugin-good", "clawinsight-plugin-bad"]);
+    const plugins = await loadPlugins(["clawdoctor-plugin-good", "clawdoctor-plugin-bad"]);
 
     expect(plugins).toHaveLength(1);
-    expect(plugins[0].name).toBe("clawinsight-plugin-test");
+    expect(plugins[0].name).toBe("clawdoctor-plugin-test");
     expect(warnSpy).toHaveBeenCalledOnce();
   });
 
@@ -146,13 +146,13 @@ describe("loadPlugins", () => {
   });
 
   it("supports module with .default export (standard ESM default export)", async () => {
-    vi.doMock("clawinsight-plugin-esm-default", () => ({ default: validPluginWithDiseases }));
+    vi.doMock("clawdoctor-plugin-esm-default", () => ({ default: validPluginWithDiseases }));
 
     const { loadPlugins } = await import("./plugin-loader.js");
-    const plugins = await loadPlugins(["clawinsight-plugin-esm-default"]);
+    const plugins = await loadPlugins(["clawdoctor-plugin-esm-default"]);
 
     expect(plugins).toHaveLength(1);
-    expect(plugins[0].name).toBe("clawinsight-plugin-test");
+    expect(plugins[0].name).toBe("clawdoctor-plugin-test");
     expect(warnSpy).not.toHaveBeenCalled();
   });
 });

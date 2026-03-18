@@ -6,7 +6,7 @@
 
 import { ulid } from "ulid";
 import type Database from "better-sqlite3";
-import type { ClawInsightConfig } from "../types/config.js";
+import type { ClawDoctorConfig } from "../types/config.js";
 import type {
   Prescription,
   PrescriptionAction,
@@ -138,7 +138,7 @@ export interface PrescriptionExecutor {
 
 export function createPrescriptionExecutor(
   db: Database.Database,
-  _config: ClawInsightConfig,
+  _config: ClawDoctorConfig,
 ): PrescriptionExecutor {
   const rxStore = createPrescriptionStore(db);
   const diagStore = createDiagnosisStore(db);

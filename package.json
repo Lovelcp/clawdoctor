@@ -1,10 +1,10 @@
 {
-  "name": "clawinsight",
+  "name": "clawdoctor",
   "version": "0.1.0",
   "description": "Health diagnostics for OpenClaw agents",
   "type": "module",
   "bin": {
-    "clawinsight": "./dist/bin.js"
+    "clawdoctor": "./dist/bin.js"
   },
   "exports": {
     ".": "./dist/index.js",
@@ -20,10 +20,10 @@
   "engines": {
     "node": ">=22"
   },
-  "keywords": ["openclaw", "diagnostics", "health", "agent", "ai", "lobster", "clawinsight", "llm"],
-  "homepage": "https://github.com/openclaw/clawinsight",
-  "repository": { "type": "git", "url": "https://github.com/openclaw/clawinsight.git" },
-  "bugs": { "url": "https://github.com/openclaw/clawinsight/issues" },
+  "keywords": ["openclaw", "diagnostics", "health", "agent", "ai", "lobster", "clawdoctor", "llm"],
+  "homepage": "https://github.com/openclaw/clawdoctor",
+  "repository": { "type": "git", "url": "https://github.com/openclaw/clawdoctor.git" },
+  "bugs": { "url": "https://github.com/openclaw/clawdoctor/issues" },
   "files": ["dist/", "README.md", "LICENSE"],
   "license": "MIT",
   "dependencies": {

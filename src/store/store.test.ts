@@ -8,13 +8,13 @@ import { openDatabase } from "./database.js";
 import { createEventStore } from "./event-store.js";
 import { createDiagnosisStore } from "./diagnosis-store.js";
 import { createScoreStore } from "./score-store.js";
-import type { ClawInsightEvent } from "../types/events.js";
+import type { ClawDoctorEvent } from "../types/events.js";
 import type { DiseaseInstance } from "../types/domain.js";
 import type Database from "better-sqlite3";
 
 // ─── Helpers ───
 
-function makeEvent(overrides: Partial<ClawInsightEvent> = {}): ClawInsightEvent {
+function makeEvent(overrides: Partial<ClawDoctorEvent> = {}): ClawDoctorEvent {
   return {
     id: `evt_${Math.random().toString(36).slice(2)}`,
     source: "snapshot",

@@ -6,7 +6,7 @@
 import { readdirSync, readFileSync, statSync, existsSync } from "node:fs";
 import { join, extname } from "node:path";
 import { ulid } from "ulid";
-import type { ClawInsightEvent, MemorySnapshotData } from "../types/events.js";
+import type { ClawDoctorEvent, MemorySnapshotData } from "../types/events.js";
 
 // ─── Frontmatter parser ───
 
@@ -46,7 +46,7 @@ function parseFrontmatter(content: string): Frontmatter | null {
  * Returns a memory_snapshot event with file metadata and frontmatter info.
  * The memory directory is expected to be workspaceDir directly (caller selects the right dir).
  */
-export function scanMemory(workspaceDir: string, agentId: string): ClawInsightEvent {
+export function scanMemory(workspaceDir: string, agentId: string): ClawDoctorEvent {
   const files: MemorySnapshotData["files"] = [];
   let totalSizeBytes = 0;
 

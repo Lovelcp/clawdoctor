@@ -23,7 +23,7 @@ export interface GeneratorContext {
 
 // ─── Prompt builder ───────────────────────────────────────────────────────────
 
-const SYSTEM_PROMPT = `You are ClawInsight's prescription engine. Given a diagnosed disease and its definition,
+const SYSTEM_PROMPT = `You are ClawDoctor's prescription engine. Given a diagnosed disease and its definition,
 generate a concrete, actionable prescription in JSON format.
 
 Your response MUST be a valid JSON object (no markdown code fences) with this exact structure:

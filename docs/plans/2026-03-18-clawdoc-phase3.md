@@ -1,14 +1,14 @@
-# ClawInsight Phase 3 Implementation Plan — Community Virality Edition
+# ClawDoctor Phase 3 Implementation Plan — Community Virality Edition
 
 > **For agentic workers:** Use superpowers:subagent-driven-development for parallel execution.
 
-**Goal:** Deliver 5 high-virality features: Skill Quality Badge, CI integration, community disease plugins, auto-prescription, and npm publish with docs. Transform ClawInsight from "a tool" into "a platform with a viral loop."
+**Goal:** Deliver 5 high-virality features: Skill Quality Badge, CI integration, community disease plugins, auto-prescription, and npm publish with docs. Transform ClawDoctor from "a tool" into "a platform with a viral loop."
 
 **Architecture:** Builds on Phase 2 (563 tests, LLM analyzer, prescription engine, dashboard, plugin). Badge system generates SVG badges from health scores. CI integration adds exit codes to the existing checkup command. Community plugins are npm packages loaded at runtime. Auto-prescription extends the prescription executor with `--auto-fix`.
 
 **Tech Stack:** Phase 2 stack + SVG badge generation (inline, no deps), dynamic `import()` for plugin loading.
 
-**Spec:** `docs/2026-03-17-clawinsight-design.md`
+**Spec:** `docs/2026-03-17-clawdoctor-design.md`
 
 ---
 
@@ -17,17 +17,17 @@
 ### 1. Badge System
 
 Badges are SVG images generated from the latest HealthScore. Two delivery modes:
-- **CLI:** `clawinsight badge` outputs SVG to stdout or file
+- **CLI:** `clawdoctor badge` outputs SVG to stdout or file
 - **Dashboard API:** `GET /api/badge` returns SVG with correct Content-Type
 - **Static hosting:** User copies SVG to their repo, links in README
 
-Badge format: `ClawInsight | A 95` with grade-colored right half (green A, amber C, red F).
+Badge format: `ClawDoctor | A 95` with grade-colored right half (green A, amber C, red F).
 
 No external badge service dependency — badges are self-generated SVGs.
 
 ### 2. CI Integration
 
-`clawinsight checkup --fail-on <severity>` sets process.exitCode based on findings:
+`clawdoctor checkup --fail-on <severity>` sets process.exitCode based on findings:
 - `--fail-on critical`: exit 1 if any critical disease found
 - `--fail-on warning`: exit 1 if any warning or critical found
 - Default (no flag): exit 0 always (informational)
@@ -36,7 +36,7 @@ GitHub Actions example in docs.
 
 ### 3. Community Disease Plugins
 
-Convention: npm packages named `clawinsight-plugin-*` or `@scope/clawinsight-plugin-*`.
+Convention: npm packages named `clawdoctor-plugin-*` or `@scope/clawdoctor-plugin-*`.
 
 Plugin API:
 ```typescript
@@ -47,13 +47,13 @@ export default {
 };
 ```
 
-Loading: `clawinsight checkup --plugins clawinsight-plugin-security-extra` or `config.plugins: ["clawinsight-plugin-security-extra"]`.
+Loading: `clawdoctor checkup --plugins clawdoctor-plugin-security-extra` or `config.plugins: ["clawdoctor-plugin-security-extra"]`.
 
-At startup, ClawInsight `import()`s each plugin, merges its diseases into the registry, and registers custom rule evaluators.
+At startup, ClawDoctor `import()`s each plugin, merges its diseases into the registry, and registers custom rule evaluators.
 
 ### 4. Auto-Prescription
 
-`clawinsight checkup --auto-fix` automatically applies all `guided` prescriptions with `risk: "low"`.
+`clawdoctor checkup --auto-fix` automatically applies all `guided` prescriptions with `risk: "low"`.
 
 Safety: only applies prescriptions where:
 - `level === "guided"` (not manual)
@@ -105,31 +105,31 @@ import { generateBadge } from "./badge-generator.js";
 
 describe("BadgeGenerator", () => {
   it("generates valid SVG for grade A", () => {
-    const svg = generateBadge({ grade: "A", score: 95, label: "ClawInsight" });
+    const svg = generateBadge({ grade: "A", score: 95, label: "ClawDoctor" });
     expect(svg).toContain("<svg");
     expect(svg).toContain("</svg>");
     expect(svg).toContain("A");
     expect(svg).toContain("95");
-    expect(svg).toContain("ClawInsight");
+    expect(svg).toContain("ClawDoctor");
   });
 
   it("uses green color for grade A", () => {
-    const svg = generateBadge({ grade: "A", score: 95, label: "ClawInsight" });
+    const svg = generateBadge({ grade: "A", score: 95, label: "ClawDoctor" });
     expect(svg).toContain("#4c1"); // shields.io green
   });
 
   it("uses red color for grade F", () => {
-    const svg = generateBadge({ grade: "F", score: 15, label: "ClawInsight" });
+    const svg = generateBadge({ grade: "F", score: 15, label: "ClawDoctor" });
     expect(svg).toContain("#e05d44"); // shields.io red
   });
 
   it("uses gray for N/A", () => {
-    const svg = generateBadge({ grade: "N/A", score: 0, label: "ClawInsight" });
+    const svg = generateBadge({ grade: "N/A", score: 0, label: "ClawDoctor" });
     expect(svg).toContain("#9f9f9f");
   });
 
   it("produces valid XML", () => {
-    const svg = generateBadge({ grade: "B", score: 78, label: "ClawInsight" });
+    const svg = generateBadge({ grade: "B", score: 78, label: "ClawDoctor" });
     expect(svg).toMatch(/^<svg xmlns/);
   });
 });
@@ -159,9 +159,9 @@ export function generateBadge(opts: { grade: string; score: number; label: strin
 - [ ] **Step 3: Implement badge-cmd.ts**
 
 ```bash
-clawinsight badge                        # print SVG to stdout
-clawinsight badge --output badge.svg     # save to file
-clawinsight badge --format markdown      # output markdown image link
+clawdoctor badge                        # print SVG to stdout
+clawdoctor badge --output badge.svg     # save to file
+clawdoctor badge --format markdown      # output markdown image link
 ```
 
 - [ ] **Step 4: Add GET /api/badge to dashboard server**
@@ -252,9 +252,9 @@ git commit -m "feat: add CI integration with --fail-on exit code support"
 // src/plugins/plugin-types.ts
 import type { DiseaseDefinition } from "../types/domain.js";
 import type { MetricSet } from "../analysis/metric-aggregator.js";
-import type { ClawInsightConfig } from "../types/config.js";
+import type { ClawDoctorConfig } from "../types/config.js";
 
-export interface ClawInsightPlugin {
+export interface ClawDoctorPlugin {
   name: string;
   version?: string;
   diseases?: DiseaseDefinition[];
@@ -263,7 +263,7 @@ export interface ClawInsightPlugin {
 
 export type CustomRuleEvaluator = (
   metrics: MetricSet,
-  config: ClawInsightConfig,
+  config: ClawDoctorConfig,
 ) => import("../analysis/rule-engine.js").RuleResult | null;
 ```
 
@@ -271,8 +271,8 @@ export type CustomRuleEvaluator = (
 
 ```typescript
 // src/plugins/plugin-loader.ts
-export async function loadPlugins(pluginNames: string[]): Promise<ClawInsightPlugin[]> {
-  const plugins: ClawInsightPlugin[] = [];
+export async function loadPlugins(pluginNames: string[]): Promise<ClawDoctorPlugin[]> {
+  const plugins: ClawDoctorPlugin[] = [];
   for (const name of pluginNames) {
     try {
       const mod = await import(name);
@@ -295,8 +295,8 @@ Add `mergeExternalDiseases(diseases: DiseaseDefinition[])` to registry.
 - [ ] **Step 4: Add plugins config field**
 
 ```typescript
-// In ClawInsightConfig:
-plugins?: string[];  // e.g. ["clawinsight-plugin-security-extra"]
+// In ClawDoctorConfig:
+plugins?: string[];  // e.g. ["clawdoctor-plugin-security-extra"]
 ```
 
 - [ ] **Step 5: Wire into checkup command**
@@ -329,10 +329,10 @@ git commit -m "feat: add community disease plugin system with dynamic loading"
 
 ```json
 {
-  "keywords": ["openclaw", "diagnostics", "health", "agent", "ai", "lobster", "clawinsight"],
-  "homepage": "https://github.com/openclaw/clawinsight",
-  "repository": { "type": "git", "url": "https://github.com/openclaw/clawinsight.git" },
-  "bugs": { "url": "https://github.com/openclaw/clawinsight/issues" },
+  "keywords": ["openclaw", "diagnostics", "health", "agent", "ai", "lobster", "clawdoctor"],
+  "homepage": "https://github.com/openclaw/clawdoctor",
+  "repository": { "type": "git", "url": "https://github.com/openclaw/clawdoctor.git" },
+  "bugs": { "url": "https://github.com/openclaw/clawdoctor/issues" },
   "files": ["dist/", "README.md", "LICENSE"]
 }
 ```
@@ -345,7 +345,7 @@ The README should be optimized for GitHub discovery — keywords in headings, GI
 
 - [ ] **Step 3: Create CONTRIBUTING.md**
 
-How to write a ClawInsight disease plugin: plugin API, DiseaseDefinition format, publishing to npm.
+How to write a ClawDoctor disease plugin: plugin API, DiseaseDefinition format, publishing to npm.
 
 - [ ] **Step 4: Create docs/ci-setup.md**
 
@@ -353,7 +353,7 @@ GitHub Actions, GitLab CI, CircleCI examples.
 
 - [ ] **Step 5: Create docs/plugin-authoring.md**
 
-Step-by-step guide to creating a `clawinsight-plugin-*` package.
+Step-by-step guide to creating a `clawdoctor-plugin-*` package.
 
 - [ ] **Step 6: Commit**
 
@@ -456,18 +456,18 @@ git commit -m "feat: add auto-prescription with --auto-fix for low-risk guided p
 
 ```typescript
 describe("E2E Phase 3", () => {
-  it("clawinsight badge outputs valid SVG", () => {
+  it("clawdoctor badge outputs valid SVG", () => {
     const output = run("badge");
     expect(output).toContain("<svg");
-    expect(output).toContain("ClawInsight");
+    expect(output).toContain("ClawDoctor");
   });
 
-  it("clawinsight checkup --fail-on critical exits 0 with no critical diseases", () => {
+  it("clawdoctor checkup --fail-on critical exits 0 with no critical diseases", () => {
     // This should not throw (exit code 0)
     run("checkup --fail-on critical --json --agent default", fixtureEnv);
   });
 
-  it("clawinsight checkup --auto-fix does not crash", () => {
+  it("clawdoctor checkup --auto-fix does not crash", () => {
     run("checkup --auto-fix --agent default --no-llm", fixtureEnv);
   });
 });
