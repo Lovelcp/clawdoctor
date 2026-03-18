@@ -159,10 +159,12 @@ src/
 │   ├── event-buffer.ts            # In-memory buffer with periodic flush
 │   ├── event-buffer.test.ts
 │   ├── summarize.ts               # summarizeParams(), summarizeResult(), redactAndTruncate()
-│   └── summarize.test.ts
+│   ├── summarize.test.ts
+│   └── openclaw-types.ts          # Minimal OpenClaw plugin type stubs (OpenClawPluginDefinition, etc.)
 ├── dashboard/
 │   ├── server.ts                  # Hono app: API routes + static SPA serving
 │   ├── server.test.ts
+│   ├── spa.test.ts                # Automated SPA validation tests
 │   ├── api/
 │   │   ├── health.ts              # GET /api/health
 │   │   ├── diseases.ts            # GET /api/diseases, GET /api/diseases/:id
@@ -696,7 +698,7 @@ describe("CausalLinker", () => {
 - [ ] **Step 3: Commit**
 
 ```bash
-git add src/llm/causal-linker.ts src/llm/causal-linker.test.ts
+git add src/llm/causal-linker.ts src/llm/causal-linker.test.ts src/store/causal-chain-store.ts src/store/causal-chain-store.test.ts
 git commit -m "feat: add causal chain linker for cross-department diagnosis"
 ```
 
@@ -1447,7 +1449,7 @@ describe("evaluateRules — hybrid diseases (Phase 2)", () => {
 
 - [ ] **Step 5: Run full test suite, fix any broken tests**
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 6: Commit**
 
 ```bash
 git add src/analysis/analysis-pipeline.ts src/analysis/rule-engine.ts src/analysis/rule-engine.test.ts src/commands/checkup.ts src/report/ src/store/score-store.ts
