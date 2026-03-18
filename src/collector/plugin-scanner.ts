@@ -6,7 +6,7 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { ulid } from "ulid";
-import type { ClawDocEvent, PluginSnapshotData } from "../types/events.js";
+import type { ClawInsightEvent, PluginSnapshotData } from "../types/events.js";
 
 // ─── Plugin manifest shape (minimal) ───
 
@@ -28,7 +28,7 @@ type PluginEntry = PluginSnapshotData["plugins"][number];
  * with openclaw.plugin field) in node_modules under workspaceDir.
  * Returns a plugin_snapshot event.
  */
-export function scanPlugins(workspaceDir: string, agentId: string): ClawDocEvent {
+export function scanPlugins(workspaceDir: string, agentId: string): ClawInsightEvent {
   const plugins: PluginEntry[] = [];
 
   // Look for node_modules plugins that declare openclaw plugin manifests

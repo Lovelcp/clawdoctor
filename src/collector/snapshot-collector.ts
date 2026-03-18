@@ -5,7 +5,7 @@
 
 import { existsSync, readdirSync } from "node:fs";
 import { join, extname, basename } from "node:path";
-import type { ClawDocEvent } from "../types/events.js";
+import type { ClawInsightEvent } from "../types/events.js";
 import { parseSessionFile } from "./session-parser.js";
 import { scanConfig } from "./config-scanner.js";
 import { scanMemory } from "./memory-scanner.js";
@@ -26,9 +26,9 @@ export interface CollectSnapshotOptions {
 /**
  * Orchestrate all snapshot sub-collectors and return combined events.
  */
-export async function collectSnapshot(opts: CollectSnapshotOptions): Promise<ClawDocEvent[]> {
+export async function collectSnapshot(opts: CollectSnapshotOptions): Promise<ClawInsightEvent[]> {
   const { agentId, stateDir, workspaceDir, since, configPath: explicitConfigPath } = opts;
-  const events: ClawDocEvent[] = [];
+  const events: ClawInsightEvent[] = [];
 
   // ── 1. Session JSONL files ─────────────────────────────────────────────
   const sessionsDir = join(stateDir, "sessions");

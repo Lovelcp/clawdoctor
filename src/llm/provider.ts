@@ -3,7 +3,7 @@
 //  Provider-agnostic interface + Anthropic implementation
 // ═══════════════════════════════════════════════
 
-import type { ClawDocConfig } from "../types/config.js";
+import type { ClawInsightConfig } from "../types/config.js";
 
 // ─── Interfaces ───────────────────────────────────────────────────────────────
 
@@ -89,7 +89,7 @@ export function createAnthropicProvider(opts: AnthropicProviderOptions): LLMProv
 // ─── Provider resolution ──────────────────────────────────────────────────────
 
 export function resolveLLMProvider(
-  config: ClawDocConfig,
+  config: ClawInsightConfig,
 ): { provider: LLMProvider; model: string } | { provider: null; reason: string } {
   if (!config.llm.enabled) {
     return { provider: null, reason: "llm_disabled" };

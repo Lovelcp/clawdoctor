@@ -1,6 +1,6 @@
 // ═══════════════════════════════════════════════
 //  Skill Command
-//  clawdoc skill list — focused skill department checkup
+//  clawinsight skill list — focused skill department checkup
 // ═══════════════════════════════════════════════
 
 import { Command } from "commander";

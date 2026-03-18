@@ -9,7 +9,7 @@ import { DEFAULT_CONFIG } from "../types/config.js";
 let testDir: string;
 
 beforeEach(() => {
-  testDir = join(tmpdir(), `clawdoc-test-${Date.now()}`);
+  testDir = join(tmpdir(), `clawinsight-test-${Date.now()}`);
   mkdirSync(testDir, { recursive: true });
 });
 

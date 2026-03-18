@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ClawDoc Dashboard</title>
+  <title>ClawInsight Dashboard</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
   <style>
     :root {
@@ -353,7 +353,7 @@
   <div id="app">
     <nav class="sidebar">
       <div class="sidebar-logo">
-        <h1>ClawDoc</h1>
+        <h1>ClawInsight</h1>
         <div class="subtitle">Agent Health Monitor</div>
       </div>
       <a class="nav-item" href="#/overview" data-route="/overview">
@@ -391,10 +391,10 @@
 
   <script>
     // ===================================================
-    //  ClawDoc SPA — Vanilla JS, hash-based routing
+    //  ClawInsight SPA — Vanilla JS, hash-based routing
     // ===================================================
 
-    const TOKEN = window.__CLAWDOC_TOKEN__ || '';
+    const TOKEN = window.__CLAWINSIGHT_TOKEN__ || '';
 
     // --- API helper ---
     async function api(path, opts = {}) {

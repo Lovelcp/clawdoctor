@@ -10,7 +10,7 @@ import { readFileSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import type Database from "better-sqlite3";
-import type { ClawDocConfig } from "../types/config.js";
+import type { ClawInsightConfig } from "../types/config.js";
 import type { EventType } from "../types/events.js";
 import { loadConfig } from "../config/loader.js";
 import { createEventStore } from "../store/event-store.js";
@@ -25,7 +25,7 @@ import { generateBadge } from "../badge/badge-generator.js";
 
 export interface DashboardOptions {
   db: Database.Database;
-  config: ClawDocConfig;
+  config: ClawInsightConfig;
   authToken?: string;
 }
 
@@ -39,12 +39,12 @@ function loadSpaHtml(token?: string): string {
   try {
     html = readFileSync(SPA_PATH, "utf-8");
   } catch {
-    html = "<!DOCTYPE html><html><body><h1>ClawDoc Dashboard</h1><p>SPA not found.</p></body></html>";
+    html = "<!DOCTYPE html><html><body><h1>ClawInsight Dashboard</h1><p>SPA not found.</p></body></html>";
   }
   if (token) {
     html = html.replace(
       "</head>",
-      `<script>window.__CLAWDOC_TOKEN__="${token}";</script></head>`,
+      `<script>window.__CLAWINSIGHT_TOKEN__="${token}";</script></head>`,
     );
   }
   return html;
@@ -338,7 +338,7 @@ export function createDashboardApp(opts: DashboardOptions): Hono {
   // 16. GET /api/badge — public SVG badge (NO auth required)
   app.get("/api/badge", (c) => {
     const agentId = c.req.query("agentId") ?? "default";
-    const label = c.req.query("label") ?? "ClawDoc";
+    const label = c.req.query("label") ?? "ClawInsight";
     const latest = scoreStore.queryLatestScore(agentId);
 
     const score = latest?.overall ?? 0;

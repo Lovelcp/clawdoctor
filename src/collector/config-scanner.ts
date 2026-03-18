@@ -6,7 +6,7 @@
 import { readFileSync, existsSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { ulid } from "ulid";
-import type { ClawDocEvent, ConfigSnapshotData } from "../types/events.js";
+import type { ClawInsightEvent, ConfigSnapshotData } from "../types/events.js";
 
 // ─── openclaw.json shape (minimal, flexible) ───
 
@@ -24,7 +24,7 @@ interface OpenClawConfig {
  * Read openclaw.json at configPath and produce a config_snapshot event.
  * Returns null if the file does not exist or cannot be parsed.
  */
-export function scanConfig(configPath: string, agentId: string): ClawDocEvent | null {
+export function scanConfig(configPath: string, agentId: string): ClawInsightEvent | null {
   if (!existsSync(configPath)) {
     return null;
   }

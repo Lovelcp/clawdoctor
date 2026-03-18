@@ -1,5 +1,5 @@
 export const UI_STRINGS = {
-  reportTitle: { en: "ClawDoc Health Report", zh: "ClawDoc 健康报告" },
+  reportTitle: { en: "ClawInsight Health Report", zh: "ClawInsight 健康报告" },
   overallHealth: { en: "Overall Health", zh: "综合健康" },
   grade: { en: "Grade", zh: "等级" },
   coverage: { en: "Coverage", zh: "覆盖率" },
@@ -9,7 +9,7 @@ export const UI_STRINGS = {
   causalChain: { en: "Causal Chain Detected", zh: "发现因果链" },
   quickActions: { en: "Quick Actions", zh: "快捷操作" },
   checksSkipped: { en: "checks skipped due to limited data", zh: "项检查因数据不足被跳过" },
-  installPlugin: { en: "Install ClawDoc plugin for full diagnostics", zh: "安装 ClawDoc 插件以获取完整诊断" },
+  installPlugin: { en: "Install ClawInsight plugin for full diagnostics", zh: "安装 ClawInsight 插件以获取完整诊断" },
   partialDataWarning: { en: "Score based on partial data — install plugin for full report", zh: "分数基于部分数据 — 安装插件获取完整报告" },
   // Department names
   vitals: { en: "System Vitals", zh: "基础体征" },

@@ -2,7 +2,7 @@
 //  OpenClaw Plugin Type Shims (dev-only)
 //  Minimal interfaces matching the OpenClaw plugin SDK.
 //  At runtime, real types from openclaw/plugin-sdk are used.
-//  These stubs exist so ClawDoc can be developed without
+//  These stubs exist so ClawInsight can be developed without
 //  openclaw installed as a hard dependency.
 // ═══════════════════════════════════════════════
 

@@ -15,11 +15,11 @@ import { loadConfig } from "../config/loader.js";
 // ─── Helper: resolve default DB path ─────────────────────────────────────────
 
 function defaultDbPath(): string {
-  return join(homedir(), ".clawdoc", "clawdoc.db");
+  return join(homedir(), ".clawinsight", "clawinsight.db");
 }
 
 function defaultConfigPath(): string {
-  return join(homedir(), ".clawdoc", "config.json");
+  return join(homedir(), ".clawinsight", "config.json");
 }
 
 // ─── Helper: format timestamp ────────────────────────────────────────────────
@@ -73,7 +73,7 @@ export function registerRxCommand(program: Command): void {
         }
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
-        console.error(`[clawdoc] rx list failed: ${message}`);
+        console.error(`[clawinsight] rx list failed: ${message}`);
         process.exit(1);
       } finally {
         db.close();
@@ -110,7 +110,7 @@ export function registerRxCommand(program: Command): void {
         }
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
-        console.error(`[clawdoc] rx preview failed: ${message}`);
+        console.error(`[clawinsight] rx preview failed: ${message}`);
         process.exit(1);
       } finally {
         db.close();
@@ -188,7 +188,7 @@ export function registerRxCommand(program: Command): void {
         }
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
-        console.error(`[clawdoc] rx apply failed: ${message}`);
+        console.error(`[clawinsight] rx apply failed: ${message}`);
         process.exit(1);
       } finally {
         db.close();
@@ -231,7 +231,7 @@ export function registerRxCommand(program: Command): void {
         }
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
-        console.error(`[clawdoc] rx rollback failed: ${message}`);
+        console.error(`[clawinsight] rx rollback failed: ${message}`);
         process.exit(1);
       } finally {
         db.close();
@@ -287,7 +287,7 @@ export function registerRxCommand(program: Command): void {
         }
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
-        console.error(`[clawdoc] rx followup failed: ${message}`);
+        console.error(`[clawinsight] rx followup failed: ${message}`);
         process.exit(1);
       } finally {
         db.close();
@@ -334,7 +334,7 @@ export function registerRxCommand(program: Command): void {
         }
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
-        console.error(`[clawdoc] rx history failed: ${message}`);
+        console.error(`[clawinsight] rx history failed: ${message}`);
         process.exit(1);
       } finally {
         db.close();

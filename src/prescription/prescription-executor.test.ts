@@ -52,7 +52,7 @@ describe("PrescriptionExecutor", () => {
 
   beforeEach(() => {
     db = openDatabase(":memory:");
-    tmpDir = mkdtempSync(join(tmpdir(), "clawdoc-executor-test-"));
+    tmpDir = mkdtempSync(join(tmpdir(), "clawinsight-executor-test-"));
 
     // Seed a diagnosis
     const diagStore = createDiagnosisStore(db);

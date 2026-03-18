@@ -11,7 +11,7 @@ import { createDiagnosisStore } from "../store/diagnosis-store.js";
 import { createScoreStore } from "../store/score-store.js";
 import { DEFAULT_CONFIG } from "../types/config.js";
 import type Database from "better-sqlite3";
-import type { ClawDocEvent } from "../types/events.js";
+import type { ClawInsightEvent } from "../types/events.js";
 import type { DiseaseInstance } from "../types/domain.js";
 import type { Hono } from "hono";
 
@@ -19,7 +19,7 @@ import type { Hono } from "hono";
 
 const AUTH_TOKEN = "test-secret-token-123";
 
-function makeEvent(overrides: Partial<ClawDocEvent> = {}): ClawDocEvent {
+function makeEvent(overrides: Partial<ClawInsightEvent> = {}): ClawInsightEvent {
   return {
     id: `evt_${Math.random().toString(36).slice(2)}`,
     source: "snapshot",

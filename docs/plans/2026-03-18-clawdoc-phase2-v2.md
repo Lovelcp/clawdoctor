@@ -1,14 +1,14 @@
-# ClawDoc Phase 2 Implementation Plan (v2)
+# ClawInsight Phase 2 Implementation Plan (v2)
 
 > **For agentic workers:** REQUIRED: Use superpowers:subagent-driven-development (if subagents available) or superpowers:executing-plans to implement this plan. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Extend ClawDoc with LLM-powered deep diagnosis (16 hybrid/LLM diseases + cross-department causal chains), a full prescription lifecycle (generate/preview/apply/rollback/follow-up), a Web Dashboard (Hono + SPA with 9 pages), and an OpenClaw Plugin for real-time event streaming.
+**Goal:** Extend ClawInsight with LLM-powered deep diagnosis (16 hybrid/LLM diseases + cross-department causal chains), a full prescription lifecycle (generate/preview/apply/rollback/follow-up), a Web Dashboard (Hono + SPA with 9 pages), and an OpenClaw Plugin for real-time event streaming.
 
 **Architecture:** Four subsystems built on Phase 1's foundation (261 tests, 43 disease definitions, snapshot collector, rule engine, health scorer). LLM Analyzer plugs into the existing analysis pipeline. Prescription Engine operates on DiseaseInstance outputs. Dashboard is a Hono server serving a bundled SPA backed by the same SQLite store. Plugin registers OpenClaw hooks to stream events into persistent SQLite.
 
 **Tech Stack:** Phase 1 stack + Hono + @hono/node-server (dashboard server), vanilla HTML/JS SPA with Chart.js (CDN dev / inlined prod), openclaw as peerDependency (plugin types).
 
-**Spec:** `docs/2026-03-17-clawdoc-design.md`
+**Spec:** `docs/2026-03-17-clawinsight-design.md`
 
 ---
 
@@ -16,7 +16,7 @@
 
 ### 1. DB Persistence Semantics (single, unambiguous behavior)
 
-**Decision:** `clawdoc checkup` ALWAYS writes to `~/.clawdoc/clawdoc.db` (persistent).
+**Decision:** `clawinsight checkup` ALWAYS writes to `~/.clawinsight/clawinsight.db` (persistent).
 
 There is no in-memory default for CLI mode. The Phase 1 `:memory:` behavior is replaced. Rationale:
 - `rx list` needs to read diagnoses/prescriptions from the same DB that `checkup` wrote to
@@ -24,13 +24,13 @@ There is no in-memory default for CLI mode. The Phase 1 `:memory:` behavior is r
 - Plugin follow-up scheduler needs to query pending follow-ups
 
 ```
-clawdoc checkup     → writes to ~/.clawdoc/clawdoc.db
-clawdoc rx list     → reads from ~/.clawdoc/clawdoc.db
-clawdoc dashboard   → reads from ~/.clawdoc/clawdoc.db
-plugin mode         → writes to ~/.clawdoc/clawdoc.db (same file)
+clawinsight checkup     → writes to ~/.clawinsight/clawinsight.db
+clawinsight rx list     → reads from ~/.clawinsight/clawinsight.db
+clawinsight dashboard   → reads from ~/.clawinsight/clawinsight.db
+plugin mode         → writes to ~/.clawinsight/clawinsight.db (same file)
 ```
 
-`CheckupOptions` gets a `dbPath?: string` (default: `~/.clawdoc/clawdoc.db`). For tests, pass `:memory:` explicitly. The `db?: Database.Database` from the previous plan is REMOVED — it created lifecycle ambiguity. Instead, the pipeline always opens/closes its own DB at the given path.
+`CheckupOptions` gets a `dbPath?: string` (default: `~/.clawinsight/clawinsight.db`). For tests, pass `:memory:` explicitly. The `db?: Database.Database` from the previous plan is REMOVED — it created lifecycle ambiguity. Instead, the pipeline always opens/closes its own DB at the given path.
 
 ### 2. Dedup/Replacement Strategy for Repeated Checkups
 
@@ -51,15 +51,15 @@ This requires `diagnosisStore` to support upsert-by-diseaseId and `prescriptionS
 - Server binds to `127.0.0.1` ONLY (never `0.0.0.0`)
 - ALL API endpoints require bearer token (read AND write) — config, memory, skills, events all contain sensitive workspace data
 - Only exception: `GET /` serves the SPA HTML shell without auth (the shell itself contains no data)
-- Token is injected into the SPA via `window.__CLAWDOC_TOKEN__` in a `<script>` tag that the server injects before serving index.html
-- SPA reads `window.__CLAWDOC_TOKEN__` and attaches `Authorization: Bearer <token>` to every `/api/*` fetch
+- Token is injected into the SPA via `window.__CLAWINSIGHT_TOKEN__` in a `<script>` tag that the server injects before serving index.html
+- SPA reads `window.__CLAWINSIGHT_TOKEN__` and attaches `Authorization: Bearer <token>` to every `/api/*` fetch
 
 ```typescript
 // server.ts — token injection
 app.get("/", (c) => {
   const html = SPA_HTML.replace(
     "</head>",
-    `<script>window.__CLAWDOC_TOKEN__="${opts.authToken}";</script></head>`
+    `<script>window.__CLAWINSIGHT_TOKEN__="${opts.authToken}";</script></head>`
   );
   return c.html(html);
 });
@@ -251,8 +251,8 @@ src/
 │   ├── causal-chain-store.ts      # CausalChain persistence (uses new table from schema v2)
 │   └── causal-chain-store.test.ts
 ├── commands/
-│   ├── rx-cmd.ts                  # clawdoc rx list/preview/apply/rollback/followup/history
-│   └── dashboard-cmd.ts           # clawdoc dashboard [--port]
+│   ├── rx-cmd.ts                  # clawinsight rx list/preview/apply/rollback/followup/history
+│   └── dashboard-cmd.ts           # clawinsight dashboard [--port]
 ├── scripts/
 │   └── bundle-spa.ts              # Download CDN deps → inline into index.html
 └── (modify existing)
@@ -496,7 +496,7 @@ git commit -m "feat: add Phase 2 types, schema v2 migration, score-store extensi
 ```typescript
 import { describe, it, expect, vi } from "vitest";
 import { createAnthropicProvider, resolveLLMProvider } from "./provider.js";
-import type { ClawDocConfig } from "../types/config.js";
+import type { ClawInsightConfig } from "../types/config.js";
 import { DEFAULT_CONFIG } from "../types/config.js";
 
 describe("AnthropicProvider", () => {
@@ -582,7 +582,7 @@ export interface AnthropicProviderOptions {
 
 export function createAnthropicProvider(opts: AnthropicProviderOptions): LLMProvider { /* ... */ }
 
-export function resolveLLMProvider(config: ClawDocConfig): LLMProvider | null {
+export function resolveLLMProvider(config: ClawInsightConfig): LLMProvider | null {
   if (!config.llm.enabled) return null;
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return null;
@@ -709,7 +709,7 @@ import { Hono } from "hono";
 
 export interface DashboardOptions {
   db: Database.Database;
-  config: ClawDocConfig;
+  config: ClawInsightConfig;
   authToken?: string;
 }
 
@@ -739,7 +739,7 @@ export function createDashboardApp(opts: DashboardOptions): Hono {
   // GET /api/trends — HealthScore[] time series
   // GET /api/events — paginated (?page=1&limit=50&type=tool_call)
   // GET /api/causal-chains — CausalChain[]
-  // GET /api/config — ClawDocConfig
+  // GET /api/config — ClawInsightConfig
   // GET /api/skills — PluginSnapshotData
   // GET /api/memory — MemorySnapshotData
 
@@ -757,11 +757,11 @@ export function createDashboardApp(opts: DashboardOptions): Hono {
 
 GET /api/health reads the `health_score_json` column directly — no reconstruction from flat scores.
 
-**Standalone dashboard data flow:** Dashboard reads from `~/.clawdoc/clawdoc.db` (same file that `clawdoc checkup` writes to). If no recent data exists, it runs a fresh checkup first:
+**Standalone dashboard data flow:** Dashboard reads from `~/.clawinsight/clawinsight.db` (same file that `clawinsight checkup` writes to). If no recent data exists, it runs a fresh checkup first:
 
 ```typescript
 // In dashboard-cmd.ts:
-const dbPath = join(homedir(), ".clawdoc", "clawdoc.db");
+const dbPath = join(homedir(), ".clawinsight", "clawinsight.db");
 
 // Open a read connection to check freshness
 const checkDb = openDatabase(dbPath);
@@ -850,7 +850,7 @@ IMPORTANT: RawSampleProvider does NOT reuse the existing session-parser or memor
 - [ ] **Step 1: Implement raw-sample-provider.ts**
 
 Three methods:
-- `getRecentSessionSamples(agentId, limit)`: Parse JSONL files, extract tool call sequences with error summaries (first 200 chars, redacted). NOT the same as session-parser.ts which produces ClawDocEvent with paramsSummary.
+- `getRecentSessionSamples(agentId, limit)`: Parse JSONL files, extract tool call sequences with error summaries (first 200 chars, redacted). NOT the same as session-parser.ts which produces ClawInsightEvent with paramsSummary.
 - `getMemoryFileContents(limit, maxTokensPerFile)`: Read actual file content (fs.readFileSync), truncate to maxTokensPerFile chars. NOT the memory-scanner which returns metadata only.
 - `getSkillDefinitions(pluginIds)`: Read plugin source code for security analysis.
 
@@ -984,18 +984,18 @@ Registers 6 hooks (spec §5.3): `llm_output`, `after_tool_call`, `session_end`, 
 - [ ] **Step 3: Implement plugin.ts entry point**
 
 ```typescript
-export const clawdocPlugin: OpenClawPluginDefinition = {
-  id: "clawdoc",
-  name: "ClawDoc",
+export const clawinsightPlugin: OpenClawPluginDefinition = {
+  id: "clawinsight",
+  name: "ClawInsight",
   description: "Agent health diagnostics",
   register(api) {
-    // 1. Open persistent SQLite at ~/.clawdoc/clawdoc.db
+    // 1. Open persistent SQLite at ~/.clawinsight/clawinsight.db
     // 2. Create event buffer with flush to event store
     // 3. Register stream collector hooks
     // 4. Register periodic snapshot service (30min, with stop() cleanup)
     // 5. Register follow-up scheduler service (10min, spec §7.5)
-    // 6. Register CLI subcommands (openclaw clawdoc checkup)
-    // 7. Register dashboard HTTP route (/clawdoc/*)
+    // 6. Register CLI subcommands (openclaw clawinsight checkup)
+    // 7. Register dashboard HTTP route (/clawinsight/*)
   },
 };
 ```
@@ -1184,7 +1184,7 @@ describe("evaluateRules — hybrid diseases", () => {
 
 - [ ] **Step 3: Refactor runCheckup DB to always-persistent**
 
-Replace the Phase 1 `:memory:` default with `~/.clawdoc/clawdoc.db`:
+Replace the Phase 1 `:memory:` default with `~/.clawinsight/clawinsight.db`:
 
 ```typescript
 export interface CheckupOptions {
@@ -1195,13 +1195,13 @@ export interface CheckupOptions {
   since?: number;
   noLlm: boolean;
   configPath?: string;
-  dbPath?: string;  // default: ~/.clawdoc/clawdoc.db. Use ":memory:" for tests only.
+  dbPath?: string;  // default: ~/.clawinsight/clawinsight.db. Use ":memory:" for tests only.
 }
 
 // In runCheckup():
-const dbDir = join(opts.stateDir ?? join(homedir(), ".clawdoc"));
+const dbDir = join(opts.stateDir ?? join(homedir(), ".clawinsight"));
 mkdirSync(dbDir, { recursive: true });
-const dbPath = opts.dbPath ?? join(dbDir, "clawdoc.db");
+const dbPath = opts.dbPath ?? join(dbDir, "clawinsight.db");
 const db = openDatabase(dbPath);
 try {
   // ... pipeline writes to persistent DB ...
@@ -1292,7 +1292,7 @@ git commit -m "feat: integrate LLM analyzer, causal chains, and prescriptions in
 - [ ] **Step 2: Implement dashboard-cmd.ts**
 
 ```typescript
-// Detects persistent DB at ~/.clawdoc/clawdoc.db or falls back to :memory:
+// Detects persistent DB at ~/.clawinsight/clawinsight.db or falls back to :memory:
 // Generates auth token, prints to terminal
 // Starts Hono server
 ```
@@ -1316,15 +1316,15 @@ git commit -m "feat: add rx and dashboard CLI commands"
 - [ ] **Step 1: Add Phase 2 E2E tests**
 
 High-risk paths that MUST be covered:
-1. `clawdoc checkup --json` includes `llmAvailable` and `llmDegradationReason` fields
-2. `clawdoc rx list --json` returns array (empty when no prescriptions)
-3. `clawdoc dashboard --help` shows --port option
+1. `clawinsight checkup --json` includes `llmAvailable` and `llmDegradationReason` fields
+2. `clawinsight rx list --json` returns array (empty when no prescriptions)
+3. `clawinsight dashboard --help` shows --port option
 4. LLM degradation path: when no API key, checkup still produces rule-only results with degradation reason
 5. Plugin event buffer: mock hook calls → verify events reach SQLite (unit-level, not full OpenClaw)
 6. Prescription apply/rollback in temp directory: create fixture → apply → verify changes → rollback → verify restored
 7. **Schema migration v1→v2:** Create a v1 database with test data, run openDatabase() (triggers migration), verify causal_chains table exists and health_score_json column is present
 8. **Dedup/replacement:** Run checkup twice on same fixtures, verify no duplicate diagnoses/prescriptions/causal chains — second run replaces first
-9. **Cross-command data flow:** Run `checkup --json`, then `rx list --json` — verify prescriptions from checkup are visible in rx list (both read from same ~/.clawdoc/clawdoc.db)
+9. **Cross-command data flow:** Run `checkup --json`, then `rx list --json` — verify prescriptions from checkup are visible in rx list (both read from same ~/.clawinsight/clawinsight.db)
 
 - [ ] **Step 2: Run full test suite**
 - [ ] **Step 3: Commit**

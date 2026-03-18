@@ -1,6 +1,6 @@
-# Contributing to ClawDoc
+# Contributing to ClawInsight
 
-Thank you for your interest in contributing to ClawDoc! This document explains how to contribute bug reports, feature requests, disease plugins, and code changes.
+Thank you for your interest in contributing to ClawInsight! This document explains how to contribute bug reports, feature requests, disease plugins, and code changes.
 
 ## Table of Contents
 
@@ -15,18 +15,18 @@ Thank you for your interest in contributing to ClawDoc! This document explains h
 
 ## Bug Reports
 
-Before filing a bug report, please check the [existing issues](https://github.com/openclaw/clawdoc/issues) to avoid duplicates.
+Before filing a bug report, please check the [existing issues](https://github.com/openclaw/clawinsight/issues) to avoid duplicates.
 
 When filing a bug report, include:
 
-1. **ClawDoc version**: `clawdoc --version`
+1. **ClawInsight version**: `clawinsight --version`
 2. **Node.js version**: `node --version`
 3. **Operating system** and version
 4. **Steps to reproduce** the issue
 5. **Expected behavior** vs **actual behavior**
-6. **Full error output** (use `clawdoc checkup --verbose` if applicable)
+6. **Full error output** (use `clawinsight checkup --verbose` if applicable)
 
-Use the [Bug Report issue template](https://github.com/openclaw/clawdoc/issues/new?template=bug_report.md) on GitHub.
+Use the [Bug Report issue template](https://github.com/openclaw/clawinsight/issues/new?template=bug_report.md) on GitHub.
 
 ---
 
@@ -44,17 +44,17 @@ For large features, consider opening a discussion first to get early feedback be
 
 ## Writing Disease Plugins
 
-The most impactful way to contribute is by writing new disease definitions. Plugins are standalone npm packages that ClawDoc loads at runtime.
+The most impactful way to contribute is by writing new disease definitions. Plugins are standalone npm packages that ClawInsight loads at runtime.
 
 ### Plugin Package Naming
 
-Name your plugin `clawdoc-plugin-<name>` so it is discoverable on npm.
+Name your plugin `clawinsight-plugin-<name>` so it is discoverable on npm.
 
 ### Minimal Plugin Example
 
 ```typescript
-import type { ClawDocPlugin } from 'clawdoc-plugin-my-rules'; // or define locally
-import type { DiseaseDefinition } from 'clawdoc'; // from clawdoc's types
+import type { ClawInsightPlugin } from 'clawinsight-plugin-my-rules'; // or define locally
+import type { DiseaseDefinition } from 'clawinsight'; // from clawinsight's types
 
 const myDisease: DiseaseDefinition = {
   id: 'CUSTOM-001',
@@ -82,7 +82,7 @@ const myDisease: DiseaseDefinition = {
 };
 
 const plugin = {
-  name: 'clawdoc-plugin-my-rules',
+  name: 'clawinsight-plugin-my-rules',
   version: '1.0.0',
   diseases: [myDisease],
 };
@@ -142,8 +142,8 @@ Examples:
 
 ```bash
 # Clone the repo
-git clone https://github.com/openclaw/clawdoc.git
-cd clawdoc
+git clone https://github.com/openclaw/clawinsight.git
+cd clawinsight
 
 # Install dependencies (requires pnpm)
 pnpm install

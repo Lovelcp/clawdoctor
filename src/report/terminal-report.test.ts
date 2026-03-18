@@ -80,7 +80,7 @@ function plain(vm: ReportViewModel, locale = "en"): string {
 
 describe("renderReport — stream mode", () => {
   it("contains the report title", () => {
-    expect(plain(streamViewModel)).toContain("ClawDoc Health Report");
+    expect(plain(streamViewModel)).toContain("ClawInsight Health Report");
   });
 
   it("shows agent ID in header", () => {
@@ -141,11 +141,11 @@ describe("renderReport — stream mode", () => {
   it("shows Quick Actions footer in stream mode", () => {
     const text = plain(streamViewModel);
     expect(text).toContain("Quick Actions");
-    expect(text).toContain("clawdoc rx apply");
+    expect(text).toContain("clawinsight rx apply");
   });
 
   it("does NOT show plugin install CTA in stream mode", () => {
-    expect(plain(streamViewModel)).not.toContain("Install ClawDoc plugin");
+    expect(plain(streamViewModel)).not.toContain("Install ClawInsight plugin");
   });
 
   it("outputs ANSI color codes in raw output", () => {
@@ -189,7 +189,7 @@ describe("renderReport — snapshot mode", () => {
   });
 
   it("shows plugin install CTA in snapshot mode footer", () => {
-    expect(plain(snapshotViewModel)).toContain("Install ClawDoc plugin");
+    expect(plain(snapshotViewModel)).toContain("Install ClawInsight plugin");
   });
 
   it("does NOT show Quick Actions in snapshot mode", () => {
@@ -199,7 +199,7 @@ describe("renderReport — snapshot mode", () => {
 
 describe("renderReport — Chinese locale", () => {
   it("renders in Chinese when locale is 'zh'", () => {
-    expect(plain(streamViewModel, "zh")).toContain("ClawDoc 健康报告");
+    expect(plain(streamViewModel, "zh")).toContain("ClawInsight 健康报告");
   });
 
   it("shows Chinese overall health label", () => {

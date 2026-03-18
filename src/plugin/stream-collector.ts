@@ -1,7 +1,7 @@
 // ═══════════════════════════════════════════════
 //  Stream Collector
 //  Registers OpenClaw plugin hooks and converts
-//  them into ClawDocEvents pushed to the EventBuffer.
+//  them into ClawInsightEvents pushed to the EventBuffer.
 //  Design spec: Phase 2, Task 8
 // ═══════════════════════════════════════════════
 
@@ -10,7 +10,7 @@ import type { EventBuffer } from "./event-buffer.js";
 import type { OpenClawPluginApi } from "./openclaw-types.js";
 import { summarizeParams, summarizeResult, redactAndTruncate } from "./summarize.js";
 import type {
-  ClawDocEvent,
+  ClawInsightEvent,
   LLMCallData,
   ToolCallData,
   SessionLifecycleData,
@@ -22,7 +22,7 @@ import type {
 // ─── registerStreamCollector ──────────────────────────────────────────────────
 
 /**
- * Registers 6 OpenClaw plugin hooks that produce ClawDocEvents and push
+ * Registers 6 OpenClaw plugin hooks that produce ClawInsightEvents and push
  * them to the given EventBuffer.
  *
  * Hooks registered:
@@ -47,7 +47,7 @@ export function registerStreamCollector(api: OpenClawPluginApi, buffer: EventBuf
       success: true,
     };
 
-    const ev: ClawDocEvent = {
+    const ev: ClawInsightEvent = {
       id: ulid(),
       source: "stream",
       timestamp: Date.now(),
@@ -76,7 +76,7 @@ export function registerStreamCollector(api: OpenClawPluginApi, buffer: EventBuf
       success: error === undefined && event.error === undefined,
     };
 
-    const ev: ClawDocEvent = {
+    const ev: ClawInsightEvent = {
       id: ulid(),
       source: "stream",
       timestamp: Date.now(),
@@ -98,7 +98,7 @@ export function registerStreamCollector(api: OpenClawPluginApi, buffer: EventBuf
       durationMs: event.durationMs,
     };
 
-    const ev: ClawDocEvent = {
+    const ev: ClawInsightEvent = {
       id: ulid(),
       source: "stream",
       timestamp: Date.now(),
@@ -124,7 +124,7 @@ export function registerStreamCollector(api: OpenClawPluginApi, buffer: EventBuf
       trigger: ctx?.trigger,
     };
 
-    const ev: ClawDocEvent = {
+    const ev: ClawInsightEvent = {
       id: ulid(),
       source: "stream",
       timestamp: Date.now(),
@@ -151,7 +151,7 @@ export function registerStreamCollector(api: OpenClawPluginApi, buffer: EventBuf
       durationMs: undefined,
     };
 
-    const ev: ClawDocEvent = {
+    const ev: ClawInsightEvent = {
       id: ulid(),
       source: "stream",
       timestamp: Date.now(),
@@ -176,7 +176,7 @@ export function registerStreamCollector(api: OpenClawPluginApi, buffer: EventBuf
       tokenCountAfter: event.tokenCount,
     };
 
-    const ev: ClawDocEvent = {
+    const ev: ClawInsightEvent = {
       id: ulid(),
       source: "stream",
       timestamp: Date.now(),

@@ -1,13 +1,13 @@
-# 🦞 ClawDoc
+# 🦞 ClawInsight
 
 > Keep your lobster healthy. Health diagnostics for OpenClaw agents.
 
-![ClawDoc: A](badge-example.svg)
+![ClawInsight: A](badge-example.svg)
 
 ## Quick Start
 
 ```bash
-npx clawdoc checkup
+npx clawinsight checkup
 ```
 
 One command. Zero config. Full health report for your OpenClaw agent.
@@ -19,7 +19,7 @@ One command. Zero config. Full health report for your OpenClaw agent.
 - **LLM-Powered Analysis**: Deep diagnosis with causal chain detection
 - **Auto-Fix**: `--auto-fix` automatically applies low-risk prescriptions
 - **CI Integration**: `--fail-on critical` for your CI pipeline
-- **Web Dashboard**: `clawdoc dashboard` for visual health monitoring
+- **Web Dashboard**: `clawinsight dashboard` for visual health monitoring
 - **Quality Badge**: Show your agent's health score in your README
 - **Plugin System**: Write custom disease rules and share them
 
@@ -27,27 +27,27 @@ One command. Zero config. Full health report for your OpenClaw agent.
 
 | Command | Description |
 |---------|-------------|
-| `clawdoc checkup` | Full health checkup |
-| `clawdoc checkup --fail-on critical` | CI mode — exit 1 on critical issues |
-| `clawdoc checkup --auto-fix` | Auto-apply low-risk prescriptions |
-| `clawdoc rx list` | View pending prescriptions |
-| `clawdoc rx apply <id>` | Apply a prescription |
-| `clawdoc rx rollback <id>` | Rollback an applied prescription |
-| `clawdoc dashboard` | Start web dashboard |
-| `clawdoc badge` | Generate health score badge |
-| `clawdoc config show` | View configuration |
+| `clawinsight checkup` | Full health checkup |
+| `clawinsight checkup --fail-on critical` | CI mode — exit 1 on critical issues |
+| `clawinsight checkup --auto-fix` | Auto-apply low-risk prescriptions |
+| `clawinsight rx list` | View pending prescriptions |
+| `clawinsight rx apply <id>` | Apply a prescription |
+| `clawinsight rx rollback <id>` | Rollback an applied prescription |
+| `clawinsight dashboard` | Start web dashboard |
+| `clawinsight badge` | Generate health score badge |
+| `clawinsight config show` | View configuration |
 
 ## Badge
 
 Add a health score badge to your README:
 
 ```bash
-clawdoc badge --output badge.svg
+clawinsight badge --output badge.svg
 ```
 
 Then in your README:
 ```markdown
-![ClawDoc Score](./badge.svg)
+![ClawInsight Score](./badge.svg)
 ```
 
 ## CI Setup
@@ -56,7 +56,7 @@ Then in your README:
 
 ```yaml
 - name: Agent Health Check
-  run: npx clawdoc checkup --fail-on critical --no-llm
+  run: npx clawinsight checkup --fail-on critical --no-llm
 ```
 
 ## Plugins
@@ -64,7 +64,7 @@ Then in your README:
 Create custom disease rules:
 
 ```bash
-npm init clawdoc-plugin-my-rules
+npm init clawinsight-plugin-my-rules
 ```
 
 See [Plugin Authoring Guide](docs/plugin-authoring.md).
@@ -72,13 +72,13 @@ See [Plugin Authoring Guide](docs/plugin-authoring.md).
 ## Configuration
 
 ```bash
-clawdoc config init    # create ~/.clawdoc/config.json
-clawdoc config show    # view current config
+clawinsight config init    # create ~/.clawinsight/config.json
+clawinsight config show    # view current config
 ```
 
 ## Design
 
-See [Design Specification](docs/2026-03-17-clawdoc-design.md).
+See [Design Specification](docs/2026-03-17-clawinsight-design.md).
 
 ## License
 

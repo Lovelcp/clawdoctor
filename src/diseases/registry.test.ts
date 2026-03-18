@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { getDiseaseRegistry } from "./registry.js";
 import type { RuleDetection } from "../types/domain.js";
 
-// Valid metric keys from ClawDocConfig thresholds (§4.1)
+// Valid metric keys from ClawInsightConfig thresholds (§4.1)
 const VALID_METRIC_KEYS = new Set([
   "skill.successRate",
   "skill.avgDurationMs",

@@ -1,6 +1,6 @@
 // ═══════════════════════════════════════════════
 //  Cost Command
-//  clawdoc cost report — focused cost department checkup
+//  clawinsight cost report — focused cost department checkup
 //  Supports --by model | --by tool breakdowns
 // ═══════════════════════════════════════════════
 
@@ -21,7 +21,7 @@ export function registerCostCommand(program: Command): void {
     .option("--json", "Output as JSON")
     .action(async (opts) => {
       if (opts.by && opts.by !== "model" && opts.by !== "tool") {
-        console.error(`[clawdoc] --by must be "model" or "tool", got: ${opts.by as string}`);
+        console.error(`[clawinsight] --by must be "model" or "tool", got: ${opts.by as string}`);
         process.exit(1);
       }
       await runDeptCheckup("cost", opts);

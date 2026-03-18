@@ -6,7 +6,7 @@
 import { readFileSync } from "node:fs";
 import { basename, extname } from "node:path";
 import { ulid } from "ulid";
-import type { ClawDocEvent, ToolCallData, LLMCallData } from "../types/events.js";
+import type { ClawInsightEvent, ToolCallData, LLMCallData } from "../types/events.js";
 
 // ─── JSONL message types ───
 
@@ -132,11 +132,11 @@ function extractToolBlocks(content: unknown[]): ToolUseBlock[] {
 // ─── Main parser ───
 
 /**
- * Parse a session JSONL file and return ClawDocEvents.
+ * Parse a session JSONL file and return ClawInsightEvents.
  * sessionKey is derived from the filename (not JSONL header id) per §5.5.
  */
-export function parseSessionFile(filePath: string, agentId: string): ClawDocEvent[] {
-  const events: ClawDocEvent[] = [];
+export function parseSessionFile(filePath: string, agentId: string): ClawInsightEvent[] {
+  const events: ClawInsightEvent[] = [];
 
   // Derive sessionKey from filename (e.g. "healthy-session.jsonl" → "healthy-session")
   const sessionKey = basename(filePath, extname(filePath));

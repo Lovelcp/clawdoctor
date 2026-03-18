@@ -4,7 +4,7 @@
 // ═══════════════════════════════════════════════
 
 import type Database from "better-sqlite3";
-import type { ClawDocEvent, EventType } from "../types/events.js";
+import type { ClawInsightEvent, EventType } from "../types/events.js";
 
 // ─── Row shape returned by SQLite ───
 
@@ -37,7 +37,7 @@ export interface SourcePriorityFilter {
 
 // ─── Row → domain object ───
 
-function rowToEvent(row: EventRow): ClawDocEvent {
+function rowToEvent(row: EventRow): ClawInsightEvent {
   return {
     id: row.id,
     source: row.source,
@@ -46,21 +46,21 @@ function rowToEvent(row: EventRow): ClawDocEvent {
     sessionKey: row.session_key ?? undefined,
     sessionId: row.session_id ?? undefined,
     type: row.type as EventType,
-    data: JSON.parse(row.data) as ClawDocEvent["data"],
+    data: JSON.parse(row.data) as ClawInsightEvent["data"],
   };
 }
 
 // ─── EventStore interface ───
 
 export interface EventStore {
-  insertEvent(event: ClawDocEvent): void;
-  queryEvents(filter: EventFilter): ClawDocEvent[];
+  insertEvent(event: ClawInsightEvent): void;
+  queryEvents(filter: EventFilter): ClawInsightEvent[];
   /**
    * Source-priority merge (§5.6):
    * For sessions that have stream events, exclude snapshot events for those sessions.
    * Sessions with only snapshot data are returned as-is.
    */
-  queryEventsWithSourcePriority(filter: SourcePriorityFilter): ClawDocEvent[];
+  queryEventsWithSourcePriority(filter: SourcePriorityFilter): ClawInsightEvent[];
 }
 
 // ─── Factory ───
@@ -80,7 +80,7 @@ export function createEventStore(db: Database.Database): EventStore {
     VALUES (@id, @source, @timestamp, @agent_id, @session_key, @session_id, @type, @data)
   `);
 
-  function insertEvent(event: ClawDocEvent): void {
+  function insertEvent(event: ClawInsightEvent): void {
     insertStmt.run({
       id: event.id,
       source: event.source,
@@ -93,7 +93,7 @@ export function createEventStore(db: Database.Database): EventStore {
     });
   }
 
-  function queryEvents(filter: EventFilter): ClawDocEvent[] {
+  function queryEvents(filter: EventFilter): ClawInsightEvent[] {
     const conditions: string[] = ["agent_id = @agentId"];
     const params: Record<string, unknown> = { agentId: filter.agentId };
 
@@ -120,7 +120,7 @@ export function createEventStore(db: Database.Database): EventStore {
     return rows.map(rowToEvent);
   }
 
-  function queryEventsWithSourcePriority(filter: SourcePriorityFilter): ClawDocEvent[] {
+  function queryEventsWithSourcePriority(filter: SourcePriorityFilter): ClawInsightEvent[] {
     // Find all session_keys for this agent that have at least one stream event.
     // For those sessions, return only stream events.
     // For all other sessions (snapshot-only or null sessionKey), return all events.

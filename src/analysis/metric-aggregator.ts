@@ -6,7 +6,7 @@
 import type Database from "better-sqlite3";
 import { createEventStore } from "../store/event-store.js";
 import type {
-  ClawDocEvent,
+  ClawInsightEvent,
   ToolCallData,
   LLMCallData,
   SessionLifecycleData,
@@ -120,33 +120,33 @@ export function aggregateMetrics(
 
   // ─── Partition by type ────────────────────────────────────────────────────
 
-  const toolCallEvents = allEvents.filter((e): e is ClawDocEvent & { type: "tool_call"; data: ToolCallData } =>
+  const toolCallEvents = allEvents.filter((e): e is ClawInsightEvent & { type: "tool_call"; data: ToolCallData } =>
     e.type === "tool_call"
   );
-  const llmCallEvents = allEvents.filter((e): e is ClawDocEvent & { type: "llm_call"; data: LLMCallData } =>
+  const llmCallEvents = allEvents.filter((e): e is ClawInsightEvent & { type: "llm_call"; data: LLMCallData } =>
     e.type === "llm_call"
   );
-  const sessionEvents = allEvents.filter((e): e is ClawDocEvent & { type: "session_lifecycle"; data: SessionLifecycleData } =>
+  const sessionEvents = allEvents.filter((e): e is ClawInsightEvent & { type: "session_lifecycle"; data: SessionLifecycleData } =>
     e.type === "session_lifecycle"
   );
-  const agentEvents = allEvents.filter((e): e is ClawDocEvent & { type: "agent_lifecycle"; data: AgentLifecycleData } =>
+  const agentEvents = allEvents.filter((e): e is ClawInsightEvent & { type: "agent_lifecycle"; data: AgentLifecycleData } =>
     e.type === "agent_lifecycle"
   );
-  const subagentEvents = allEvents.filter((e): e is ClawDocEvent & { type: "subagent_event"; data: SubagentEventData } =>
+  const subagentEvents = allEvents.filter((e): e is ClawInsightEvent & { type: "subagent_event"; data: SubagentEventData } =>
     e.type === "subagent_event"
   );
 
   // For snapshot-type events, use the latest one (highest timestamp).
   const memorySnapshots = allEvents
-    .filter((e): e is ClawDocEvent & { type: "memory_snapshot"; data: MemorySnapshotData } => e.type === "memory_snapshot")
+    .filter((e): e is ClawInsightEvent & { type: "memory_snapshot"; data: MemorySnapshotData } => e.type === "memory_snapshot")
     .sort((a, b) => b.timestamp - a.timestamp);
 
   const configSnapshots = allEvents
-    .filter((e): e is ClawDocEvent & { type: "config_snapshot"; data: ConfigSnapshotData } => e.type === "config_snapshot")
+    .filter((e): e is ClawInsightEvent & { type: "config_snapshot"; data: ConfigSnapshotData } => e.type === "config_snapshot")
     .sort((a, b) => b.timestamp - a.timestamp);
 
   const pluginSnapshots = allEvents
-    .filter((e): e is ClawDocEvent & { type: "plugin_snapshot"; data: PluginSnapshotData } => e.type === "plugin_snapshot")
+    .filter((e): e is ClawInsightEvent & { type: "plugin_snapshot"; data: PluginSnapshotData } => e.type === "plugin_snapshot")
     .sort((a, b) => b.timestamp - a.timestamp);
 
   // ─── Skill metrics ────────────────────────────────────────────────────────

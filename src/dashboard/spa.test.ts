@@ -28,7 +28,7 @@ describe("SPA Structure", () => {
 
   it("has a title", () => {
     expect(html).toContain("<title>");
-    expect(html).toContain("ClawDoc");
+    expect(html).toContain("ClawInsight");
   });
 
   // ─── All 9 page routes ───
@@ -125,8 +125,8 @@ describe("SPA Structure", () => {
   // ─── Token injection ───
 
   describe("token injection support", () => {
-    it("references window.__CLAWDOC_TOKEN__", () => {
-      expect(html).toContain("__CLAWDOC_TOKEN__");
+    it("references window.__CLAWINSIGHT_TOKEN__", () => {
+      expect(html).toContain("__CLAWINSIGHT_TOKEN__");
     });
 
     it("uses the token in API fetch headers", () => {

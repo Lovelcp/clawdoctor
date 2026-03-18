@@ -152,7 +152,7 @@ function renderFooter(vm: ReportViewModel, locale: string): string[] {
       `  ${color.muted(t(UI_STRINGS.installPlugin, locale) + ":")}`,
     );
     lines.push(
-      `  ${color.accent("npm install clawdoc")} ${color.muted("&&")} ${color.accent("openclaw config set plugins.clawdoc enabled")}`,
+      `  ${color.accent("npm install clawinsight")} ${color.muted("&&")} ${color.accent("openclaw config set plugins.clawinsight enabled")}`,
     );
   } else {
     lines.push(
@@ -160,13 +160,13 @@ function renderFooter(vm: ReportViewModel, locale: string): string[] {
     );
     lines.push("");
     lines.push(
-      `  ${color.accent("clawdoc rx apply --all")}          ${color.muted("Apply all guided Rx")}`,
+      `  ${color.accent("clawinsight rx apply --all")}          ${color.muted("Apply all guided Rx")}`,
     );
     lines.push(
-      `  ${color.accent("clawdoc rx followup")}             ${color.muted("Check previous Rx results")}`,
+      `  ${color.accent("clawinsight rx followup")}             ${color.muted("Check previous Rx results")}`,
     );
     lines.push(
-      `  ${color.accent("clawdoc dashboard")}               ${color.muted("Open detailed dashboard")}`,
+      `  ${color.accent("clawinsight dashboard")}               ${color.muted("Open detailed dashboard")}`,
     );
   }
 

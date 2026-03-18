@@ -1,6 +1,6 @@
 // ═══════════════════════════════════════════════
 //  Badge Command
-//  clawdoc badge — generate a Skill Quality Badge
+//  clawinsight badge — generate a Skill Quality Badge
 //  Design spec: Phase 3, Task 1
 // ═══════════════════════════════════════════════
 
@@ -26,12 +26,12 @@ export function registerBadgeCommand(program: Command): void {
       "Output format: svg (default) | markdown",
       "svg",
     )
-    .option("--label <label>", "Badge label text", "ClawDoc")
+    .option("--label <label>", "Badge label text", "ClawInsight")
     .action(async (opts) => {
       try {
-        const dbDir = join(homedir(), ".clawdoc");
+        const dbDir = join(homedir(), ".clawinsight");
         mkdirSync(dbDir, { recursive: true });
-        const dbPath = join(dbDir, "clawdoc.db");
+        const dbPath = join(dbDir, "clawinsight.db");
         const db = openDatabase(dbPath);
         const scoreStore = createScoreStore(db);
 
@@ -47,7 +47,7 @@ export function registerBadgeCommand(program: Command): void {
         const svg = generateBadge({
           grade,
           score,
-          label: opts.label ?? "ClawDoc",
+          label: opts.label ?? "ClawInsight",
         });
 
         // ── Output handling ──
@@ -62,7 +62,7 @@ export function registerBadgeCommand(program: Command): void {
             mkdirSync(dir, { recursive: true });
           }
           writeFileSync(outputFile, svg, "utf-8");
-          const altText = `ClawDoc: ${grade} ${grade === "N/A" ? "" : Math.round(score)}`.trim();
+          const altText = `ClawInsight: ${grade} ${grade === "N/A" ? "" : Math.round(score)}`.trim();
           process.stdout.write(`![${altText}](${outputFile})\n`);
           return;
         }
@@ -80,7 +80,7 @@ export function registerBadgeCommand(program: Command): void {
         }
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
-        process.stderr.write(`[clawdoc] badge failed: ${message}\n`);
+        process.stderr.write(`[clawinsight] badge failed: ${message}\n`);
         process.exit(1);
       }
     });

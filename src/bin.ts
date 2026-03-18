@@ -12,7 +12,7 @@ import { registerDashboardCommand } from "./commands/dashboard-cmd.js";
 import { registerBadgeCommand } from "./commands/badge-cmd.js";
 
 const program = new Command();
-program.name("clawdoc").description("Health diagnostics for OpenClaw agents").version("0.1.0");
+program.name("clawinsight").description("Health diagnostics for OpenClaw agents").version("0.1.0");
 
 registerCheckupCommand(program);
 registerConfigCommand(program);

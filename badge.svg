@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="118" height="20" role="img" aria-label="ClawInsight: C 65">
+  <title>ClawInsight: C 65</title>
+  <linearGradient id="s" x2="0" y2="100%">
+    <stop offset="0" stop-color="#bbb" stop-opacity=".1"/>
+    <stop offset="1" stop-opacity=".1"/>
+  </linearGradient>
+  <clipPath id="r">
+    <rect width="118" height="20" rx="3" fill="#fff"/>
+  </clipPath>
+  <g clip-path="url(#r)">
+    <rect width="82" height="20" fill="#555"/>
+    <rect x="82" width="36" height="20" fill="#dfb317"/>
+    <rect width="118" height="20" fill="url(#s)"/>
+  </g>
+  <g fill="#fff" text-anchor="middle" font-family="DejaVu Sans,Verdana,Geneva,sans-serif" font-size="110">
+    <text x="420" y="130" fill="#010101" fill-opacity=".3" transform="scale(.1)" textLength="720" lengthAdjust="spacing">ClawInsight</text>
+    <text x="420" y="140" transform="scale(.1)" textLength="720" lengthAdjust="spacing">ClawInsight</text>
+    <text x="1000" y="130" fill="#010101" fill-opacity=".3" transform="scale(.1)" textLength="260" lengthAdjust="spacing">C 65</text>
+    <text x="1000" y="140" transform="scale(.1)" textLength="260" lengthAdjust="spacing">C 65</text>
+  </g>
+</svg>

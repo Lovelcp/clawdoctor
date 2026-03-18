@@ -133,7 +133,7 @@ export type EventDataMap = {
 
 // ─── Base event ───
 
-export interface ClawDocEvent {
+export interface ClawInsightEvent {
   id: string;                         // ULID (ordered, contains timestamp)
   source: "snapshot" | "stream";
   timestamp: number;                  // unix ms
@@ -146,7 +146,7 @@ export interface ClawDocEvent {
 
 // ─── Type-safe event: event.type determines event.data shape ───
 
-export type TypedClawDocEvent<T extends EventType = EventType> = Omit<ClawDocEvent, "type" | "data"> & {
+export type TypedClawInsightEvent<T extends EventType = EventType> = Omit<ClawInsightEvent, "type" | "data"> & {
   type: T;
   data: EventDataMap[T];
 };

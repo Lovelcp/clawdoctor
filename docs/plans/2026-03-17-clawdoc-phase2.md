@@ -1,14 +1,14 @@
-# ClawDoc Phase 2 Implementation Plan
+# ClawInsight Phase 2 Implementation Plan
 
 > **For agentic workers:** REQUIRED: Use superpowers:subagent-driven-development (if subagents available) or superpowers:executing-plans to implement this plan. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Extend ClawDoc with LLM-powered deep diagnosis (16 hybrid/LLM diseases + cross-department causal chains), a full prescription lifecycle (generate/preview/apply/rollback/follow-up), a Web Dashboard (Hono + Preact SPA with 9 pages), and an OpenClaw Plugin for real-time event streaming.
+**Goal:** Extend ClawInsight with LLM-powered deep diagnosis (16 hybrid/LLM diseases + cross-department causal chains), a full prescription lifecycle (generate/preview/apply/rollback/follow-up), a Web Dashboard (Hono + Preact SPA with 9 pages), and an OpenClaw Plugin for real-time event streaming.
 
 **Architecture:** Four subsystems built on Phase 1's foundation (261 tests, 43 disease definitions, snapshot collector, rule engine, health scorer). LLM Analyzer plugs into the existing analysis pipeline between Rule Engine and Health Scorer. Prescription Engine operates on DiseaseInstance outputs. Dashboard is a standalone Hono server serving a bundled SPA that queries the same SQLite store. Plugin registers OpenClaw hooks to stream events into persistent SQLite.
 
 **Tech Stack:** Phase 1 stack + Hono (dashboard server), Preact + HTM (SPA, no build step), Chart.js (charts), Anthropic SDK or fetch-based LLM calls (reuse OpenClaw model config).
 
-**Spec:** `docs/2026-03-17-clawdoc-design.md` — sections §5.3 (Stream Collector), §6.1.1 (RawSampleProvider), §6.4 (LLM Analyzer), §6.5 (Cross-Department Linker), §7 (Prescription System), §9.3 (Web Dashboard).
+**Spec:** `docs/2026-03-17-clawinsight-design.md` — sections §5.3 (Stream Collector), §6.1.1 (RawSampleProvider), §6.4 (LLM Analyzer), §6.5 (Cross-Department Linker), §7 (Prescription System), §9.3 (Web Dashboard).
 
 **Phase 1 codebase (read these for integration):**
 - `src/analysis/analysis-pipeline.ts` — runCheckup(), CheckupResult
@@ -180,8 +180,8 @@ src/
 │   └── public/
 │       └── index.html             # Single-file SPA (Preact + HTM + Chart.js inline)
 ├── commands/
-│   ├── rx-cmd.ts                  # clawdoc rx list/preview/apply/rollback/followup/history
-│   └── dashboard-cmd.ts           # clawdoc dashboard [--port]
+│   ├── rx-cmd.ts                  # clawinsight rx list/preview/apply/rollback/followup/history
+│   └── dashboard-cmd.ts           # clawinsight dashboard [--port]
 ├── store/
 │   ├── prescription-store.ts      # Prescription + followup persistence helpers (follows existing store convention)
 │   ├── prescription-store.test.ts
@@ -364,8 +364,8 @@ export function createLLMClient(opts: LLMClientOptions) {
   };
 }
 
-// Resolve LLM config: OpenClaw config → ClawDoc config override → env var fallback
-export function resolveLLMConfig(config: ClawDocConfig): LLMClientOptions | null {
+// Resolve LLM config: OpenClaw config → ClawInsight config override → env var fallback
+export function resolveLLMConfig(config: ClawInsightConfig): LLMClientOptions | null {
   if (!config.llm.enabled) return null;
 
   const apiKey = process.env.ANTHROPIC_API_KEY ?? process.env.OPENCLAW_API_KEY ?? "";
@@ -456,7 +456,7 @@ Transcribe the system prompt and round-specific templates from spec §6.4:
 
 ```typescript
 // src/llm/prompts.ts
-export const DIAGNOSIS_SYSTEM_PROMPT = `You are ClawDoc, an AI agent health diagnostics engine.
+export const DIAGNOSIS_SYSTEM_PROMPT = `You are ClawInsight, an AI agent health diagnostics engine.
 You analyze OpenClaw agent runtime data to detect health issues.
 
 OUTPUT FORMAT: JSON array of diagnosis objects.
@@ -780,7 +780,7 @@ import { serve } from "@hono/node-server";
 
 export interface DashboardOptions {
   db: Database;
-  config: ClawDocConfig;
+  config: ClawInsightConfig;
   authToken?: string;  // generated on first launch for standalone mode
 }
 
@@ -850,9 +850,9 @@ POST /api/prescriptions/:id/rollback → RollbackResult
 GET  /api/prescriptions/:id/followup → FollowUpResult
 GET  /api/metrics/:dept    → MetricSet for department
 GET  /api/trends           → HealthScore[] time series
-GET  /api/events           → ClawDocEvent[] (paginated: ?page=1&limit=50&type=tool_call)
+GET  /api/events           → ClawInsightEvent[] (paginated: ?page=1&limit=50&type=tool_call)
 GET  /api/causal-chains    → CausalChain[]
-GET  /api/config           → ClawDocConfig
+GET  /api/config           → ClawInsightConfig
 PUT  /api/config           → update config
 GET  /api/skills           → PluginSnapshotData
 GET  /api/memory           → MemorySnapshotData
@@ -1231,26 +1231,26 @@ All events go through the EventBuffer → batch INSERT into persistent SQLite.
 // src/plugin/plugin.ts
 import type { OpenClawPluginDefinition } from "./openclaw-types.js";
 
-export const clawdocPlugin: OpenClawPluginDefinition = {
-  id: "clawdoc",
-  name: "ClawDoc",
+export const clawinsightPlugin: OpenClawPluginDefinition = {
+  id: "clawinsight",
+  name: "ClawInsight",
   description: "Agent health diagnostics",
   register(api) {
-    // 1. Open persistent SQLite at ~/.clawdoc/clawdoc.db
+    // 1. Open persistent SQLite at ~/.clawinsight/clawinsight.db
     // 2. Create event buffer with flush to event store
     // 3. Register stream collector hooks
     // 4. Register periodic snapshot service (30min interval, with stop() cleanup)
-    // 5. Register CLI subcommands (openclaw clawdoc checkup)
-    // 6. Register dashboard HTTP route (/clawdoc/*)
+    // 5. Register CLI subcommands (openclaw clawinsight checkup)
+    // 6. Register dashboard HTTP route (/clawinsight/*)
     // 7. Register follow-up scheduler service (spec §7.5):
-    //    - api.registerService({ id: "clawdoc-followup", start: interval timer, stop: clearInterval })
+    //    - api.registerService({ id: "clawinsight-followup", start: interval timer, stop: clearInterval })
     //    - Every 10min: check getPendingFollowups(), run executor.followUp() for due items
     //    - If verdict is "worsened", notify user via OpenClaw messaging channel
   },
 };
 ```
 
-Note: For the OpenClaw plugin types, create a minimal `src/plugin/openclaw-types.ts` with just the interfaces needed (OpenClawPluginDefinition, OpenClawPluginApi) — don't import from OpenClaw directly since ClawDoc is a standalone package.
+Note: For the OpenClaw plugin types, create a minimal `src/plugin/openclaw-types.ts` with just the interfaces needed (OpenClawPluginDefinition, OpenClawPluginApi) — don't import from OpenClaw directly since ClawInsight is a standalone package.
 
 - [ ] **Step 3: Write tests with mock plugin API**
 
@@ -1327,7 +1327,7 @@ export async function generatePrescription(
 The core execution engine per spec §7.3:
 
 ```typescript
-export function createPrescriptionExecutor(db: Database, config: ClawDocConfig) {
+export function createPrescriptionExecutor(db: Database, config: ClawInsightConfig) {
   return {
     async preview(prescriptionId: string): Promise<PrescriptionPreview>,
     async execute(prescriptionId: string): Promise<ExecutionResult>,
@@ -1411,7 +1411,7 @@ Remove the `noLlm: true` hardcode. Support the `--no-llm` flag properly. When LL
 
 Add sections to the terminal report for:
 - Causal chains (if any)
-- Pending prescriptions (with `clawdoc rx preview` hints)
+- Pending prescriptions (with `clawinsight rx preview` hints)
 
 - [ ] **Step 4: Add hybrid preFilter tests to rule-engine.test.ts**
 
@@ -1504,18 +1504,18 @@ export function registerDashboardCommand(program: Command): void {
       const { startDashboard } = await import("../dashboard/server.js");
 
       // Detect persistent DB (plugin mode) or fall back to empty in-memory DB
-      const persistentDbPath = join(process.env.HOME ?? "~", ".clawdoc", "clawdoc.db");
+      const persistentDbPath = join(process.env.HOME ?? "~", ".clawinsight", "clawinsight.db");
       const dbPath = existsSync(persistentDbPath) ? persistentDbPath : ":memory:";
       const db = openDatabase(dbPath);
 
-      const configPath = join(process.env.HOME ?? "~", ".clawdoc", "config.json");
+      const configPath = join(process.env.HOME ?? "~", ".clawinsight", "config.json");
       const config = loadConfig(configPath);
 
       const token = randomBytes(16).toString("hex");
       console.log(`Dashboard: http://localhost:${opts.port}`);
       console.log(`Auth token: ${token}`);
       if (dbPath === ":memory:") {
-        console.log("⚠ No persistent data found. Run 'clawdoc checkup' first or install the plugin.");
+        console.log("⚠ No persistent data found. Run 'clawinsight checkup' first or install the plugin.");
       }
       await startDashboard({ db, config, port: parseInt(opts.port), authToken: token });
     });
@@ -1549,18 +1549,18 @@ git commit -m "feat: add rx and dashboard CLI commands"
 
 ```typescript
 describe("E2E Phase 2", () => {
-  it("clawdoc checkup --json includes llmAvailable field", () => {
+  it("clawinsight checkup --json includes llmAvailable field", () => {
     // Even without API key, the field should be present (false)
     const result = JSON.parse(runPlain("checkup --json --agent default", fixtureEnv));
     expect(result.llmAvailable).toBe(false);
   });
 
-  it("clawdoc rx list returns empty array when no prescriptions", () => {
+  it("clawinsight rx list returns empty array when no prescriptions", () => {
     const output = runPlain("rx list --json", fixtureEnv);
     expect(JSON.parse(output)).toEqual([]);
   });
 
-  it("clawdoc dashboard --help shows port option", () => {
+  it("clawinsight dashboard --help shows port option", () => {
     const output = run("dashboard --help");
     expect(output).toContain("--port");
   });

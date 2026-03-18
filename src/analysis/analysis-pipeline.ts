@@ -23,7 +23,7 @@ import {
   linearScore,
 } from "./health-scorer.js";
 import { getDiseaseRegistry, createMergedRegistry } from "../diseases/registry.js";
-import type { ClawDocPlugin } from "../plugins/plugin-types.js";
+import type { ClawInsightPlugin } from "../plugins/plugin-types.js";
 import { loadConfig } from "../config/loader.js";
 import { resolveLLMProvider } from "../llm/provider.js";
 import { analyzeLLM } from "../llm/llm-analyzer.js";
@@ -33,7 +33,7 @@ import { generatePrescription } from "../prescription/prescription-generator.js"
 import type { Department, DiseaseInstance, CausalChain, Prescription } from "../types/domain.js";
 import type { HealthScore, DataCoverage } from "../types/scoring.js";
 import type { RuleResult } from "./rule-engine.js";
-import type { ClawDocConfig } from "../types/config.js";
+import type { ClawInsightConfig } from "../types/config.js";
 
 // ─── Public API ───────────────────────────────────────────────────────────────
 
@@ -46,7 +46,7 @@ export interface CheckupOptions {
   noLlm: boolean;
   configPath?: string;     // override config file path
   dbPath?: string;         // override database file path
-  plugins?: ClawDocPlugin[]; // pre-loaded community plugins
+  plugins?: ClawInsightPlugin[]; // pre-loaded community plugins
 }
 
 export interface CheckupResult {
@@ -108,13 +108,13 @@ export async function runCheckup(opts: CheckupOptions): Promise<CheckupResult> {
 
   // ── 1. Load config ────────────────────────────────────────────────────────
   // Try explicit configPath first, then standard location inside stateDir
-  const configFilePath = explicitConfigPath ?? join(stateDir, "clawdoc.json");
-  const config: ClawDocConfig = loadConfig(configFilePath);
+  const configFilePath = explicitConfigPath ?? join(stateDir, "clawinsight.json");
+  const config: ClawInsightConfig = loadConfig(configFilePath);
 
   // ── 2. Open persistent SQLite ───────────────────────────────────────────
-  const dbDir = join(homedir(), ".clawdoc");
+  const dbDir = join(homedir(), ".clawinsight");
   mkdirSync(dbDir, { recursive: true });
-  const dbPath = opts.dbPath ?? join(dbDir, "clawdoc.db");
+  const dbPath = opts.dbPath ?? join(dbDir, "clawinsight.db");
   const db = openDatabase(dbPath);
 
   try {

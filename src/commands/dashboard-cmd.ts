@@ -1,6 +1,6 @@
 // ═══════════════════════════════════════════════
 //  Dashboard Command
-//  Starts the ClawDoc web dashboard
+//  Starts the ClawInsight web dashboard
 //  Design spec Phase 2, Task 12
 // ═══════════════════════════════════════════════
 
@@ -24,9 +24,9 @@ export function registerDashboardCommand(program: Command): void {
     .option("--port <port>", "Port number", "9800")
     .action(async (opts) => {
       try {
-        const dbDir = join(homedir(), ".clawdoc");
+        const dbDir = join(homedir(), ".clawinsight");
         mkdirSync(dbDir, { recursive: true });
-        const dbPath = join(dbDir, "clawdoc.db");
+        const dbPath = join(dbDir, "clawinsight.db");
         const db = openDatabase(dbPath);
 
         const config = loadConfig(join(dbDir, "config.json"));
@@ -59,7 +59,7 @@ export function registerDashboardCommand(program: Command): void {
         }
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
-        console.error(`[clawdoc] dashboard failed: ${message}`);
+        console.error(`[clawinsight] dashboard failed: ${message}`);
         process.exit(1);
       }
     });

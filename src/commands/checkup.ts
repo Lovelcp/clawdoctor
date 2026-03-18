@@ -72,8 +72,8 @@ export function registerCheckupCommand(program: Command): void {
     .option("--auto-fix", "Auto-apply low-risk prescriptions after checkup")
     .action(async (opts) => {
       try {
-        const stateDir = process.env.CLAWDOC_STATE_DIR ?? join(homedir(), ".openclaw");
-        const workspaceDir = process.env.CLAWDOC_WORKSPACE_DIR ?? process.cwd();
+        const stateDir = process.env.CLAWINSIGHT_STATE_DIR ?? join(homedir(), ".openclaw");
+        const workspaceDir = process.env.CLAWINSIGHT_WORKSPACE_DIR ?? process.cwd();
 
         const since = parseSince(opts.since ?? "7d");
 
@@ -82,7 +82,7 @@ export function registerCheckupCommand(program: Command): void {
           : undefined;
 
         // ── Load community plugins (CLI flag + config file) ─────────────────
-        const configFilePath = join(homedir(), ".clawdoc", "config.json");
+        const configFilePath = join(homedir(), ".clawinsight", "config.json");
         const config = loadConfig(configFilePath);
         const cliPlugins: string[] = opts.plugins
           ? (opts.plugins as string).split(",").map((p: string) => p.trim()).filter(Boolean)
@@ -127,7 +127,7 @@ export function registerCheckupCommand(program: Command): void {
           const applicable = filterAutoApplicable(result.prescriptions);
           if (applicable.length > 0) {
             console.log(`\nAuto-applying ${applicable.length} low-risk prescription(s)...`);
-            const dbPath = join(homedir(), ".clawdoc", "clawdoc.db");
+            const dbPath = join(homedir(), ".clawinsight", "clawinsight.db");
             const db = openDatabase(dbPath);
             const executor = createPrescriptionExecutor(db, config);
             const autoResult = await autoApplyPrescriptions(applicable, executor);
@@ -140,7 +140,7 @@ export function registerCheckupCommand(program: Command): void {
         }
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
-        console.error(`[clawdoc] checkup failed: ${message}`);
+        console.error(`[clawinsight] checkup failed: ${message}`);
         process.exit(1);
       }
     });

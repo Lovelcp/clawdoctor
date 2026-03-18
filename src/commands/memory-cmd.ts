@@ -1,6 +1,6 @@
 // ═══════════════════════════════════════════════
 //  Memory Command
-//  clawdoc memory scan — focused memory department checkup
+//  clawinsight memory scan — focused memory department checkup
 // ═══════════════════════════════════════════════
 
 import { Command } from "commander";

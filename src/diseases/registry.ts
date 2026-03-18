@@ -1,5 +1,5 @@
 import type { DiseaseDefinition, Department } from "../types/domain.js";
-import type { ClawDocPlugin } from "../plugins/plugin-types.js";
+import type { ClawInsightPlugin } from "../plugins/plugin-types.js";
 import { vitalsDiseasess } from "./vitals.js";
 import { skillDiseases } from "./skill.js";
 import { memoryDiseases } from "./memory.js";
@@ -46,7 +46,7 @@ export function getDiseaseRegistry(): DiseaseRegistry {
  */
 export function createMergedRegistry(
   base: DiseaseRegistry,
-  plugins: ClawDocPlugin[],
+  plugins: ClawInsightPlugin[],
 ): DiseaseRegistry {
   const builtinIds = new Set(base.getAll().map((d) => d.id));
   const extra: DiseaseDefinition[] = [];
@@ -56,13 +56,13 @@ export function createMergedRegistry(
     for (const disease of plugin.diseases) {
       if (builtinIds.has(disease.id)) {
         console.warn(
-          `[clawdoc] Plugin "${plugin.name}" disease "${disease.id}" conflicts with a built-in disease ID. Skipping.`,
+          `[clawinsight] Plugin "${plugin.name}" disease "${disease.id}" conflicts with a built-in disease ID. Skipping.`,
         );
         continue;
       }
       if (extra.some((e) => e.id === disease.id)) {
         console.warn(
-          `[clawdoc] Plugin "${plugin.name}" disease "${disease.id}" conflicts with another plugin's disease ID. Skipping.`,
+          `[clawinsight] Plugin "${plugin.name}" disease "${disease.id}" conflicts with another plugin's disease ID. Skipping.`,
         );
         continue;
       }

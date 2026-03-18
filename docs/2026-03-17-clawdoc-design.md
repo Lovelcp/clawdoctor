@@ -1,4 +1,4 @@
-# ClawDoc — Design Specification
+# ClawInsight — Design Specification
 
 > Comprehensive health diagnostics for OpenClaw agents.
 > v2.1 | 2026-03-17
@@ -7,12 +7,12 @@
 
 ## 1. Vision
 
-**ClawDoc is the private doctor for your lobster — a full-spectrum diagnostic agent system that checks health, finds root causes, prescribes remedies, and tracks recovery.**
+**ClawInsight is the private doctor for your lobster — a full-spectrum diagnostic agent system that checks health, finds root causes, prescribes remedies, and tracks recovery.**
 
 ### Analogy
 
 ```
-Human Checkup                         Lobster Checkup (ClawDoc)
+Human Checkup                         Lobster Checkup (ClawInsight)
 ────────────                           ──────────────────────────
 Blood test     → basic metrics         System Vitals → runtime metrics
 ECG            → cardiac function      Skill & Tool Health → tool quality
@@ -27,7 +27,7 @@ Follow-up      → track recovery        Follow-up → continuous monitoring
 
 ### Core Diagnostic Target
 
-A ClawDoc instance diagnoses **one OpenClaw workspace agent**, covering:
+A ClawInsight instance diagnoses **one OpenClaw workspace agent**, covering:
 
 ```
 ~/.openclaw/agents/<agentId>/
@@ -53,12 +53,12 @@ A ClawDoc instance diagnoses **one OpenClaw workspace agent**, covering:
 **Hybrid**: single npm package with two entry points.
 
 ```
-npm package: clawdoc
-  ├── bin: clawdoc             → standalone CLI (zero-config, works without OpenClaw plugin)
+npm package: clawinsight
+  ├── bin: clawinsight             → standalone CLI (zero-config, works without OpenClaw plugin)
   └── exports: ./plugin        → OpenClaw Plugin entry (loaded by gateway for real-time data)
 ```
 
-- **CLI mode**: `npx clawdoc checkup` — reads disk files, zero setup
+- **CLI mode**: `npx clawinsight checkup` — reads disk files, zero setup
 - **Plugin mode**: install as OpenClaw plugin — real-time event collection via hooks
 - Both modes share the same analysis engine and data model
 
@@ -66,13 +66,13 @@ npm package: clawdoc
 
 The existing `openclaw doctor` command handles **config repair and system migration** — normalizing legacy config keys, migrating on-disk state layouts, repairing service installations, and verifying auth profiles. It is a repair tool.
 
-ClawDoc handles **agent health diagnostics** — analyzing tool usage patterns, memory quality, behavioral efficiency, cost trends, and security posture. It is a diagnostic tool.
+ClawInsight handles **agent health diagnostics** — analyzing tool usage patterns, memory quality, behavioral efficiency, cost trends, and security posture. It is a diagnostic tool.
 
 The two are complementary:
 - `openclaw doctor` answers: "Is my OpenClaw installation configured correctly?"
-- `clawdoc checkup` answers: "Is my agent performing well?"
+- `clawinsight checkup` answers: "Is my agent performing well?"
 
-Overlap exists in the `VIT-*` (System Vitals) department, which checks some of the same signals (gateway health, config validity, plugin load errors). ClawDoc's VIT checks are intentionally shallow — they serve as context for the agent-level diagnosis, not as a replacement for `openclaw doctor`. If ClawDoc detects VIT-level issues, it should recommend running `openclaw doctor` for repair rather than attempting fixes itself.
+Overlap exists in the `VIT-*` (System Vitals) department, which checks some of the same signals (gateway health, config validity, plugin load errors). ClawInsight's VIT checks are intentionally shallow — they serve as context for the agent-level diagnosis, not as a replacement for `openclaw doctor`. If ClawInsight detects VIT-level issues, it should recommend running `openclaw doctor` for repair rather than attempting fixes itself.
 
 ---
 
@@ -135,7 +135,7 @@ Overlap exists in the `VIT-*` (System Vitals) department, which checks some of t
 
 ```
 ╔══════════════════════════════════════════════════════════════════╗
-║                    ClawDoc — Dual-Mode Architecture              ║
+║                    ClawInsight — Dual-Mode Architecture              ║
 ║                                                                  ║
 ║  ┌─────────────────┐          ┌─────────────────┐               ║
 ║  │  CLI (npx)      │          │  Web Dashboard   │               ║
@@ -415,10 +415,10 @@ ID prefix convention:
 
 ### 4.1 Config File
 
-Location: `~/.clawdoc/config.json` (standalone) or `clawdoc` key in `~/.openclaw/openclaw.json` (plugin mode).
+Location: `~/.clawinsight/config.json` (standalone) or `clawinsight` key in `~/.openclaw/openclaw.json` (plugin mode).
 
 ```typescript
-interface ClawDocConfig {
+interface ClawInsightConfig {
   // ─── Display ───
   locale: string;                    // default "en", supports "zh" etc.
 
@@ -552,7 +552,7 @@ const SK001: DiseaseDefinition = {
 Both collection paths produce the same event model.
 
 ```typescript
-interface ClawDocEvent {
+interface ClawInsightEvent {
   id: string;                         // ULID (ordered, contains timestamp)
   source: "snapshot" | "stream";
   timestamp: number;                  // unix ms
@@ -593,7 +593,7 @@ type EventDataMap = {
 };
 
 // Type-safe event: event.type determines event.data shape
-type TypedClawDocEvent<T extends EventType = EventType> = Omit<ClawDocEvent, "type" | "data"> & {
+type TypedClawInsightEvent<T extends EventType = EventType> = Omit<ClawInsightEvent, "type" | "data"> & {
   type: T;
   data: EventDataMap[T];
 };
@@ -764,9 +764,9 @@ The block type varies by provider: `"toolCall"`, `"toolUse"`, or `"functionCall"
 Runs as OpenClaw Plugin, real-time event collection via hooks.
 
 ```typescript
-const clawdocPlugin: OpenClawPluginDefinition = {
-  id: "clawdoc",
-  name: "ClawDoc",
+const clawinsightPlugin: OpenClawPluginDefinition = {
+  id: "clawinsight",
+  name: "ClawInsight",
   description: "Agent health diagnostics",
 
   register(api) {
@@ -824,7 +824,7 @@ const clawdocPlugin: OpenClawPluginDefinition = {
     // Periodic snapshots (config / memory / plugins)
     let snapshotTimer: ReturnType<typeof setInterval>;
     api.registerService({
-      id: "clawdoc-snapshotter",
+      id: "clawinsight-snapshotter",
       async start(ctx) {
         snapshotTimer = setInterval(() => {
           snapshotConfig(ctx);
@@ -838,13 +838,13 @@ const clawdocPlugin: OpenClawPluginDefinition = {
     // Register CLI commands
     api.registerCli((ctx) => {
       ctx.program
-        .command("clawdoc")
-        .description("ClawDoc health diagnostics");
+        .command("clawinsight")
+        .description("ClawInsight health diagnostics");
     });
 
     // Register Dashboard HTTP route
     api.registerHttpRoute({
-      path: "/clawdoc",
+      path: "/clawinsight",
       handler: dashboardHandler,
       auth: "gateway",
       match: "prefix",
@@ -857,21 +857,21 @@ const clawdocPlugin: OpenClawPluginDefinition = {
 
 ```
 Scenario 1: CLI-only (no plugin installed)
-  npx clawdoc checkup
+  npx clawinsight checkup
     → create temp SQLite (in-memory or /tmp)
     → Snapshot Collector writes events
     → Analysis Engine runs
     → output report
-    → SQLite discarded (or optionally saved to ~/.clawdoc/)
+    → SQLite discarded (or optionally saved to ~/.clawinsight/)
 
 Scenario 2: Plugin mode running
-  OpenClaw Gateway starts → ClawDoc Plugin registers hooks
-    → Stream Collector continuously writes to ~/.clawdoc/clawdoc.db
+  OpenClaw Gateway starts → ClawInsight Plugin registers hooks
+    → Stream Collector continuously writes to ~/.clawinsight/clawinsight.db
     → periodic snapshots also write to same db
 
 Scenario 3: Plugin installed, CLI queries
-  npx clawdoc checkup (or openclaw clawdoc checkup)
-    → detects existing ~/.clawdoc/clawdoc.db with stream data
+  npx clawinsight checkup (or openclaw clawinsight checkup)
+    → detects existing ~/.clawinsight/clawinsight.db with stream data
     → queries existing data (no re-snapshot for stream-covered events)
     → supplements with snapshot-only data (current memory/config state)
     → merged analysis, richer report
@@ -910,15 +910,15 @@ These are different concepts. OpenClaw internally maps `sessionKey → sessionId
 useful: `sessionKey` is stable across resets (identifies the conversation partner), while
 `sessionId` is ephemeral (regenerated on `/new` and `/reset`).
 
-**Canonical identity for ClawDoc:**
+**Canonical identity for ClawInsight:**
 
 ```
-ClawDocEvent.sessionKey  = OpenClaw sessionKey (e.g. "telegram:12345")
+ClawInsightEvent.sessionKey  = OpenClaw sessionKey (e.g. "telegram:12345")
                            This is the primary grouping key for dedup and analysis.
                            Snapshot collector derives it from the JSONL file path
                            (session files are stored at sessions/<sessionKey>.jsonl).
 
-ClawDocEvent.sessionId   = OpenClaw sessionId (UUID, optional)
+ClawInsightEvent.sessionId   = OpenClaw sessionId (UUID, optional)
                            Stream gets it from ctx.sessionId.
                            Snapshot gets it from the JSONL header's id field.
                            Used for per-conversation-instance analysis only.
@@ -1163,7 +1163,7 @@ interface MetricSet {
 
 ```typescript
 interface RuleEngine {
-  evaluate(metrics: MetricSet, config: ClawDocConfig): RuleResult[];
+  evaluate(metrics: MetricSet, config: ClawInsightConfig): RuleResult[];
 }
 
 interface RuleResult {
@@ -1182,7 +1182,7 @@ interface RuleResult {
 **Prompt structure:**
 
 ```
-1. System Prompt: ClawDoc role definition + output format constraints
+1. System Prompt: ClawInsight role definition + output format constraints
 2. Disease Knowledge Base: inject relevant DiseaseDefinitions
 3. Metric Data: structured MetricSet (JSON)
 4. Raw Samples: selected N most relevant data points
@@ -1192,7 +1192,7 @@ interface RuleResult {
 **System prompt:**
 
 ```
-You are ClawDoc, an AI agent health diagnostics engine.
+You are ClawInsight, an AI agent health diagnostics engine.
 You analyze OpenClaw agent runtime data to detect health issues.
 
 OUTPUT FORMAT: JSON array of diagnosis objects.
@@ -1391,7 +1391,7 @@ function apdexScore(
 }
 
 // Aggregate metrics → linear threshold mapping
-// Uses same { warning, critical } shape as ClawDocConfig.thresholds.
+// Uses same { warning, critical } shape as ClawInsightConfig.thresholds.
 // Direction is implicit in the threshold values:
 //   success rate: warning=0.75 > critical=0.50 → higher is better
 //   daily tokens: warning=100K < critical=500K → lower is better
@@ -1467,7 +1467,7 @@ Any critical security disease → department score forced to 0 (grade F).
 
 #### 6.6.5 Threshold ↔ Score Relationship (explicit contract)
 
-Detection thresholds (from `ClawDocConfig.thresholds`) serve a dual purpose:
+Detection thresholds (from `ClawInsightConfig.thresholds`) serve a dual purpose:
 1. **Disease detection**: `warning` and `critical` determine when a disease triggers
 2. **Health scoring**: the same values define the score curve via `linearScore`
 
@@ -1657,7 +1657,7 @@ T+24h   Short-term check (behavioral diseases need data accumulation)
 T+7d    Medium-term check (is the trend sustained?)
 
 Stream mode:  auto-execute via Plugin Service timer
-Snapshot mode: prompt user "Run clawdoc checkup again in 24h for follow-up"
+Snapshot mode: prompt user "Run clawinsight checkup again in 24h for follow-up"
 ```
 
 **Plugin mode auto follow-up:**
@@ -1665,7 +1665,7 @@ Snapshot mode: prompt user "Run clawdoc checkup again in 24h for follow-up"
 ```typescript
 let followupTimer: ReturnType<typeof setInterval>;
 api.registerService({
-  id: "clawdoc-followup",
+  id: "clawinsight-followup",
   async start(ctx) {
     followupTimer = setInterval(async () => {
       const pending = await store.getPendingFollowUps();
@@ -1835,7 +1835,7 @@ const MIGRATIONS: Record<number, (db: Database) => void> = {
 Automated cleanup based on `config.retention`:
 
 ```typescript
-function cleanupExpiredData(db: Database, config: ClawDocConfig): void {
+function cleanupExpiredData(db: Database, config: ClawInsightConfig): void {
   const now = Date.now();
   const eventCutoff = now - config.retention.eventMaxAgeDays * 86400000;
   const diagnosisCutoff = now - config.retention.diagnosisMaxAgeDays * 86400000;
@@ -1861,48 +1861,48 @@ function cleanupExpiredData(db: Database, config: ClawDocConfig): void {
 
 ```bash
 # ─── Core: Checkup ───
-clawdoc checkup                       # full checkup
-clawdoc checkup --dept skill          # single department
-clawdoc checkup --dept skill,memory   # multiple departments
-clawdoc checkup --since 7d            # data time range
-clawdoc checkup --no-llm              # rules only (fast/free)
-clawdoc checkup --json                # JSON output (CI/script integration)
-clawdoc checkup --agent <agentId>     # specific agent (default: default)
+clawinsight checkup                       # full checkup
+clawinsight checkup --dept skill          # single department
+clawinsight checkup --dept skill,memory   # multiple departments
+clawinsight checkup --since 7d            # data time range
+clawinsight checkup --no-llm              # rules only (fast/free)
+clawinsight checkup --json                # JSON output (CI/script integration)
+clawinsight checkup --agent <agentId>     # specific agent (default: default)
 
 # ─── Prescriptions ───
-clawdoc rx list                       # all prescriptions
-clawdoc rx list --status pending      # filter by status
-clawdoc rx preview <id>               # preview diff
-clawdoc rx apply <id>                 # one-click execute
-clawdoc rx apply --all                # execute all guided-level Rx
-clawdoc rx apply --all --dry-run      # preview all changes without applying
-clawdoc rx rollback <id>              # rollback
-clawdoc rx followup [id]              # follow-up check
-clawdoc rx history                    # execution history
+clawinsight rx list                       # all prescriptions
+clawinsight rx list --status pending      # filter by status
+clawinsight rx preview <id>               # preview diff
+clawinsight rx apply <id>                 # one-click execute
+clawinsight rx apply --all                # execute all guided-level Rx
+clawinsight rx apply --all --dry-run      # preview all changes without applying
+clawinsight rx rollback <id>              # rollback
+clawinsight rx followup [id]              # follow-up check
+clawinsight rx history                    # execution history
 
 # ─── Explore: Per-Department Detail ───
-clawdoc skill list                    # installed skills health overview
-clawdoc skill inspect <name>          # single skill detailed profile
-clawdoc memory scan                   # memory file scan
-clawdoc cost report                   # cost report
-clawdoc cost report --by model        # breakdown by model
-clawdoc cost report --by tool         # breakdown by tool
-clawdoc behavior report               # behavior analysis report
-clawdoc security audit                # security audit
+clawinsight skill list                    # installed skills health overview
+clawinsight skill inspect <name>          # single skill detailed profile
+clawinsight memory scan                   # memory file scan
+clawinsight cost report                   # cost report
+clawinsight cost report --by model        # breakdown by model
+clawinsight cost report --by tool         # breakdown by tool
+clawinsight behavior report               # behavior analysis report
+clawinsight security audit                # security audit
 
 # ─── Monitor (Phase 3, requires plugin) ───
-clawdoc monitor                       # start background health monitoring
-clawdoc monitor --alert               # enable alerts via OpenClaw messaging channels
+clawinsight monitor                       # start background health monitoring
+clawinsight monitor --alert               # enable alerts via OpenClaw messaging channels
 
 # ─── Dashboard ───
-clawdoc dashboard                     # start local web dashboard
-clawdoc dashboard --port 9800         # custom port
+clawinsight dashboard                     # start local web dashboard
+clawinsight dashboard --port 9800         # custom port
 
 # ─── Config ───
-clawdoc config init                   # initialize ~/.clawdoc/config.json
-clawdoc config set <key> <value>      # set threshold/locale/etc
-clawdoc config weights                # interactive weight adjustment (AHP)
-clawdoc config show                   # show current config
+clawinsight config init                   # initialize ~/.clawinsight/config.json
+clawinsight config set <key> <value>      # set threshold/locale/etc
+clawinsight config weights                # interactive weight adjustment (AHP)
+clawinsight config show                   # show current config
 ```
 
 ### 9.2 Terminal Health Report
@@ -1912,7 +1912,7 @@ clawdoc config show                   # show current config
 ```
 ┌──────────────────────────────────────────────────────────────────┐
 │                                                                  │
-│   ClawDoc Health Report                                          │
+│   ClawInsight Health Report                                          │
 │   Agent: default | Data: 2026-03-10 ~ 2026-03-17                │
 │   Mode: stream | Coverage: 100% (43/43 checks)                  │
 │                                                                  │
@@ -1962,26 +1962,26 @@ clawdoc config show                   # show current config
 │                                                                  │
 │   [guided] RX-001  Fix web_search scenario paralysis             │
 │            Est. +25% success rate                                 │
-│            > clawdoc rx preview RX-001                           │
+│            > clawinsight rx preview RX-001                           │
 │                                                                  │
 │   [guided] RX-002  Clean 12 stale memory files                   │
 │            Est. free ~3,200 context tokens                        │
-│            > clawdoc rx preview RX-002                           │
+│            > clawinsight rx preview RX-002                           │
 │                                                                  │
 │   [guided] RX-003  Resolve memory conflict on tool preference    │
 │            Est. fixes causal chain root cause                     │
-│            > clawdoc rx preview RX-003                           │
+│            > clawinsight rx preview RX-003                           │
 │                                                                  │
 │   [manual] RX-004  Adjust model routing strategy                 │
 │            Est. -40% cost on simple tasks                         │
-│            > clawdoc rx preview RX-004                           │
+│            > clawinsight rx preview RX-004                           │
 │                                                                  │
 ├──────────────────────────────────────────────────────────────────┤
 │                                                                  │
 │   Quick Actions:                                                 │
-│     clawdoc rx apply --all          Apply all guided Rx          │
-│     clawdoc rx followup             Check previous Rx results    │
-│     clawdoc dashboard               Open detailed dashboard      │
+│     clawinsight rx apply --all          Apply all guided Rx          │
+│     clawinsight rx followup             Check previous Rx results    │
+│     clawinsight dashboard               Open detailed dashboard      │
 │                                                                  │
 └──────────────────────────────────────────────────────────────────┘
 ```
@@ -1991,7 +1991,7 @@ clawdoc config show                   # show current config
 ```
 ┌──────────────────────────────────────────────────────────────────┐
 │                                                                  │
-│   ClawDoc Health Report                                          │
+│   ClawInsight Health Report                                          │
 │   Agent: default | Data: 2026-03-10 ~ 2026-03-17                │
 │   Mode: snapshot | Coverage: 63% (27/43 checks)                 │
 │                                                                  │
@@ -2034,8 +2034,8 @@ clawdoc config show                   # show current config
 ├──────────────────────────────────────────────────────────────────┤
 │                                                                  │
 │   ! 16 checks skipped due to limited data                        │
-│     Install ClawDoc plugin for full diagnostics:                 │
-│     npm install clawdoc && openclaw config set plugins.clawdoc…  │
+│     Install ClawInsight plugin for full diagnostics:                 │
+│     npm install clawinsight && openclaw config set plugins.clawinsight…  │
 │                                                                  │
 └──────────────────────────────────────────────────────────────────┘
 ```
@@ -2050,7 +2050,7 @@ clawdoc config show                   # show current config
 
 ### 9.3 Web Dashboard
 
-Launched via `clawdoc dashboard` or registered at `/clawdoc/*` in Plugin mode.
+Launched via `clawinsight dashboard` or registered at `/clawinsight/*` in Plugin mode.
 
 **Tech:** embedded Hono server + single-file SPA (all dependencies bundled, no runtime CDN required).
 
@@ -2070,7 +2070,7 @@ Launched via `clawdoc dashboard` or registered at `/clawdoc/*` in Plugin mode.
 
 **Dashboard API authentication:**
 - Plugin mode: uses `auth: "gateway"` (leverages OpenClaw gateway's existing token auth)
-- Standalone mode (`clawdoc dashboard`): localhost-only binding by default; write endpoints (`PUT /api/config`, `POST /api/prescriptions/:id/apply`, `POST /api/prescriptions/:id/rollback`) require a simple bearer token generated on first launch and printed to the terminal
+- Standalone mode (`clawinsight dashboard`): localhost-only binding by default; write endpoints (`PUT /api/config`, `POST /api/prescriptions/:id/apply`, `POST /api/prescriptions/:id/rollback`) require a simple bearer token generated on first launch and printed to the terminal
 
 **Dashboard API:**
 
@@ -2084,9 +2084,9 @@ POST /api/prescriptions/:id/rollback     → RollbackResult
 GET  /api/prescriptions/:id/followup     → FollowUpResult
 GET  /api/metrics/:dept                  → MetricSet
 GET  /api/trends                         → HealthScore[] (time series)
-GET  /api/events                         → ClawDocEvent[] (paginated)
+GET  /api/events                         → ClawInsightEvent[] (paginated)
 GET  /api/causal-chains                  → CausalChain[]
-GET  /api/config                         → ClawDocConfig
+GET  /api/config                         → ClawInsightConfig
 PUT  /api/config                         → update config
 GET  /api/skills                         → PluginSnapshotData
 GET  /api/memory                         → MemorySnapshotData
@@ -2096,21 +2096,21 @@ GET  /api/memory                         → MemorySnapshotData
 
 ```
 Path A: Standalone CLI
-  npx clawdoc checkup
+  npx clawinsight checkup
     → Snapshot Collector
     → Analysis Engine (temp SQLite)
     → Terminal report
-    → "Run clawdoc dashboard for details"
+    → "Run clawinsight dashboard for details"
 
 Path B: OpenClaw Plugin installed
-  openclaw clawdoc checkup (or clawdoc checkup detects plugin)
+  openclaw clawinsight checkup (or clawinsight checkup detects plugin)
     → Query plugin's persistent SQLite (rich stream data)
     → Supplement with snapshot data (current memory/config state)
     → Terminal report (includes trend data)
-    → Dashboard available at http://localhost:18789/clawdoc/
+    → Dashboard available at http://localhost:18789/clawinsight/
 
 Path C: Web Dashboard (Plugin mode)
-  Browser → http://localhost:18789/clawdoc/
+  Browser → http://localhost:18789/clawinsight/
     → SPA loads
     → Calls /api/* endpoints
     → Real-time refresh (polling or SSE)
@@ -2131,7 +2131,7 @@ Path C: Web Dashboard (Plugin mode)
 | Dashboard Frontend | Single-file SPA (Preact, bundled) | Lightweight, embeddable |
 | Charts | Chart.js (bundled into SPA) | Covers line/area/pie/heatmap; ~80KB gzipped |
 | Testing | Vitest | Match OpenClaw ecosystem |
-| Distribution | `npx clawdoc` | One-command install |
+| Distribution | `npx clawinsight` | One-command install |
 | LLM Calls | Reuse OpenClaw model config | No extra API key needed |
 
 **SQLite performance note:** Plugin mode hooks can fire on every LLM/tool call. Use WAL mode and batched writes (buffer events in memory, flush every N seconds) to avoid blocking the gateway event loop.
@@ -2157,17 +2157,17 @@ Path C: Web Dashboard (Plugin mode)
 
 ### Phase 1: Foundation + Full-Spectrum Shallow Diagnosis (Week 1-6)
 
-Goal: `npx clawdoc checkup` works end-to-end, six departments covered (rule-based), terminal report available.
+Goal: `npx clawinsight checkup` works end-to-end, six departments covered (rule-based), terminal report available.
 
 ```
 Week 1-2: Infrastructure
   - Project scaffold (TypeScript ESM, pnpm, vitest)
   - SQLite schema + data store layer (better-sqlite3, WAL mode)
-  - ClawDocEvent unified event model
+  - ClawInsightEvent unified event model
   - Snapshot Collector: session JSONL parser (spike first to validate format)
   - Snapshot Collector: config/memory/plugin scanner
   - Config system (thresholds + i18n locale)
-  - CLI skeleton (Commander.js): clawdoc checkup, clawdoc config
+  - CLI skeleton (Commander.js): clawinsight checkup, clawinsight config
 
 Week 3-4: Rule Engine + Six-Department Shallow Diagnosis
   - Metric Aggregation from events
@@ -2183,15 +2183,15 @@ Week 3-4: Rule Engine + Six-Department Shallow Diagnosis
 Week 5-6: Terminal Report + First Release
   - Terminal health report rendering (Ink)
   - i18n framework: en + zh
-  - clawdoc checkup flags: --dept, --since, --no-llm, --json
-  - clawdoc skill list, memory scan, cost report
-  - clawdoc config init / set / show
+  - clawinsight checkup flags: --dept, --since, --no-llm, --json
+  - clawinsight skill list, memory scan, cost report
+  - clawinsight config init / set / show
   - README, docs, demo
-  - npm publish: npx clawdoc
+  - npm publish: npx clawinsight
 ```
 
 **Phase 1 deliverables:**
-- `npx clawdoc checkup` zero-config checkup (rules only, no LLM cost)
+- `npx clawinsight checkup` zero-config checkup (rules only, no LLM cost)
 - 27 rule-based disease detections across 6 departments
 - Terminal health report (scores, grades, disease list)
 - English default, Chinese switchable
@@ -2209,14 +2209,14 @@ Week 7-8: LLM Analyzer
       BHV-001~004/006, SEC-005
   - Cross-Department Linker (causal chain reasoning)
   - LLM call optimization: batching, token budget, failure degradation
-  - clawdoc checkup full version (with LLM analysis)
+  - clawinsight checkup full version (with LLM analysis)
 
 Week 9-10: Prescription Engine
   - Prescription Generator (LLM-based, level classification)
   - PrescriptionExecutor: preview / apply / rollback
   - Backup system (auto-backup before apply, content hash for conflict detection)
   - Immediate verification (post-apply check)
-  - clawdoc rx list / preview / apply / rollback / followup
+  - clawinsight rx list / preview / apply / rollback / followup
   - Integration tests: apply + rollback lifecycle
 
 Week 11-12: OpenClaw Plugin + Stream Collector
@@ -2225,7 +2225,7 @@ Week 11-12: OpenClaw Plugin + Stream Collector
       llm_output, after_tool_call, session_end,
       agent_end, subagent_ended, after_compaction
   - Plugin Service: periodic snapshots (config/memory/plugin)
-  - Plugin CLI registration: openclaw clawdoc checkup
+  - Plugin CLI registration: openclaw clawinsight checkup
   - SQLite lifecycle: persistent + CLI detection and reuse
   - Follow-up scheduler (auto follow-up in plugin mode)
   - npm publish: plugin mode documentation
@@ -2250,15 +2250,15 @@ Week 13-15: Web Dashboard
       Timeline page, Settings page
   - Charts: line/area/pie/heatmap
   - Causal chain flow visualization
-  - Plugin mode: register at /clawdoc/* HTTP route
+  - Plugin mode: register at /clawinsight/* HTTP route
 
 Week 16-18: Continuous Monitoring + Polish
-  - clawdoc monitor: background monitoring (Plugin Service)
+  - clawinsight monitor: background monitoring (Plugin Service)
   - Real-time alerts (via OpenClaw messaging channels)
   - Dashboard SSE/polling real-time refresh
   - Data retention policy (auto-cleanup expired events)
   - Performance optimization (SQLite query optimization for large datasets)
-  - CI integration: clawdoc checkup --json --fail-on critical
+  - CI integration: clawinsight checkup --json --fail-on critical
   - Full documentation + examples + community release
 ```
 
@@ -2283,7 +2283,7 @@ Week 16-18: Continuous Monitoring + Polish
 
 ## 13. Branding
 
-### Name: ClawDoc
+### Name: ClawInsight
 
 | Aspect | Detail |
 |--------|--------|
@@ -2292,7 +2292,7 @@ Week 16-18: Continuous Monitoring + Polish
 | Tone | Professional, trustworthy — like a real doctor |
 | Extensibility | Not limited to skills; naturally covers "full-spectrum diagnostics" |
 | Ecosystem | Claw prefix aligns with OpenClaw / ClawHub |
-| CLI | `clawdoc checkup` reads naturally |
+| CLI | `clawinsight checkup` reads naturally |
 
 ### Slogans
 

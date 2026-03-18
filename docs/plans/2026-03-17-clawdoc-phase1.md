@@ -1,21 +1,21 @@
-# ClawDoc Phase 1 Implementation Plan
+# ClawInsight Phase 1 Implementation Plan
 
 > **For agentic workers:** REQUIRED: Use superpowers:subagent-driven-development (if subagents available) or superpowers:executing-plans to implement this plan. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Deliver `npx clawdoc checkup` — a zero-config CLI that runs rule-based health diagnostics across 6 departments on any OpenClaw agent workspace and outputs a terminal health report with scores, grades, and disease findings.
+**Goal:** Deliver `npx clawinsight checkup` — a zero-config CLI that runs rule-based health diagnostics across 6 departments on any OpenClaw agent workspace and outputs a terminal health report with scores, grades, and disease findings.
 
 **Architecture:** Standalone TypeScript ESM package. Snapshot Collector reads OpenClaw files on disk → events written to temp SQLite → Metric Aggregation (SQL) → Rule Engine evaluates 27 diseases → Health Scorer computes per-department + overall scores with data coverage tracking → Ink-based terminal report renderer outputs the result.
 
 **Tech Stack:** TypeScript ESM, pnpm, better-sqlite3 (WAL mode), Commander.js + Ink, Vitest, ULID
 
-**Spec:** `docs/2026-03-17-clawdoc-design.md` — the authoritative source for all types, disease definitions, scoring algorithms, and behavior.
+**Spec:** `docs/2026-03-17-clawinsight-design.md` — the authoritative source for all types, disease definitions, scoring algorithms, and behavior.
 
 ---
 
 ## File Structure
 
 ```
-clawdoctor/
+clawinsighttor/
 ├── package.json
 ├── tsconfig.json
 ├── vitest.config.ts
@@ -23,11 +23,11 @@ clawdoctor/
 │   ├── bin.ts                          # CLI entry point (Commander.js)
 │   ├── types/
 │   │   ├── domain.ts                   # Department, Severity, I18nString, DiseaseDefinition, DiseaseInstance, Evidence, DiagnosisRef, PrescriptionTemplate, MetricSnapshot, VerificationResult, RollbackResult
-│   │   ├── events.ts                   # ClawDocEvent, EventType, EventDataMap, TypedClawDocEvent, all *Data interfaces
-│   │   ├── config.ts                   # ClawDocConfig, default thresholds, default weights
+│   │   ├── events.ts                   # ClawInsightEvent, EventType, EventDataMap, TypedClawInsightEvent, all *Data interfaces
+│   │   ├── config.ts                   # ClawInsightConfig, default thresholds, default weights
 │   │   └── scoring.ts                  # HealthScore, DataCoverage, DepartmentScore, DataMode, Grade
 │   ├── config/
-│   │   ├── loader.ts                   # loadConfig(): read ~/.clawdoc/config.json, merge defaults
+│   │   ├── loader.ts                   # loadConfig(): read ~/.clawinsight/config.json, merge defaults
 │   │   └── loader.test.ts
 │   ├── i18n/
 │   │   ├── i18n.ts                     # t(i18nString, locale): string — resolve with en fallback
@@ -42,7 +42,7 @@ clawdoctor/
 │   │   └── store.test.ts
 │   ├── collector/
 │   │   ├── snapshot-collector.ts       # SnapshotCollector: orchestrates all sub-collectors
-│   │   ├── session-parser.ts           # Parse session JSONL → ClawDocEvent[]
+│   │   ├── session-parser.ts           # Parse session JSONL → ClawInsightEvent[]
 │   │   ├── config-scanner.ts           # Read openclaw.json → ConfigSnapshotData event
 │   │   ├── memory-scanner.ts           # Scan workspace memory files → MemorySnapshotData event
 │   │   ├── plugin-scanner.ts           # Read plugin manifests → PluginSnapshotData event
@@ -74,13 +74,13 @@ clawdoctor/
 │   │   ├── report-data.ts             # Transform HealthScore + DiseaseInstance[] → report view model
 │   │   └── terminal-report.test.ts
 │   └── commands/
-│       ├── checkup.ts                  # clawdoc checkup command handler
-│       ├── config-cmd.ts               # clawdoc config init/set/show
-│       ├── skill-cmd.ts                # clawdoc skill list
-│       ├── memory-cmd.ts               # clawdoc memory scan
-│       ├── cost-cmd.ts                 # clawdoc cost report
-│       ├── behavior-cmd.ts             # clawdoc behavior report
-│       └── security-cmd.ts             # clawdoc security audit
+│       ├── checkup.ts                  # clawinsight checkup command handler
+│       ├── config-cmd.ts               # clawinsight config init/set/show
+│       ├── skill-cmd.ts                # clawinsight skill list
+│       ├── memory-cmd.ts               # clawinsight memory scan
+│       ├── cost-cmd.ts                 # clawinsight cost report
+│       ├── behavior-cmd.ts             # clawinsight behavior report
+│       └── security-cmd.ts             # clawinsight security audit
 ├── fixtures/
 │   ├── sessions/                       # Sample session JSONL files for testing
 │   │   ├── healthy-session.jsonl
@@ -95,9 +95,9 @@ clawdoctor/
 │       ├── fresh-memory.md
 │       └── stale-memory.md
 └── docs/
-    ├── 2026-03-17-clawdoc-design.md    # Design spec (exists)
+    ├── 2026-03-17-clawinsight-design.md    # Design spec (exists)
     └── plans/
-        └── 2026-03-17-clawdoc-phase1.md # This plan
+        └── 2026-03-17-clawinsight-phase1.md # This plan
 ```
 
 **Dependency graph between tasks (determines parallelism):**
@@ -164,7 +164,7 @@ Sequential: Task 13 (E2E + release)
 - [ ] **Step 1: Initialize package.json**
 
 ```bash
-cd /Users/cjy/work/workspace/openclaw-workspace/clawdoctor
+cd /Users/cjy/work/workspace/openclaw-workspace/clawinsighttor
 pnpm init
 ```
 
@@ -172,12 +172,12 @@ Then edit `package.json`:
 
 ```json
 {
-  "name": "clawdoc",
+  "name": "clawinsight",
   "version": "0.1.0",
   "description": "Health diagnostics for OpenClaw agents",
   "type": "module",
   "bin": {
-    "clawdoc": "./dist/bin.js"
+    "clawinsight": "./dist/bin.js"
   },
   "exports": {
     ".": "./dist/index.js",
@@ -264,7 +264,7 @@ import { Command } from "commander";
 const program = new Command();
 
 program
-  .name("clawdoc")
+  .name("clawinsight")
   .description("Health diagnostics for OpenClaw agents")
   .version("0.1.0");
 
@@ -302,7 +302,7 @@ Also add `PrescriptionAction` union type from spec §7.2 (needed by `Prescriptio
 
 - [ ] **Step 2: Create src/types/events.ts**
 
-Transcribe from spec §5.1: `EventType`, `EventDataMap`, `ClawDocEvent`, `TypedClawDocEvent<T>`, and all 10 `*Data` interfaces (`LLMCallData`, `ToolCallData` with `paramsSummary`/`resultSummary`, `SessionLifecycleData`, `AgentLifecycleData`, `MemorySnapshotData`, `SubagentEventData`, `MessageEventData`, `CompactionEventData`, `ConfigSnapshotData`, `PluginSnapshotData`).
+Transcribe from spec §5.1: `EventType`, `EventDataMap`, `ClawInsightEvent`, `TypedClawInsightEvent<T>`, and all 10 `*Data` interfaces (`LLMCallData`, `ToolCallData` with `paramsSummary`/`resultSummary`, `SessionLifecycleData`, `AgentLifecycleData`, `MemorySnapshotData`, `SubagentEventData`, `MessageEventData`, `CompactionEventData`, `ConfigSnapshotData`, `PluginSnapshotData`).
 
 - [ ] **Step 3: Create src/types/scoring.ts**
 
@@ -355,7 +355,7 @@ import path from "node:path";
 import os from "node:os";
 
 describe("loadConfig", () => {
-  const tmpDir = path.join(os.tmpdir(), "clawdoc-test-config");
+  const tmpDir = path.join(os.tmpdir(), "clawinsight-test-config");
 
   beforeEach(() => {
     fs.mkdirSync(tmpDir, { recursive: true });
@@ -401,18 +401,18 @@ Expected: FAIL — `loadConfig` not found
 
 - [ ] **Step 3: Create src/types/config.ts with defaults**
 
-Transcribe `ClawDocConfig` interface from spec §4.1. Export `DEFAULT_THRESHOLDS`, `DEFAULT_WEIGHTS`, `DEFAULT_CONFIG`.
+Transcribe `ClawInsightConfig` interface from spec §4.1. Export `DEFAULT_THRESHOLDS`, `DEFAULT_WEIGHTS`, `DEFAULT_CONFIG`.
 
 - [ ] **Step 4: Implement src/config/loader.ts**
 
 ```typescript
 import fs from "node:fs";
-import type { ClawDocConfig } from "../types/config.js";
+import type { ClawInsightConfig } from "../types/config.js";
 import { DEFAULT_CONFIG } from "../types/config.js";
 
 export { DEFAULT_CONFIG } from "../types/config.js";
 
-export function loadConfig(configPath: string): ClawDocConfig {
+export function loadConfig(configPath: string): ClawInsightConfig {
   try {
     const raw = fs.readFileSync(configPath, "utf-8");
     const parsed = JSON.parse(raw);
@@ -422,7 +422,7 @@ export function loadConfig(configPath: string): ClawDocConfig {
   }
 }
 
-function mergeConfig(defaults: ClawDocConfig, overrides: Partial<ClawDocConfig>): ClawDocConfig {
+function mergeConfig(defaults: ClawInsightConfig, overrides: Partial<ClawInsightConfig>): ClawInsightConfig {
   return {
     locale: overrides.locale ?? defaults.locale,
     thresholds: { ...defaults.thresholds, ...overrides.thresholds },
@@ -940,7 +940,7 @@ Expected: FAIL
 
 - [ ] **Step 4: Implement session-parser.ts**
 
-Core logic: read JSONL line by line, parse session header for sessionId, derive sessionKey from filename, walk assistant messages for tool call blocks (handle `toolUse`, `toolCall`, `functionCall` variants), match with `toolResult` messages by call ID, extract usage fields for LLM call events, produce `ClawDocEvent[]`.
+Core logic: read JSONL line by line, parse session header for sessionId, derive sessionKey from filename, walk assistant messages for tool call blocks (handle `toolUse`, `toolCall`, `functionCall` variants), match with `toolResult` messages by call ID, extract usage fields for LLM call events, produce `ClawInsightEvent[]`.
 
 Key implementation details:
 - `paramsSummary`: iterate `Object.entries(params)`, output `{ key: typeof value }` (e.g. `{ "query": "string", "limit": "number" }`)
@@ -959,7 +959,7 @@ Each with a corresponding test using fixtures.
 - [ ] **Step 6: Implement snapshot-collector.ts orchestrator**
 
 ```typescript
-import type { ClawDocEvent } from "../types/events.js";
+import type { ClawInsightEvent } from "../types/events.js";
 import { parseSessionFiles } from "./session-parser.js";
 import { scanConfig } from "./config-scanner.js";
 import { scanMemory } from "./memory-scanner.js";
@@ -972,8 +972,8 @@ export interface SnapshotCollectorOptions {
   since?: number;         // unix ms, only collect events after this
 }
 
-export async function collectSnapshot(opts: SnapshotCollectorOptions): Promise<ClawDocEvent[]> {
-  const events: ClawDocEvent[] = [];
+export async function collectSnapshot(opts: SnapshotCollectorOptions): Promise<ClawInsightEvent[]> {
+  const events: ClawInsightEvent[] = [];
 
   // Session JSONL → tool_call, llm_call, session_lifecycle, agent_lifecycle
   const sessionsDir = `${opts.stateDir}/agents/${opts.agentId}/sessions`;
@@ -1229,7 +1229,7 @@ Expected: FAIL
 - [ ] **Step 3: Implement rule-engine.ts**
 
 ```typescript
-import type { ClawDocConfig } from "../types/config.js";
+import type { ClawInsightConfig } from "../types/config.js";
 import type { MetricSet } from "./metric-aggregator.js";
 import type { DiseaseDefinition, Severity, Evidence } from "../types/domain.js";
 
@@ -1243,7 +1243,7 @@ export interface RuleResult {
 
 export function evaluateRules(
   metrics: MetricSet,
-  config: ClawDocConfig,
+  config: ClawInsightConfig,
   registry: { getAll(): DiseaseDefinition[] },
 ): RuleResult[] {
   const results: RuleResult[] = [];
@@ -1261,7 +1261,7 @@ export function evaluateRules(
 function evaluateSingleRule(
   disease: DiseaseDefinition,
   metrics: MetricSet,
-  config: ClawDocConfig,
+  config: ClawInsightConfig,
 ): RuleResult | null {
   const detection = disease.detection;
   if (detection.type !== "rule") return null;
@@ -1694,13 +1694,13 @@ export function registerCheckupCommand(program: Command): void {
 
 - [ ] **Step 2: Implement config commands**
 
-`clawdoc config init` — create `~/.clawdoc/config.json` with defaults
-`clawdoc config set <key> <value>` — update a specific key
-`clawdoc config show` — print current config
+`clawinsight config init` — create `~/.clawinsight/config.json` with defaults
+`clawinsight config set <key> <value>` — update a specific key
+`clawinsight config show` — print current config
 
 - [ ] **Step 3: Implement department-specific commands**
 
-`clawdoc skill list`, `clawdoc memory scan`, `clawdoc cost report`, `clawdoc security audit` — each runs a focused checkup and renders a department-specific view.
+`clawinsight skill list`, `clawinsight memory scan`, `clawinsight cost report`, `clawinsight security audit` — each runs a focused checkup and renders a department-specific view.
 
 - [ ] **Step 4: Wire all commands into bin.ts**
 
@@ -1716,7 +1716,7 @@ import { registerBehaviorCommand } from "./commands/behavior-cmd.js";
 import { registerSecurityCommand } from "./commands/security-cmd.js";
 
 const program = new Command();
-program.name("clawdoc").description("Health diagnostics for OpenClaw agents").version("0.1.0");
+program.name("clawinsight").description("Health diagnostics for OpenClaw agents").version("0.1.0");
 
 registerCheckupCommand(program);
 registerConfigCommand(program);
@@ -1763,7 +1763,7 @@ import { execSync } from "node:child_process";
 import path from "node:path";
 
 describe("E2E", () => {
-  it("clawdoc checkup --json produces valid JSON output", () => {
+  it("clawinsight checkup --json produces valid JSON output", () => {
     const output = execSync("tsx src/bin.ts checkup --json --agent default", {
       cwd: path.join(import.meta.dirname, ".."),
       env: { ...process.env, OPENCLAW_STATE_DIR: path.join(import.meta.dirname, "../fixtures") },
@@ -1777,7 +1777,7 @@ describe("E2E", () => {
     expect(result.healthScore.coverage).toBeDefined();
   });
 
-  it("clawdoc config show outputs config", () => {
+  it("clawinsight config show outputs config", () => {
     const output = execSync("tsx src/bin.ts config show", {
       cwd: path.join(import.meta.dirname, ".."),
       encoding: "utf-8",
@@ -1807,7 +1807,7 @@ node dist/bin.js checkup --json --agent default
 
 - [ ] **Step 5: Create README.md**
 
-Brief README with: what ClawDoc does, `npx clawdoc checkup` quick start, CLI command reference, configuration, link to design spec.
+Brief README with: what ClawInsight does, `npx clawinsight checkup` quick start, CLI command reference, configuration, link to design spec.
 
 - [ ] **Step 6: Final commit**
 

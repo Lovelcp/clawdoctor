@@ -61,7 +61,7 @@ export async function runDeptCheckup(
     console.log(report);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    console.error(`[clawdoc] ${department} checkup failed: ${message}`);
+    console.error(`[clawinsight] ${department} checkup failed: ${message}`);
     process.exit(1);
   }
 }

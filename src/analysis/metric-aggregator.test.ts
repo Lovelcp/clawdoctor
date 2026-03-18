@@ -7,7 +7,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { openDatabase } from "../store/database.js";
 import { createEventStore } from "../store/event-store.js";
 import type Database from "better-sqlite3";
-import type { ClawDocEvent } from "../types/events.js";
+import type { ClawInsightEvent } from "../types/events.js";
 import { aggregateMetrics } from "./metric-aggregator.js";
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
@@ -17,7 +17,7 @@ function makeId(): string {
   return `01ARZ3NDEKTSV4RRFFQ69G5FA${String(idCounter++).padStart(2, "0")}`;
 }
 
-function makeToolCallEvent(overrides: Partial<ClawDocEvent> & { data: ClawDocEvent["data"] }): ClawDocEvent {
+function makeToolCallEvent(overrides: Partial<ClawInsightEvent> & { data: ClawInsightEvent["data"] }): ClawInsightEvent {
   return {
     id: makeId(),
     source: "stream",
@@ -29,7 +29,7 @@ function makeToolCallEvent(overrides: Partial<ClawDocEvent> & { data: ClawDocEve
   };
 }
 
-function makeLlmCallEvent(overrides: Partial<ClawDocEvent> & { data: ClawDocEvent["data"] }): ClawDocEvent {
+function makeLlmCallEvent(overrides: Partial<ClawInsightEvent> & { data: ClawInsightEvent["data"] }): ClawInsightEvent {
   return {
     id: makeId(),
     source: "stream",
@@ -41,7 +41,7 @@ function makeLlmCallEvent(overrides: Partial<ClawDocEvent> & { data: ClawDocEven
   };
 }
 
-function makeSessionEvent(overrides: Partial<ClawDocEvent> & { data: ClawDocEvent["data"] }): ClawDocEvent {
+function makeSessionEvent(overrides: Partial<ClawInsightEvent> & { data: ClawInsightEvent["data"] }): ClawInsightEvent {
   return {
     id: makeId(),
     source: "stream",
@@ -53,7 +53,7 @@ function makeSessionEvent(overrides: Partial<ClawDocEvent> & { data: ClawDocEven
   };
 }
 
-function makeAgentEvent(overrides: Partial<ClawDocEvent> & { data: ClawDocEvent["data"] }): ClawDocEvent {
+function makeAgentEvent(overrides: Partial<ClawInsightEvent> & { data: ClawInsightEvent["data"] }): ClawInsightEvent {
   return {
     id: makeId(),
     source: "stream",

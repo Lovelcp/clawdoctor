@@ -1,6 +1,6 @@
 # Plugin Authoring Guide
 
-ClawDoc's plugin system lets you write custom disease definitions, register them with the engine, and share them on npm.
+ClawInsight's plugin system lets you write custom disease definitions, register them with the engine, and share them on npm.
 
 ## Table of Contents
 
@@ -17,7 +17,7 @@ ClawDoc's plugin system lets you write custom disease definitions, register them
 
 ## Overview
 
-A ClawDoc plugin is an npm package that exports a `ClawDocPlugin` object as its default export. The plugin object contains an array of `DiseaseDefinition` objects — each one describes a condition to detect, how to detect it, and optional prescriptions (auto-fixes).
+A ClawInsight plugin is an npm package that exports a `ClawInsightPlugin` object as its default export. The plugin object contains an array of `DiseaseDefinition` objects — each one describes a condition to detect, how to detect it, and optional prescriptions (auto-fixes).
 
 ---
 
@@ -26,10 +26,10 @@ A ClawDoc plugin is an npm package that exports a `ClawDocPlugin` object as its 
 ### 1. Initialize the package
 
 ```bash
-mkdir clawdoc-plugin-my-rules
-cd clawdoc-plugin-my-rules
+mkdir clawinsight-plugin-my-rules
+cd clawinsight-plugin-my-rules
 npm init -y
-npm install --save-dev typescript clawdoc
+npm install --save-dev typescript clawinsight
 ```
 
 ### 2. Configure TypeScript
@@ -53,7 +53,7 @@ npm install --save-dev typescript clawdoc
 
 ```json
 {
-  "name": "clawdoc-plugin-my-rules",
+  "name": "clawinsight-plugin-my-rules",
   "version": "1.0.0",
   "type": "module",
   "main": "./dist/index.js",
@@ -61,18 +61,18 @@ npm install --save-dev typescript clawdoc
     ".": "./dist/index.js"
   },
   "files": ["dist/"],
-  "keywords": ["clawdoc-plugin"]
+  "keywords": ["clawinsight-plugin"]
 }
 ```
 
-Tag your package with `clawdoc-plugin` so it is discoverable on npm.
+Tag your package with `clawinsight-plugin` so it is discoverable on npm.
 
 ---
 
 ## DiseaseDefinition Schema
 
 ```typescript
-import type { DiseaseDefinition } from 'clawdoc';
+import type { DiseaseDefinition } from 'clawinsight';
 
 const myDisease: DiseaseDefinition = {
   // Unique ID — use a prefix to avoid collisions with built-in diseases
@@ -169,7 +169,7 @@ interface DetectionContext {
     errorCount: number;
   };
 
-  // Loaded memory files (CLAUDE.md, .clawdoc/memory.json, etc.)
+  // Loaded memory files (CLAUDE.md, .clawinsight/memory.json, etc.)
   memory: {
     files: MemoryFile[];
     totalSizeBytes: number;
@@ -231,7 +231,7 @@ return {
 Prescriptions are optional auto-fixes attached to a disease. Each prescription has a risk level and an `apply` function.
 
 ```typescript
-import type { Prescription } from 'clawdoc/plugin';
+import type { Prescription } from 'clawinsight/plugin';
 
 const myPrescription: Prescription = {
   // Unique ID within the disease
@@ -240,7 +240,7 @@ const myPrescription: Prescription = {
   // Human-readable description
   description: 'Set maxRetries: 3 in the agent config',
 
-  // Risk level — ClawDoc only auto-applies 'low' risk prescriptions with --auto-fix
+  // Risk level — ClawInsight only auto-applies 'low' risk prescriptions with --auto-fix
   // One of: 'low' | 'medium' | 'high'
   risk: 'low',
 
@@ -335,35 +335,35 @@ npm pack --dry-run
 npm publish --access public
 ```
 
-Make sure your package includes the `clawdoc-plugin` keyword so users can find it with:
+Make sure your package includes the `clawinsight-plugin` keyword so users can find it with:
 
 ```bash
-npm search clawdoc-plugin
+npm search clawinsight-plugin
 ```
 
 ---
 
 ## Loading Plugins
 
-Users add your plugin to their ClawDoc config:
+Users add your plugin to their ClawInsight config:
 
 ```json
-// ~/.clawdoc/config.json
+// ~/.clawinsight/config.json
 {
   "plugins": [
-    "clawdoc-plugin-my-rules"
+    "clawinsight-plugin-my-rules"
   ]
 }
 ```
 
-ClawDoc resolves plugins from `node_modules` in the current working directory or globally installed packages.
+ClawInsight resolves plugins from `node_modules` in the current working directory or globally installed packages.
 
 ---
 
 ## Plugin Checklist
 
-- [ ] Package named `clawdoc-plugin-<name>`
-- [ ] `clawdoc-plugin` keyword in `package.json`
+- [ ] Package named `clawinsight-plugin-<name>`
+- [ ] `clawinsight-plugin` keyword in `package.json`
 - [ ] All disease IDs prefixed with plugin name
 - [ ] All diseases have tests
 - [ ] Prescriptions marked with correct risk level
