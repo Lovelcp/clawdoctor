@@ -8,11 +8,10 @@ ClawDoc integrates with any CI system that can run Node.js. Use `--fail-on` to g
 |------|---------|
 | `0` | All checks passed (or no issues above the threshold) |
 | `1` | One or more issues at or above the `--fail-on` severity |
-| `2` | ClawDoc internal error |
 
 ## Severity Levels
 
-`info` < `warning` < `error` < `critical`
+`info` < `warning` < `critical`
 
 Use `--fail-on critical` to only block on critical issues, or `--fail-on warning` for a stricter pipeline.
 
@@ -20,11 +19,10 @@ Use `--fail-on critical` to only block on critical issues, or `--fail-on warning
 
 | Flag | Description |
 |------|-------------|
-| `--fail-on <severity>` | Exit 1 if any issue at this severity or above is found |
+| `--fail-on <severity>` | Exit 1 if any issue at this severity or above is found (`info`, `warning`, or `critical`) |
 | `--no-llm` | Skip LLM-powered analysis (faster, no API key required) |
 | `--json` | Output structured JSON for downstream processing |
 | `--dept <name>` | Only run a specific department |
-| `--quiet` | Suppress all output except the exit code |
 
 ---
 
@@ -86,7 +84,7 @@ jobs:
         run: npx clawdoc checkup --dept security --fail-on warning --no-llm
 
       - name: Memory health
-        run: npx clawdoc checkup --dept memory --fail-on error --no-llm
+        run: npx clawdoc checkup --dept memory --fail-on warning --no-llm
 ```
 
 ---

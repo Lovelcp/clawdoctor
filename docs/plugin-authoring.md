@@ -278,55 +278,35 @@ interface PrescriptionContext {
 
 ## Testing Your Plugin
 
-Use ClawDoc's test utilities to unit-test your disease definitions without a real agent session:
+Test your plugin by importing the disease definitions and verifying their structure:
 
 ```typescript
 import { describe, it, expect } from 'vitest';
-import { createTestContext } from 'clawdoc/plugin/testing';
-import myDisease from '../src/index.js';
+import plugin from '../src/index.js';
 
-describe('excessive-retries', () => {
-  it('detects when retry count exceeds threshold', () => {
-    const ctx = createTestContext({
-      events: Array.from({ length: 7 }, (_, i) => ({
-        id: `evt-${i}`,
-        type: 'retry',
-        timestamp: Date.now() + i * 1000,
-        data: { toolName: 'bash' },
-      })),
-    });
+describe('my-plugin', () => {
+  it('exports valid disease definitions', () => {
+    expect(plugin.diseases).toBeDefined();
+    expect(plugin.diseases.length).toBeGreaterThan(0);
 
-    const result = myDisease.diseases[0].detect(ctx);
-    expect(result.detected).toBe(true);
-    expect(result.score).toBeGreaterThan(0);
+    for (const disease of plugin.diseases) {
+      expect(disease.id).toBeTruthy();
+      expect(disease.department).toBeTruthy();
+      expect(disease.name.en).toBeTruthy();
+      expect(disease.detection).toBeDefined();
+      expect(disease.detection.type).toMatch(/^(rule|llm|hybrid)$/);
+    }
   });
 
-  it('does not detect when retry count is within threshold', () => {
-    const ctx = createTestContext({
-      events: Array.from({ length: 3 }, (_, i) => ({
-        id: `evt-${i}`,
-        type: 'retry',
-        timestamp: Date.now() + i * 1000,
-        data: { toolName: 'bash' },
-      })),
-    });
-
-    const result = myDisease.diseases[0].detect(ctx);
-    expect(result.detected).toBe(false);
+  it('rule-based diseases have valid thresholds', () => {
+    const ruleDiseases = plugin.diseases.filter(d => d.detection.type === 'rule');
+    for (const disease of ruleDiseases) {
+      expect(disease.detection.defaultThresholds).toBeDefined();
+      expect(typeof disease.detection.defaultThresholds.warning).toBe('number');
+      expect(typeof disease.detection.defaultThresholds.critical).toBe('number');
+    }
   });
 });
-```
-
-### createTestContext Options
-
-```typescript
-createTestContext({
-  events?: AgentEvent[];
-  metrics?: Partial<Metrics>;
-  memory?: Partial<MemoryContext>;
-  skills?: Partial<SkillContext>;
-  config?: Record<string, unknown>;
-})
 ```
 
 ---

@@ -81,11 +81,15 @@ export function registerCheckupCommand(program: Command): void {
           ? (opts.dept as string).split(",").map((d: string) => d.trim() as Department)
           : undefined;
 
-        // ── Load community plugins ────────────────────────────────────────────
-        const pluginNames: string[] = opts.plugins
+        // ── Load community plugins (CLI flag + config file) ─────────────────
+        const configFilePath = join(homedir(), ".clawdoc", "config.json");
+        const config = loadConfig(configFilePath);
+        const cliPlugins: string[] = opts.plugins
           ? (opts.plugins as string).split(",").map((p: string) => p.trim()).filter(Boolean)
           : [];
-        const plugins = pluginNames.length > 0 ? await loadPlugins(pluginNames) : [];
+        const configPlugins: string[] = config.plugins ?? [];
+        const allPluginNames = [...new Set([...cliPlugins, ...configPlugins])];
+        const plugins = allPluginNames.length > 0 ? await loadPlugins(allPluginNames) : [];
 
         const checkupOpts: CheckupOptions = {
           agentId: opts.agent ?? "default",

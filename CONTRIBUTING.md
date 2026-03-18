@@ -53,38 +53,35 @@ Name your plugin `clawdoc-plugin-<name>` so it is discoverable on npm.
 ### Minimal Plugin Example
 
 ```typescript
-import type { ClawDocPlugin, DiseaseDefinition } from 'clawdoc/plugin';
+import type { ClawDocPlugin } from 'clawdoc-plugin-my-rules'; // or define locally
+import type { DiseaseDefinition } from 'clawdoc'; // from clawdoc's types
 
 const myDisease: DiseaseDefinition = {
-  id: 'my-plugin.excessive-retries',
-  name: 'Excessive Retry Syndrome',
+  id: 'CUSTOM-001',
   department: 'behavior',
-  severity: 'warning',
-  description: 'Agent retries the same operation more than 5 times in a row.',
-  detect(context) {
-    const retries = context.events.filter(e => e.type === 'retry');
-    if (retries.length > 5) {
-      return {
-        detected: true,
-        evidence: [`${retries.length} retries observed`],
-        score: Math.min(100, retries.length * 10),
-      };
-    }
-    return { detected: false };
+  category: 'reliability',
+  name: { en: 'Excessive Retry Syndrome', zh: '过度重试综合症' },
+  description: { en: 'Agent retries the same operation more than 5 times', zh: 'Agent 对同一操作重试超过5次' },
+  rootCauses: [{ en: 'Missing retry limit in agent config', zh: '缺少重试限制配置' }],
+  detection: {
+    type: 'rule',
+    metric: 'behavior.loopDetectionThreshold',
+    direction: 'higher_is_worse',
+    defaultThresholds: { warning: 3, critical: 5 },
   },
-  prescriptions: [
-    {
-      id: 'my-plugin.add-retry-limit',
-      description: 'Add a retry limit to the agent configuration',
-      risk: 'low',
-      apply(context) {
-        // mutation logic here
-      },
-    },
-  ],
+  prescriptionTemplate: {
+    level: 'guided',
+    actionTypes: ['file_edit'],
+    promptTemplate: 'Suggest adding a retry limit...',
+    estimatedImprovementTemplate: { en: 'Reduce retries by {value}%', zh: '减少 {value}% 重试' },
+    risk: 'low',
+  },
+  relatedDiseases: [],
+  defaultSeverity: 'warning',
+  tags: ['reliability', 'retry'],
 };
 
-const plugin: ClawDocPlugin = {
+const plugin = {
   name: 'clawdoc-plugin-my-rules',
   version: '1.0.0',
   diseases: [myDisease],

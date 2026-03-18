@@ -7,6 +7,7 @@ import type { Severity, Evidence, RuleDetection, HybridDetection } from "../type
 import type { ClawDocConfig } from "../types/config.js";
 import type { MetricSet } from "./metric-aggregator.js";
 import type { getDiseaseRegistry } from "../diseases/registry.js";
+import type { CustomRuleEvaluator } from "../plugins/plugin-types.js";
 
 // ─── Public API ───────────────────────────────────────────────────────────────
 
@@ -28,6 +29,7 @@ export function evaluateRules(
   metrics: MetricSet,
   config: ClawDocConfig,
   registry: ReturnType<typeof getDiseaseRegistry>,
+  customRules?: Record<string, CustomRuleEvaluator>,
 ): RuleResult[] {
   const results: RuleResult[] = [];
 
@@ -52,6 +54,19 @@ export function evaluateRules(
     const result = evaluateDisease(disease.id, detection, metrics, config);
     if (result !== null) {
       results.push(result);
+    }
+  }
+
+  // Evaluate custom rule evaluators from community plugins
+  if (customRules) {
+    for (const [ruleId, evaluator] of Object.entries(customRules)) {
+      try {
+        const result = evaluator(metrics, config);
+        if (result) results.push(result);
+      } catch (err) {
+        // Plugin rule threw — skip it, don't crash the engine
+        console.warn(`[clawdoc] Custom rule "${ruleId}" threw: ${err}`);
+      }
     }
   }
 
