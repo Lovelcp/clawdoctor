@@ -18,6 +18,8 @@ import { createDiagnosisStore } from "../store/diagnosis-store.js";
 import { createScoreStore } from "../store/score-store.js";
 import { aggregateMetrics } from "../analysis/metric-aggregator.js";
 import type { Department } from "../types/domain.js";
+import { scoreToGrade } from "../types/scoring.js";
+import { generateBadge } from "../badge/badge-generator.js";
 
 // --- Types ---
 
@@ -65,8 +67,13 @@ export function createDashboardApp(opts: DashboardOptions): Hono {
   const scoreStore = createScoreStore(db);
 
   // ─── Auth middleware: ALL /api/* require bearer token ───
+  // Exception: GET /api/badge is publicly accessible (for README embeds etc.)
 
   app.use("/api/*", async (c, next) => {
+    // Public routes — skip auth
+    if (c.req.path === "/api/badge") {
+      return next();
+    }
     if (!authToken) {
       return next();
     }
@@ -77,7 +84,7 @@ export function createDashboardApp(opts: DashboardOptions): Hono {
     return next();
   });
 
-  // ─── API Routes (15 total) ───
+  // ─── API Routes (15 total + 1 public badge) ───
 
   // 1. GET /api/health — latest health score
   app.get("/api/health", (c) => {
@@ -326,6 +333,26 @@ export function createDashboardApp(opts: DashboardOptions): Hono {
       status: "not_implemented",
       message: `Prescription ${id} rollback will be implemented in Task 10 (executor)`,
     }, 501);
+  });
+
+  // 16. GET /api/badge — public SVG badge (NO auth required)
+  app.get("/api/badge", (c) => {
+    const agentId = c.req.query("agentId") ?? "default";
+    const label = c.req.query("label") ?? "ClawDoc";
+    const latest = scoreStore.queryLatestScore(agentId);
+
+    const score = latest?.overall ?? 0;
+    const grade = scoreToGrade(latest?.overall ?? null);
+
+    const svg = generateBadge({ grade, score, label });
+
+    return new Response(svg, {
+      status: 200,
+      headers: {
+        "Content-Type": "image/svg+xml",
+        "Cache-Control": "no-cache, max-age=0",
+      },
+    });
   });
 
   // ─── SPA fallback ───
