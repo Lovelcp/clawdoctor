@@ -16,9 +16,12 @@
 
 ### 1. LLM Provider Abstraction (not Anthropic-only)
 
-The LLM client uses a `LLMProvider` interface — not hardcoded to Anthropic. Two implementations:
-- `AnthropicProvider`: Anthropic Messages API (default when `ANTHROPIC_API_KEY` is set)
-- `OpenClawProvider`: delegates to OpenClaw's model routing (when running as plugin)
+The LLM client uses a `LLMProvider` interface — not hardcoded to Anthropic.
+
+Phase 2 ships one implementation:
+- `AnthropicProvider`: Anthropic Messages API (used when `ANTHROPIC_API_KEY` or `OPENCLAW_API_KEY` is set)
+
+Future (Phase 3): `OpenClawProvider` that delegates to OpenClaw's model routing when running as plugin. Deferred because it requires OpenClaw gateway runtime, which complicates testing.
 
 ```typescript
 interface LLMProvider {
@@ -124,7 +127,7 @@ src/
     ├── store/score-store.ts       # Add queryLatestScore(), insertHealthScoreWithJson()
     ├── analysis/rule-engine.ts    # Extend evaluateRules() for hybrid preFilter → "suspect"
     ├── analysis/analysis-pipeline.ts # Add LLM step, causal chains, prescriptions, degradation
-    ├── commands/checkup.ts        # Support --no-llm flag (remove hardcode)
+    ├── commands/checkup.ts        # Add LLM analysis path when --no-llm is NOT set (flag already exists)
     ├── report/terminal-report.ts  # Add causal chain + prescription sections
     ├── bin.ts                     # Register rx and dashboard commands
     └── package.json               # Add hono, @hono/node-server deps; openclaw peerDep
@@ -144,13 +147,15 @@ Round 1 (4-way parallel — no shared files):
   Track C: Task 5 (dashboard server + ALL API routes + SPA)
   Track D: Task 6 (RawSampleProvider + input key mapper)
 
-Round 2 (3-way parallel):
+Round 2 (2-way parallel):
   Track A: Task 7 (LLM analyzer 3-round) — needs Tasks 1, 2, 6
   Track B: Task 8 (stream collector + plugin) — needs Tasks 3, 4, 5
-  Track C: Task 9 (causal linker + store) — needs Task 1
 
-Round 3 (sequential):
+Round 3 (2-way parallel):
+  Task 9: Causal linker + store — needs Task 7 (uses LLMAnalyzerResult output types)
   Task 10: Prescription engine — needs Tasks 1, 7
+
+Round 4 (sequential):
   Task 11: Pipeline integration — needs Tasks 7, 9, 10
   Task 12: CLI commands (rx + dashboard) — needs Tasks 5, 10, 11
   Task 13: E2E + integration tests — needs Task 12
@@ -272,12 +277,14 @@ export interface SkillDefinitionSample {
 - [ ] **Step 2: Add schema v2 migration to database.ts**
 
 ```typescript
-// In MIGRATIONS object, add:
+// In MIGRATIONS object, add (wrapped in transaction for atomicity):
 2: (db) => {
-  db.exec(`
-    ALTER TABLE health_scores ADD COLUMN health_score_json TEXT;
-
-    CREATE TABLE IF NOT EXISTS causal_chains (
+  db.transaction(() => {
+    db.exec(`
+      ALTER TABLE health_scores ADD COLUMN health_score_json TEXT;
+    `);
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS causal_chains (
       id              TEXT PRIMARY KEY,
       agent_id        TEXT NOT NULL,
       name_json       TEXT NOT NULL,
@@ -288,7 +295,8 @@ export interface SkillDefinitionSample {
       created_at      INTEGER NOT NULL DEFAULT (unixepoch('subsec') * 1000)
     );
     CREATE INDEX IF NOT EXISTS idx_causal_agent ON causal_chains(agent_id);
-  `);
+    `);
+  })(); // end transaction
 },
 ```
 
@@ -580,7 +588,11 @@ export function createDashboardApp(opts: DashboardOptions): Hono {
   // GET /api/diseases/:id — single disease with evidence
   // GET /api/prescriptions — list
   // GET /api/prescriptions/:id/followup — followup result
-  // GET /api/metrics/:dept — MetricSet for department
+  // GET /api/metrics/:dept — calls aggregateMetrics() against persistent DB, returns filtered department
+  //   Implementation: import aggregateMetrics from analysis/metric-aggregator.ts
+  //   The existing aggregateMetrics() works on any SQLite DB (not just in-memory).
+  //   Route handler: aggregateMetrics(db, agentId, { from: since, to: now }) → return metrics[dept]
+  //   Query params: ?agentId=default&since=7d
   // GET /api/trends — HealthScore[] time series
   // GET /api/events — paginated (?page=1&limit=50&type=tool_call)
   // GET /api/causal-chains — CausalChain[]
@@ -743,7 +755,7 @@ export interface LLMAnalyzerInput {
 
 export interface LLMAnalyzerResult {
   confirmed: LLMDiagnosis[];
-  causalChains: CausalChainRaw[];           // raw from LLM, parsed by causal-linker
+  causalChains: Array<{ name: string; rootCause: string; chain: string[]; impact: string }>;           // raw from LLM, parsed by causal-linker
   totalTokensUsed: number;
   error?: string;                            // degradation reason if LLM failed
 }
@@ -875,7 +887,11 @@ Per spec §7.4:
   - currentHash === preApplyHash → already reverted, skip
   - neither → conflict, return conflict info
 
-Test in temp directory: create files → backup → modify → rollback → verify.
+Test in temp directory:
+- file_edit: create file → backup → edit → verify changed → rollback → verify restored
+- file_delete: create file → backup → delete → verify gone → rollback → verify restored
+- conflict: create file → backup → apply → externally modify → rollback → detect conflict
+- already-reverted: create file → backup → apply → manually revert → rollback → skip (idempotent)
 
 - [ ] **Step 3: Implement prescription-generator.ts**
 
@@ -891,6 +907,27 @@ export async function generatePrescription(
 ```
 
 - [ ] **Step 4: Implement prescription-executor.ts (preview/apply/rollback)**
+
+Upon successful apply, the executor MUST create 3 follow-up schedule rows in the `followups` table:
+```typescript
+const FOLLOWUP_CHECKPOINTS = [
+  { checkpoint: "1h", delayMs: 60 * 60 * 1000 },
+  { checkpoint: "24h", delayMs: 24 * 60 * 60 * 1000 },
+  { checkpoint: "7d", delayMs: 7 * 24 * 60 * 60 * 1000 },
+];
+// After successful apply:
+for (const cp of FOLLOWUP_CHECKPOINTS) {
+  prescriptionStore.insertFollowup({
+    id: ulid(),
+    prescriptionId: rx.id,
+    checkpoint: cp.checkpoint,
+    scheduledAt: Date.now() + cp.delayMs,
+    completedAt: null,
+    resultJson: null,
+  });
+}
+```
+The plugin follow-up scheduler (Task 8, line ~795) queries `getPendingFollowups()` and processes due items.
 - [ ] **Step 5: Implement followup.ts (verdict computation)**
 - [ ] **Step 6: Write tests for all modules, verify, commit**
 
@@ -1032,7 +1069,7 @@ git commit -m "feat: add Phase 2 E2E and integration tests"
 | 6 | D | RawSampleProvider + Input Key Mapper | 0 | 1, 2, 3, 4, 5 |
 | 7 | A | LLM Analyzer 3-round | 1, 2, 6 | 8, 9 |
 | 8 | B | Stream Collector + Plugin | 3, 4, 5 | 7, 9 |
-| 9 | A | Causal Chain Linker + Store | 1 | 7, 8 |
+| 9 | A | Causal Chain Linker + Store | 7 | 10 |
 | 10 | — | Prescription Engine | 1, 7 | — |
 | 11 | — | Pipeline Integration | 7, 9, 10 | — |
 | 12 | — | CLI Commands (rx + dashboard) | 5, 10, 11 | — |
@@ -1043,9 +1080,9 @@ git commit -m "feat: add Phase 2 E2E and integration tests"
 ```
 Round 0: Task 0 (types + schema) — sequential
 Round 1: Task 1 | Task 2 | Task 3 | Task 4 | Task 5 | Task 6 — 6-way parallel
-Round 2: Task 7 | Task 8 | Task 9 — 3-way parallel
-Round 3: Task 10 — sequential
-Round 4: Task 11 — sequential
-Round 5: Task 12 — sequential
-Round 6: Task 13 — sequential
+Round 2: Task 7 | Task 8 — 2-way parallel
+Round 3: Task 9 | Task 10 — 2-way parallel
+Round 4: Task 11 — sequential (pipeline integration)
+Round 5: Task 12 — sequential (CLI commands)
+Round 6: Task 13 — sequential (E2E)
 ```
