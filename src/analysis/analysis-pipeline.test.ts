@@ -22,6 +22,7 @@ describe("runCheckup (analysis pipeline)", () => {
     stateDir: FIXTURES_DIR,
     workspaceDir: FIXTURES_DIR,
     noLlm: true,
+    dbPath: ":memory:",      // use in-memory DB for tests
   };
 
   it("returns a CheckupResult with a valid HealthScore", async () => {
@@ -151,6 +152,23 @@ describe("runCheckup (analysis pipeline)", () => {
   it("can accept a configPath override", async () => {
     const configPath = join(FIXTURES_DIR, "config/valid-openclaw.json");
     const result = await runCheckup({ ...BASE_OPTS, configPath });
+    expect(result.healthScore).toBeDefined();
+  });
+
+  it("returns llmAvailable=false when noLlm is set", async () => {
+    const result = await runCheckup(BASE_OPTS);
+    expect(result.llmAvailable).toBe(false);
+    expect(result.llmDegradationReason).toBe("llm_disabled_by_flag");
+  });
+
+  it("causalChains and prescriptions are undefined in noLlm mode", async () => {
+    const result = await runCheckup(BASE_OPTS);
+    expect(result.causalChains).toBeUndefined();
+    expect(result.prescriptions).toBeUndefined();
+  });
+
+  it("can accept a dbPath override", async () => {
+    const result = await runCheckup({ ...BASE_OPTS, dbPath: ":memory:" });
     expect(result.healthScore).toBeDefined();
   });
 });

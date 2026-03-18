@@ -3,7 +3,7 @@
 //  Design spec §6.3 — Phase 1: rule-based disease evaluation
 // ═══════════════════════════════════════════════
 
-import type { Severity, Evidence, RuleDetection } from "../types/domain.js";
+import type { Severity, Evidence, RuleDetection, HybridDetection } from "../types/domain.js";
 import type { ClawDocConfig } from "../types/config.js";
 import type { MetricSet } from "./metric-aggregator.js";
 import type { getDiseaseRegistry } from "../diseases/registry.js";
@@ -32,9 +32,22 @@ export function evaluateRules(
   const results: RuleResult[] = [];
 
   for (const disease of registry.getAll()) {
-    // Phase 1: only handle pure rule-based detection
-    if (disease.detection.type !== "rule") continue;
+    // LLM-only diseases are skipped by the rule engine entirely
+    if (disease.detection.type === "llm") continue;
 
+    // Hybrid diseases: evaluate the preFilter (rule part) only
+    if (disease.detection.type === "hybrid") {
+      const hybridDetection = disease.detection as HybridDetection;
+      const preFilter = hybridDetection.preFilter;
+      const result = evaluateSingleRule(disease.id, preFilter, metrics, config);
+      if (result !== null) {
+        // Mark as "suspect" — needs LLM confirmation
+        results.push({ ...result, status: "suspect" });
+      }
+      continue;
+    }
+
+    // Pure rule-based detection
     const detection = disease.detection as RuleDetection;
     const result = evaluateDisease(disease.id, detection, metrics, config);
     if (result !== null) {
@@ -43,6 +56,22 @@ export function evaluateRules(
   }
 
   return results;
+}
+
+// ─── Hybrid preFilter evaluator ──────────────────────────────────────────────
+
+/**
+ * Evaluate a single rule detection (used for hybrid preFilter evaluation).
+ * Returns a RuleResult with status "confirmed" if the rule triggers, or null.
+ * The caller is expected to override the status to "suspect" for hybrid diseases.
+ */
+export function evaluateSingleRule(
+  diseaseId: string,
+  detection: RuleDetection,
+  metrics: MetricSet,
+  config: ClawDocConfig,
+): RuleResult | null {
+  return evaluateGeneric(diseaseId, detection, metrics, config);
 }
 
 // ─── Per-disease evaluation dispatcher ───────────────────────────────────────

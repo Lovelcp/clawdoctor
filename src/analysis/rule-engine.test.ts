@@ -486,21 +486,14 @@ describe("BHV-005 Premature Abort", () => {
   });
 });
 
-// ─── LLM/hybrid diseases are NOT evaluated ───────────────────────────────────
+// ─── LLM-only diseases are excluded from rule engine ─────────────────────────
 
-describe("LLM and hybrid diseases are excluded from rule engine", () => {
+describe("LLM-only diseases are excluded from rule engine", () => {
   it("SK-003 (LLM detection) should not appear in results", () => {
-    // SK-003 has detection.type === "llm", should be skipped
+    // SK-003 has detection.type === "llm", should be skipped entirely
     const metrics = makeMetrics();
     const results = evaluateRules(metrics, DEFAULT_CONFIG, registry);
     const hit = results.find((r) => r.diseaseId === "SK-003");
-    expect(hit).toBeUndefined();
-  });
-
-  it("SK-002 (hybrid detection) should not appear in results", () => {
-    const metrics = makeMetrics();
-    const results = evaluateRules(metrics, DEFAULT_CONFIG, registry);
-    const hit = results.find((r) => r.diseaseId === "SK-002");
     expect(hit).toBeUndefined();
   });
 
@@ -518,15 +511,99 @@ describe("LLM and hybrid diseases are excluded from rule engine", () => {
     expect(hit).toBeUndefined();
   });
 
-  it("evaluateRules returns only rule-based disease results", () => {
+  it("evaluateRules returns only rule-based and hybrid disease results", () => {
     const metrics = makeMetrics();
     const results = evaluateRules(metrics, DEFAULT_CONFIG, registry);
-    // All returned results must reference diseases with detection.type === "rule"
+    // All returned results must reference diseases with detection.type === "rule" or "hybrid"
     for (const result of results) {
       const def = registry.getById(result.diseaseId);
       expect(def).toBeDefined();
-      expect(def!.detection.type).toBe("rule");
+      expect(["rule", "hybrid"]).toContain(def!.detection.type);
     }
+  });
+});
+
+// ─── Hybrid preFilter evaluation ─────────────────────────────────────────────
+
+describe("Hybrid disease preFilter evaluation", () => {
+  it("SK-002 (hybrid) returns status 'suspect' when preFilter triggers", () => {
+    // SK-002 preFilter: metric "skill.errorBurstCount", direction "higher_is_worse"
+    // defaultThresholds: { warning: 3, critical: 10 }
+    // We need topErrorTools[0].errorCount > 3 to trigger
+    const metrics = makeMetrics({
+      skill: {
+        topErrorTools: [
+          { tool: "readFile", errorCount: 5, errorMessages: ["not found"] },
+        ],
+      },
+    });
+    const results = evaluateRules(metrics, DEFAULT_CONFIG, registry);
+    const hit = results.find((r) => r.diseaseId === "SK-002");
+    expect(hit).toBeDefined();
+    expect(hit!.status).toBe("suspect");
+    expect(hit!.severity).toBe("warning");
+  });
+
+  it("SK-002 (hybrid) is skipped when preFilter does not trigger", () => {
+    // errorBurstCount = 1, which is below warning threshold of 3
+    const metrics = makeMetrics({
+      skill: {
+        topErrorTools: [
+          { tool: "readFile", errorCount: 1, errorMessages: ["not found"] },
+        ],
+      },
+    });
+    const results = evaluateRules(metrics, DEFAULT_CONFIG, registry);
+    const hit = results.find((r) => r.diseaseId === "SK-002");
+    expect(hit).toBeUndefined();
+  });
+
+  it("SK-002 (hybrid) not in results when no error tools", () => {
+    const metrics = makeMetrics({
+      skill: { topErrorTools: [] },
+    });
+    const results = evaluateRules(metrics, DEFAULT_CONFIG, registry);
+    const hit = results.find((r) => r.diseaseId === "SK-002");
+    expect(hit).toBeUndefined();
+  });
+
+  it("hybrid disease at critical threshold returns suspect with critical severity", () => {
+    // SK-002 preFilter critical threshold is 10
+    const metrics = makeMetrics({
+      skill: {
+        topErrorTools: [
+          { tool: "apiCall", errorCount: 12, errorMessages: ["timeout"] },
+        ],
+      },
+    });
+    const results = evaluateRules(metrics, DEFAULT_CONFIG, registry);
+    const hit = results.find((r) => r.diseaseId === "SK-002");
+    expect(hit).toBeDefined();
+    expect(hit!.status).toBe("suspect");
+    expect(hit!.severity).toBe("critical");
+  });
+
+  it("LLM-only diseases (SK-003) are still skipped", () => {
+    const metrics = makeMetrics({
+      skill: {
+        topErrorTools: [
+          { tool: "readFile", errorCount: 5, errorMessages: ["not found"] },
+        ],
+      },
+    });
+    const results = evaluateRules(metrics, DEFAULT_CONFIG, registry);
+    const hit = results.find((r) => r.diseaseId === "SK-003");
+    expect(hit).toBeUndefined();
+  });
+
+  it("existing rule diseases still return 'confirmed' status", () => {
+    const metrics = makeMetrics({
+      vitals: { gatewayReachable: false },
+    });
+    const results = evaluateRules(metrics, DEFAULT_CONFIG, registry);
+    const hit = results.find((r) => r.diseaseId === "VIT-001");
+    expect(hit).toBeDefined();
+    expect(hit!.status).toBe("confirmed");
   });
 });
 
