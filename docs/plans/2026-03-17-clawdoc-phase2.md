@@ -870,6 +870,10 @@ Each file exports a function that registers routes on a Hono app:
 // (c) Reconstructing the nested shape from the flat scores + latest diagnoses.
 //
 // Approach (c) is chosen: query flat scores + active diagnoses, build HealthScore in memory.
+// PREREQUISITE: Extend src/store/score-store.ts with:
+//   queryLatestScore(agentId: string): HealthScoreRecord | null
+//   → SELECT ... ORDER BY timestamp DESC LIMIT 1
+// Add this as a sub-step before implementing the health route.
 export function registerHealthRoutes(app: Hono, db: Database): void {
   app.get("/api/health", (c) => {
     const scoreStore = createScoreStore(db);
@@ -1043,6 +1047,10 @@ Test all API endpoints against seeded in-memory DB. Verify:
 - GET /api/events paginates correctly
 - PUT /api/config updates config
 - Auth middleware blocks unauthorized writes
+- POST /api/prescriptions/:id/apply returns ExecutionResult (seed a prescription first)
+- POST /api/prescriptions/:id/rollback returns RollbackResult
+- GET /api/prescriptions/:id/followup returns FollowUpResult or 404
+- GET /api/causal-chains returns CausalChain[] (empty when no chains)
 
 - [ ] **Step 2: Commit**
 
@@ -1232,6 +1240,10 @@ export const clawdocPlugin: OpenClawPluginDefinition = {
     // 4. Register periodic snapshot service (30min interval, with stop() cleanup)
     // 5. Register CLI subcommands (openclaw clawdoc checkup)
     // 6. Register dashboard HTTP route (/clawdoc/*)
+    // 7. Register follow-up scheduler service (spec §7.5):
+    //    - api.registerService({ id: "clawdoc-followup", start: interval timer, stop: clearInterval })
+    //    - Every 10min: check getPendingFollowups(), run executor.followUp() for due items
+    //    - If verdict is "worsened", notify user via OpenClaw messaging channel
   },
 };
 ```
@@ -1369,7 +1381,10 @@ When `noLlm` is false and LLM config is available:
    - This change is backward-compatible: Phase 1 `--no-llm` mode will see suspects but not process them
 2. Collect LLM-only diseases (detection.type === "llm") — these go directly to LLM without pre-filtering
 3. Run `analyzeLLM()` with suspects + LLM-only diseases + metrics + raw samples
-4. Merge LLM results with rule results, converting LLMDiagnosis.evidence.description (string) → Evidence.description ({ en: string })
+4. Merge LLM results with rule results:
+   - Convert `LLMDiagnosis.evidence[].description` (string) → `Evidence.description` (`{ en: string }`)
+   - Set `Evidence.type` to `"llm_analysis"` for all LLM-produced evidence
+   - Set `Evidence.confidence` from `LLMDiagnosis.confidence`
 5. If causal chains found, persist to causal_chains table and add to CheckupResult
 6. Set `llmDegradationReason` if LLM was unavailable or failed
 
@@ -1396,12 +1411,46 @@ Add sections to the terminal report for:
 - Causal chains (if any)
 - Pending prescriptions (with `clawdoc rx preview` hints)
 
-- [ ] **Step 4: Run full test suite, fix any broken tests**
+- [ ] **Step 4: Add hybrid preFilter tests to rule-engine.test.ts**
+
+```typescript
+describe("evaluateRules — hybrid diseases (Phase 2)", () => {
+  it("evaluates hybrid preFilter and returns status 'suspect'", () => {
+    // SK-002 is hybrid with preFilter checking skill.successRate
+    const metrics = makeMetrics({ skill: { toolSuccessRate: 0.40 } }); // below critical
+    const results = evaluateRules(metrics, DEFAULT_CONFIG, registry);
+    const sk002 = results.find(r => r.diseaseId === "SK-002");
+    expect(sk002).toBeDefined();
+    expect(sk002!.status).toBe("suspect"); // NOT confirmed — needs LLM confirmation
+  });
+
+  it("skips hybrid disease when preFilter does not trigger", () => {
+    const metrics = makeMetrics({ skill: { toolSuccessRate: 0.90 } }); // healthy
+    const results = evaluateRules(metrics, DEFAULT_CONFIG, registry);
+    expect(results.find(r => r.diseaseId === "SK-002")).toBeUndefined();
+  });
+
+  it("still skips LLM-only diseases (they go directly to LLM)", () => {
+    const results = evaluateRules(makeMetrics({}), DEFAULT_CONFIG, registry);
+    // MEM-001 is detection.type === "llm" — should not appear in rule results
+    expect(results.find(r => r.diseaseId === "MEM-001")).toBeUndefined();
+  });
+
+  it("existing rule-only diseases still return status 'confirmed'", () => {
+    const metrics = makeMetrics({ cost: { dailyTrend: [{ date: "2026-03-17", tokens: 600_000 }] } });
+    const results = evaluateRules(metrics, DEFAULT_CONFIG, registry);
+    const cst001 = results.find(r => r.diseaseId === "CST-001");
+    expect(cst001?.status).toBe("confirmed"); // backward compatibility
+  });
+});
+```
+
+- [ ] **Step 5: Run full test suite, fix any broken tests**
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/analysis/analysis-pipeline.ts src/commands/checkup.ts src/report/
+git add src/analysis/analysis-pipeline.ts src/analysis/rule-engine.ts src/analysis/rule-engine.test.ts src/commands/checkup.ts src/report/ src/store/score-store.ts
 git commit -m "feat: integrate LLM analyzer and prescriptions into checkup pipeline"
 ```
 
@@ -1544,7 +1593,7 @@ git commit -m "feat: add Phase 2 E2E tests for LLM, prescriptions, and dashboard
 | 8 | B | Dashboard API Tests | 6 | 3, 4, 11 |
 | 9 | C | Event Summarizer | — | 1, 5 |
 | 10 | C | Event Buffer | 9 | 2, 3, 6 |
-| 11 | C | Stream Collector + Plugin | 5, 10 | 4 |
+| 11 | C | Stream Collector + Plugin | 5, 6, 10 | 4 |
 | 12 | D | Prescription Engine | 1, 2, 3 | 11 |
 | 13 | — | Pipeline Integration | 3, 4, 12 | — |
 | 14 | — | CLI Commands (rx + dashboard) | 5, 12 | — |
