@@ -22,7 +22,8 @@ import {
   computeSecurityDepartmentScore,
   linearScore,
 } from "./health-scorer.js";
-import { getDiseaseRegistry } from "../diseases/registry.js";
+import { getDiseaseRegistry, createMergedRegistry } from "../diseases/registry.js";
+import type { ClawDocPlugin } from "../plugins/plugin-types.js";
 import { loadConfig } from "../config/loader.js";
 import { resolveLLMProvider } from "../llm/provider.js";
 import { analyzeLLM } from "../llm/llm-analyzer.js";
@@ -45,6 +46,7 @@ export interface CheckupOptions {
   noLlm: boolean;
   configPath?: string;     // override config file path
   dbPath?: string;         // override database file path
+  plugins?: ClawDocPlugin[]; // pre-loaded community plugins
 }
 
 export interface CheckupResult {
@@ -102,7 +104,7 @@ const DEPARTMENT_METRICS: Record<Department, MetricSpec[]> = {
 // ─── runCheckup ───────────────────────────────────────────────────────────────
 
 export async function runCheckup(opts: CheckupOptions): Promise<CheckupResult> {
-  const { agentId, stateDir, workspaceDir, since, noLlm, configPath: explicitConfigPath } = opts;
+  const { agentId, stateDir, workspaceDir, since, noLlm, configPath: explicitConfigPath, plugins } = opts;
 
   // ── 1. Load config ────────────────────────────────────────────────────────
   // Try explicit configPath first, then standard location inside stateDir
@@ -121,7 +123,10 @@ export async function runCheckup(opts: CheckupOptions): Promise<CheckupResult> {
     const scoreStore = createScoreStore(db);
     const prescriptionStore = createPrescriptionStore(db);
     const causalChainStore = createCausalChainStore(db);
-    const registry = getDiseaseRegistry();
+    const baseRegistry = getDiseaseRegistry();
+    const registry = plugins && plugins.length > 0
+      ? createMergedRegistry(baseRegistry, plugins)
+      : baseRegistry;
 
     // ── 3. Collect snapshot events ──────────────────────────────────────────
     const events = await collectSnapshot({

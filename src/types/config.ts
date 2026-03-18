@@ -74,6 +74,9 @@ export interface ClawDocConfig {
     diagnosisMaxAgeDays: number;     // default 365
     healthScoreMaxAgeDays: number;   // default 365
   };
+
+  // ─── Community Plugins ───
+  plugins?: string[];                // e.g. ["clawdoc-plugin-security-extra"]
 }
 
 export const DEFAULT_CONFIG: ClawDocConfig = {
