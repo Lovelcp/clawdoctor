@@ -21,6 +21,7 @@ export interface HealthScoreRecord {
   behavior: number | null;
   cost: number | null;
   security: number | null;
+  healthScoreJson?: string;
 }
 
 // ─── Row shape returned by SQLite ───
@@ -38,6 +39,7 @@ interface HealthScoreRow {
   behavior: number | null;
   cost: number | null;
   security: number | null;
+  health_score_json: string | null;
   created_at: number;
 }
 
@@ -66,6 +68,7 @@ function rowToRecord(row: HealthScoreRow): HealthScoreRecord {
     behavior: row.behavior,
     cost: row.cost,
     security: row.security,
+    healthScoreJson: row.health_score_json ?? undefined,
   };
 }
 
@@ -73,7 +76,9 @@ function rowToRecord(row: HealthScoreRow): HealthScoreRecord {
 
 export interface ScoreStore {
   insertHealthScore(record: HealthScoreRecord): void;
+  insertHealthScoreWithJson(record: HealthScoreRecord, healthScoreJson: string): void;
   queryScoreHistory(filter: ScoreHistoryFilter): HealthScoreRecord[];
+  queryLatestScore(agentId: string): HealthScoreRecord | null;
 }
 
 // ─── Factory ───
@@ -92,13 +97,16 @@ export function createScoreStore(db: Database.Database): ScoreStore {
     behavior: number | null;
     cost: number | null;
     security: number | null;
+    health_score_json: string | null;
   }>(`
     INSERT INTO health_scores
       (id, agent_id, timestamp, data_mode, coverage,
-       overall, vitals, skill, memory, behavior, cost, security)
+       overall, vitals, skill, memory, behavior, cost, security,
+       health_score_json)
     VALUES
       (@id, @agent_id, @timestamp, @data_mode, @coverage,
-       @overall, @vitals, @skill, @memory, @behavior, @cost, @security)
+       @overall, @vitals, @skill, @memory, @behavior, @cost, @security,
+       @health_score_json)
   `);
 
   function insertHealthScore(record: HealthScoreRecord): void {
@@ -115,6 +123,25 @@ export function createScoreStore(db: Database.Database): ScoreStore {
       behavior: record.behavior,
       cost: record.cost,
       security: record.security,
+      health_score_json: null,
+    });
+  }
+
+  function insertHealthScoreWithJson(record: HealthScoreRecord, healthScoreJson: string): void {
+    insertStmt.run({
+      id: record.id,
+      agent_id: record.agentId,
+      timestamp: record.timestamp,
+      data_mode: record.dataMode,
+      coverage: record.coverage,
+      overall: record.overall,
+      vitals: record.vitals,
+      skill: record.skill,
+      memory: record.memory,
+      behavior: record.behavior,
+      cost: record.cost,
+      security: record.security,
+      health_score_json: healthScoreJson,
     });
   }
 
@@ -146,5 +173,15 @@ export function createScoreStore(db: Database.Database): ScoreStore {
     return rows.map(rowToRecord);
   }
 
-  return { insertHealthScore, queryScoreHistory };
+  function queryLatestScore(agentId: string): HealthScoreRecord | null {
+    const row = db.prepare(`
+      SELECT * FROM health_scores
+      WHERE agent_id = ?
+      ORDER BY timestamp DESC
+      LIMIT 1
+    `).get(agentId) as HealthScoreRow | undefined;
+    return row ? rowToRecord(row) : null;
+  }
+
+  return { insertHealthScore, insertHealthScoreWithJson, queryScoreHistory, queryLatestScore };
 }

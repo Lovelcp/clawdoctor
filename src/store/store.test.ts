@@ -85,10 +85,10 @@ describe("openDatabase", () => {
     db.close();
   });
 
-  it("sets user_version to 1 after migration", () => {
+  it("sets user_version to 2 after migration", () => {
     const db = openDatabase(":memory:");
     const version = db.pragma("user_version", { simple: true });
-    expect(version).toBe(1);
+    expect(version).toBe(2);
     db.close();
   });
 

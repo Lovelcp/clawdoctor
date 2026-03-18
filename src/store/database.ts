@@ -8,7 +8,7 @@ import type Database from "better-sqlite3";
 
 // ─── Schema version ───
 
-const CURRENT_SCHEMA_VERSION = 1;
+const CURRENT_SCHEMA_VERSION = 2;
 
 // ─── Migration: version 1 — initial schema ───
 
@@ -99,10 +99,34 @@ function migration1(db: Database.Database): void {
   `);
 }
 
+// ─── Migration: version 2 — Phase 2 schema extensions ───
+
+function migration2(db: Database.Database): void {
+  db.transaction(() => {
+    db.exec(`
+      ALTER TABLE health_scores ADD COLUMN health_score_json TEXT;
+
+      CREATE TABLE causal_chains (
+        id              TEXT PRIMARY KEY,
+        agent_id        TEXT NOT NULL,
+        name_json       TEXT NOT NULL,
+        root_cause_json TEXT NOT NULL,
+        chain_json      TEXT NOT NULL,
+        impact_json     TEXT NOT NULL,
+        prescription_id TEXT,
+        created_at      INTEGER NOT NULL DEFAULT (unixepoch('subsec') * 1000)
+      );
+
+      CREATE INDEX idx_causal_chains_agent ON causal_chains(agent_id);
+    `);
+  })();
+}
+
 // ─── Migration registry ───
 
 const MIGRATIONS: Record<number, (db: Database.Database) => void> = {
   1: migration1,
+  2: migration2,
 };
 
 // ─── Migrate if needed ───

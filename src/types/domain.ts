@@ -198,3 +198,97 @@ export interface ManualAction {
   type: "manual";
   instruction: I18nString;
 }
+
+// ─── Phase 2 types ───
+
+export interface CausalChain {
+  id: string;
+  name: I18nString;
+  rootCause: DiagnosisRef;
+  chain: DiagnosisRef[];
+  impact: I18nString;
+  unifiedPrescription?: Prescription;
+}
+
+export interface PrescriptionPreview {
+  prescriptionId: string;
+  diagnosisName: I18nString;
+  actions: Array<{
+    description: I18nString;
+    type: PrescriptionAction["type"];
+    diff?: string;
+    command?: string;
+    risk: "low" | "medium" | "high";
+  }>;
+  estimatedImprovement: I18nString;
+  rollbackAvailable: boolean;
+}
+
+export interface ExecutionResult {
+  success: boolean;
+  appliedActions: Array<{
+    action: PrescriptionAction;
+    status: "applied" | "failed" | "skipped";
+    error?: string;
+  }>;
+  backup: PrescriptionBackup;
+  preApplyMetrics: MetricSnapshot;
+  immediateVerification: VerificationResult;
+}
+
+export interface PrescriptionBackup {
+  id: string;
+  prescriptionId: string;
+  createdAt: number;
+  entries: Array<{
+    type: "file_content" | "config_snapshot";
+    path: string;
+    originalContent: string | null;
+    preApplyHash: string | null;
+    postApplyHash: string | null;
+  }>;
+}
+
+export interface FollowUpResult {
+  prescriptionId: string;
+  diagnosisId: string;
+  timeSinceApplied: number;
+  comparison: {
+    before: MetricSnapshot;
+    after: MetricSnapshot;
+    improvement: Record<string, { from: number; to: number; changePercent: number }>;
+  };
+  verdict: FollowUpVerdict;
+}
+
+export type FollowUpVerdict =
+  | { status: "resolved"; message: I18nString }
+  | { status: "improving"; message: I18nString }
+  | { status: "unchanged"; message: I18nString }
+  | { status: "worsened"; message: I18nString; suggestRollback: boolean };
+
+// ─── RawSample types (for LLM analysis, not persisted) ───
+
+export interface SessionSample {
+  sessionKey: string;
+  messageCount: number;
+  toolCallSequence: Array<{
+    toolName: string;
+    success: boolean;
+    errorSummary?: string;
+  }>;
+  tokenUsage?: { input: number; output: number };
+}
+
+export interface MemoryFileSample {
+  path: string;
+  content: string;
+  frontmatter?: Record<string, unknown>;
+  modifiedAt: number;
+}
+
+export interface SkillDefinitionSample {
+  pluginId: string;
+  source: string;
+  codeSnippets: string[];
+}
