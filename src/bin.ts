@@ -7,6 +7,8 @@ import { registerMemoryCommand } from "./commands/memory-cmd.js";
 import { registerCostCommand } from "./commands/cost-cmd.js";
 import { registerBehaviorCommand } from "./commands/behavior-cmd.js";
 import { registerSecurityCommand } from "./commands/security-cmd.js";
+import { registerRxCommand } from "./commands/rx-cmd.js";
+import { registerDashboardCommand } from "./commands/dashboard-cmd.js";
 
 const program = new Command();
 program.name("clawdoc").description("Health diagnostics for OpenClaw agents").version("0.1.0");
@@ -18,5 +20,7 @@ registerMemoryCommand(program);
 registerCostCommand(program);
 registerBehaviorCommand(program);
 registerSecurityCommand(program);
+registerRxCommand(program);
+registerDashboardCommand(program);
 
 program.parse();
