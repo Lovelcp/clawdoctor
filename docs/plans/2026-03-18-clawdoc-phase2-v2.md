@@ -359,7 +359,7 @@ export interface PrescriptionBackup {
     path: string;
     originalContent: string | null;   // null = file did not exist before apply
     preApplyHash: string | null;      // null = file did not exist before apply
-    postApplyHash: string;            // hash AFTER apply (computed in finalization phase)
+    postApplyHash: string | null;      // hash AFTER apply; null = file was deleted by apply
   }>;
 }
 // NOTE: Backup is built in two phases (see Architecture Decision 6):
@@ -584,7 +584,7 @@ export function createAnthropicProvider(opts: AnthropicProviderOptions): LLMProv
 
 export function resolveLLMProvider(config: ClawDocConfig): LLMProvider | null {
   if (!config.llm.enabled) return null;
-  const apiKey = process.env.ANTHROPIC_API_KEY ?? process.env.OPENCLAW_API_KEY;
+  const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return null;
   return createAnthropicProvider({
     apiKey,
@@ -717,9 +717,9 @@ export function createDashboardApp(opts: DashboardOptions): Hono {
   const app = new Hono();
 
   // Auth middleware for write endpoints
+  // Auth middleware — ALL /api/* routes (read AND write) per Decision 3
   app.use("/api/*", async (c, next) => {
-    if (c.req.method === "GET") return next();
-    if (!opts.authToken) return next();
+    if (!opts.authToken) return next(); // no token = dev mode
     const auth = c.req.header("Authorization");
     if (auth !== `Bearer ${opts.authToken}`) return c.json({ error: "Unauthorized" }, 401);
     return next();
@@ -782,7 +782,7 @@ await startDashboard({ db, config, port, authToken });
 
 Note: `runCheckup` opens its own connection, writes, and closes. Dashboard opens a separate read connection. This avoids the lifecycle ambiguity.
 
-- [ ] **Step 2: Write server.test.ts testing ALL 14 endpoints**
+- [ ] **Step 2: Write server.test.ts testing ALL 15 endpoints**
 
 Test against in-memory DB seeded with fixture data. Key test cases:
 - GET /api/health returns full nested HealthScore with departments
@@ -809,7 +809,7 @@ Single HTML file with:
 describe("Dashboard SPA", () => {
   it("is valid HTML with DOCTYPE");
   it("contains all 9 page route definitions");
-  it("references all 14 API endpoints");
+  it("references all 15 API endpoints");
   it("includes Chart.js");
   it("is self-contained except for CDN URLs");
 });
@@ -1073,10 +1073,25 @@ export interface PrescriptionStore {
   insertPrescription(rx: Prescription): void;
   queryPrescriptions(filter: { status?: string; diagnosisId?: string }): Prescription[];
   updatePrescriptionStatus(id: string, status: string, appliedAt?: number, rolledBackAt?: number): void;
+  deletePendingByAgent(agentId: string): number;  // delete all pending Rx for agent, return count
   insertFollowup(record: FollowupRecord): void;
   getPendingFollowups(): FollowupRecord[];
   completeFollowup(id: string, result: FollowUpResult): void;
 }
+```
+
+**Also: extend existing DiagnosisStore (Task 11 Step 3 modifies `src/store/diagnosis-store.ts`):**
+
+```typescript
+// Add to DiagnosisStore interface:
+reconcile(
+  agentId: string,
+  previous: DiseaseInstance[],  // from queryDiagnoses({ agentId, status: "active" })
+  current: DiseaseInstance[],   // from this checkup's analysis
+): void;
+// Logic:
+//   - For each current disease: if exists in previous → UPDATE last_seen; else INSERT
+//   - For each previous disease NOT in current → UPDATE status = "resolved", resolved_at = now
 ```
 
 - [ ] **Step 2: Implement backup.ts with 3-way conflict detection**
