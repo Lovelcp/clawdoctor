@@ -1,0 +1,947 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ClawDoc Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg-primary: #0f1117;
+      --bg-secondary: #1a1d27;
+      --bg-card: #222536;
+      --bg-hover: #2a2e42;
+      --text-primary: #e8eaf0;
+      --text-secondary: #9da3b4;
+      --text-muted: #6b7280;
+      --brand: #E8734A;
+      --brand-light: #f0916f;
+      --brand-dark: #c55a33;
+      --severity-critical: #ef4444;
+      --severity-warning: #f59e0b;
+      --severity-info: #3b82f6;
+      --grade-a: #22c55e;
+      --grade-b: #84cc16;
+      --grade-c: #eab308;
+      --grade-d: #f97316;
+      --grade-f: #ef4444;
+      --border: #2d3148;
+      --radius: 8px;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+    }
+
+    #app {
+      display: flex;
+      min-height: 100vh;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      width: 220px;
+      background: var(--bg-secondary);
+      border-right: 1px solid var(--border);
+      padding: 20px 0;
+      flex-shrink: 0;
+    }
+
+    .sidebar-logo {
+      padding: 0 20px 20px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 10px;
+    }
+
+    .sidebar-logo h1 {
+      font-size: 18px;
+      color: var(--brand);
+      letter-spacing: 1px;
+    }
+
+    .sidebar-logo .subtitle {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .nav-item {
+      display: block;
+      padding: 10px 20px;
+      color: var(--text-secondary);
+      text-decoration: none;
+      font-size: 14px;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+      border-left: 3px solid transparent;
+    }
+
+    .nav-item:hover {
+      background: var(--bg-hover);
+      color: var(--text-primary);
+    }
+
+    .nav-item.active {
+      background: var(--bg-hover);
+      color: var(--brand);
+      border-left-color: var(--brand);
+    }
+
+    .nav-item .nav-icon {
+      display: inline-block;
+      width: 22px;
+      text-align: center;
+      margin-right: 8px;
+    }
+
+    /* Main content */
+    .main {
+      flex: 1;
+      padding: 24px 32px;
+      overflow-y: auto;
+    }
+
+    .page-title {
+      font-size: 22px;
+      font-weight: 600;
+      margin-bottom: 20px;
+      color: var(--text-primary);
+    }
+
+    /* Cards */
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      margin-bottom: 16px;
+    }
+
+    .card-title {
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+    }
+
+    /* Grid */
+    .grid {
+      display: grid;
+      gap: 16px;
+    }
+
+    .grid-2 { grid-template-columns: repeat(2, 1fr); }
+    .grid-3 { grid-template-columns: repeat(3, 1fr); }
+    .grid-6 { grid-template-columns: repeat(6, 1fr); }
+
+    @media (max-width: 1200px) {
+      .grid-6 { grid-template-columns: repeat(3, 1fr); }
+      .grid-3 { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    @media (max-width: 768px) {
+      .grid-6, .grid-3, .grid-2 { grid-template-columns: 1fr; }
+      .sidebar { width: 60px; }
+      .nav-item span { display: none; }
+    }
+
+    /* Health score */
+    .score-big {
+      font-size: 56px;
+      font-weight: 700;
+      line-height: 1;
+    }
+
+    .score-grade {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 4px;
+      font-size: 14px;
+      font-weight: 600;
+      margin-left: 12px;
+    }
+
+    .grade-A { background: var(--grade-a); color: #000; }
+    .grade-B { background: var(--grade-b); color: #000; }
+    .grade-C { background: var(--grade-c); color: #000; }
+    .grade-D { background: var(--grade-d); color: #000; }
+    .grade-F { background: var(--grade-f); color: #fff; }
+    .grade-NA { background: var(--text-muted); color: #fff; }
+
+    /* Department card */
+    .dept-card {
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.15s;
+    }
+
+    .dept-card:hover {
+      border-color: var(--brand);
+    }
+
+    .dept-score {
+      font-size: 32px;
+      font-weight: 700;
+      margin: 8px 0;
+    }
+
+    .dept-name {
+      font-size: 13px;
+      color: var(--text-secondary);
+      text-transform: capitalize;
+    }
+
+    /* Severity badges */
+    .severity {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .severity-critical { background: rgba(239, 68, 68, 0.2); color: var(--severity-critical); }
+    .severity-warning { background: rgba(245, 158, 11, 0.2); color: var(--severity-warning); }
+    .severity-info { background: rgba(59, 130, 246, 0.2); color: var(--severity-info); }
+
+    /* Table */
+    .table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .table th {
+      text-align: left;
+      padding: 8px 12px;
+      font-size: 12px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .table td {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+      font-size: 14px;
+      color: var(--text-secondary);
+    }
+
+    .table tr:hover td {
+      background: var(--bg-hover);
+    }
+
+    /* Status badges */
+    .status {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .status-active { background: rgba(239, 68, 68, 0.15); color: #f87171; }
+    .status-recovering { background: rgba(245, 158, 11, 0.15); color: #fbbf24; }
+    .status-resolved { background: rgba(34, 197, 94, 0.15); color: #4ade80; }
+    .status-pending { background: rgba(59, 130, 246, 0.15); color: #60a5fa; }
+    .status-applied { background: rgba(34, 197, 94, 0.15); color: #4ade80; }
+
+    /* Loading / Empty */
+    .loading, .empty {
+      text-align: center;
+      padding: 40px;
+      color: var(--text-muted);
+      font-size: 14px;
+    }
+
+    .loading::after {
+      content: '...';
+      animation: dots 1.5s steps(4, end) infinite;
+    }
+
+    @keyframes dots {
+      0%, 20% { content: ''; }
+      40% { content: '.'; }
+      60% { content: '..'; }
+      80%, 100% { content: '...'; }
+    }
+
+    /* Chart container */
+    .chart-container {
+      position: relative;
+      height: 280px;
+      margin-top: 12px;
+    }
+
+    /* Pagination */
+    .pagination {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      margin-top: 16px;
+      justify-content: center;
+    }
+
+    .pagination button {
+      padding: 6px 14px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--text-secondary);
+      cursor: pointer;
+      font-size: 13px;
+    }
+
+    .pagination button:hover { border-color: var(--brand); color: var(--brand); }
+    .pagination button:disabled { opacity: 0.4; cursor: not-allowed; }
+    .pagination .page-info { font-size: 13px; color: var(--text-muted); }
+
+    /* Config display */
+    .config-display {
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+      font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+      font-size: 13px;
+      color: var(--text-secondary);
+      white-space: pre-wrap;
+      word-break: break-all;
+      max-height: 600px;
+      overflow-y: auto;
+    }
+
+    /* Metric value */
+    .metric-value {
+      font-size: 24px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .metric-label {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    /* File list for memory */
+    .file-list {
+      max-height: 400px;
+      overflow-y: auto;
+    }
+
+    .file-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border);
+      font-size: 13px;
+    }
+
+    .file-item:hover { background: var(--bg-hover); }
+    .file-path { color: var(--text-primary); font-family: monospace; }
+    .file-size { color: var(--text-muted); }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <nav class="sidebar">
+      <div class="sidebar-logo">
+        <h1>ClawDoc</h1>
+        <div class="subtitle">Agent Health Monitor</div>
+      </div>
+      <a class="nav-item" href="#/overview" data-route="/overview">
+        <span class="nav-icon">&#9764;</span><span>Overview</span>
+      </a>
+      <a class="nav-item" href="#/skills" data-route="/skills">
+        <span class="nav-icon">&#9881;</span><span>Skills</span>
+      </a>
+      <a class="nav-item" href="#/memory" data-route="/memory">
+        <span class="nav-icon">&#9998;</span><span>Memory</span>
+      </a>
+      <a class="nav-item" href="#/behavior" data-route="/behavior">
+        <span class="nav-icon">&#9654;</span><span>Behavior</span>
+      </a>
+      <a class="nav-item" href="#/cost" data-route="/cost">
+        <span class="nav-icon">&#9733;</span><span>Cost</span>
+      </a>
+      <a class="nav-item" href="#/security" data-route="/security">
+        <span class="nav-icon">&#9888;</span><span>Security</span>
+      </a>
+      <a class="nav-item" href="#/rx" data-route="/rx">
+        <span class="nav-icon">&#8478;</span><span>Prescriptions</span>
+      </a>
+      <a class="nav-item" href="#/timeline" data-route="/timeline">
+        <span class="nav-icon">&#8986;</span><span>Timeline</span>
+      </a>
+      <a class="nav-item" href="#/settings" data-route="/settings">
+        <span class="nav-icon">&#9881;</span><span>Settings</span>
+      </a>
+    </nav>
+    <main class="main" id="main-content">
+      <div class="loading">Loading</div>
+    </main>
+  </div>
+
+  <script>
+    // ===================================================
+    //  ClawDoc SPA — Vanilla JS, hash-based routing
+    // ===================================================
+
+    const TOKEN = window.__CLAWDOC_TOKEN__ || '';
+
+    // --- API helper ---
+    async function api(path, opts = {}) {
+      const headers = { 'Content-Type': 'application/json' };
+      if (TOKEN) headers['Authorization'] = 'Bearer ' + TOKEN;
+      const res = await fetch(path, { ...opts, headers: { ...headers, ...opts.headers } });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: res.statusText }));
+        throw Object.assign(new Error(err.error || res.statusText), { status: res.status });
+      }
+      return res.json();
+    }
+
+    // --- Utility ---
+    function el(tag, attrs, ...children) {
+      const e = document.createElement(tag);
+      if (attrs) Object.entries(attrs).forEach(([k, v]) => {
+        if (k === 'class') e.className = v;
+        else if (k.startsWith('on')) e.addEventListener(k.slice(2).toLowerCase(), v);
+        else if (k === 'html') e.innerHTML = v;
+        else e.setAttribute(k, v);
+      });
+      children.forEach(c => {
+        if (typeof c === 'string') e.appendChild(document.createTextNode(c));
+        else if (c) e.appendChild(c);
+      });
+      return e;
+    }
+
+    function severityBadge(severity) {
+      return el('span', { class: 'severity severity-' + severity }, severity);
+    }
+
+    function statusBadge(status) {
+      return el('span', { class: 'status status-' + status }, status);
+    }
+
+    function gradeClass(grade) {
+      if (!grade || grade === 'N/A') return 'grade-NA';
+      return 'grade-' + grade;
+    }
+
+    function scoreToGrade(score) {
+      if (score === null || score === undefined) return 'N/A';
+      if (score >= 90) return 'A';
+      if (score >= 70) return 'B';
+      if (score >= 50) return 'C';
+      if (score >= 25) return 'D';
+      return 'F';
+    }
+
+    function formatBytes(bytes) {
+      if (bytes < 1024) return bytes + ' B';
+      if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+      return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+    }
+
+    function scoreColor(score) {
+      if (score === null || score === undefined) return 'var(--text-muted)';
+      if (score >= 90) return 'var(--grade-a)';
+      if (score >= 70) return 'var(--grade-b)';
+      if (score >= 50) return 'var(--grade-c)';
+      if (score >= 25) return 'var(--grade-d)';
+      return 'var(--grade-f)';
+    }
+
+    const MAIN = document.getElementById('main-content');
+
+    // --- Pages ---
+
+    async function renderOverview() {
+      MAIN.innerHTML = '<div class="loading">Loading</div>';
+      try {
+        const [health, diseases, trends] = await Promise.all([
+          api('/api/health').catch(() => null),
+          api('/api/diseases').catch(() => []),
+          api('/api/trends').catch(() => []),
+        ]);
+
+        const frag = document.createDocumentFragment();
+        frag.appendChild(el('h2', { class: 'page-title' }, 'Overview'));
+
+        // Health score card
+        const scoreCard = el('div', { class: 'card' });
+        scoreCard.appendChild(el('div', { class: 'card-title' }, 'HEALTH SCORE'));
+        if (health && health.overall !== undefined) {
+          const overall = typeof health.overall === 'number' ? health.overall : null;
+          const grade = health.overallGrade || scoreToGrade(overall);
+          const scoreRow = el('div', { style: 'display:flex;align-items:center;gap:16px' });
+          const scoreNum = el('span', { class: 'score-big' });
+          scoreNum.style.color = scoreColor(overall);
+          scoreNum.textContent = overall !== null ? Math.round(overall) : '--';
+          scoreRow.appendChild(scoreNum);
+          scoreRow.appendChild(el('span', { class: 'score-grade ' + gradeClass(grade) }, grade));
+          if (health.dataMode) {
+            scoreRow.appendChild(el('span', { style: 'color:var(--text-muted);font-size:12px;margin-left:8px' }, health.dataMode));
+          }
+          scoreCard.appendChild(scoreRow);
+        } else {
+          scoreCard.appendChild(el('div', { class: 'empty' }, 'No health score data available'));
+        }
+        frag.appendChild(scoreCard);
+
+        // Department grid
+        const depts = ['vitals', 'skill', 'memory', 'behavior', 'cost', 'security'];
+        const deptGrid = el('div', { class: 'grid grid-6' });
+        depts.forEach(dept => {
+          const card = el('div', { class: 'card dept-card', onClick: () => navigate('/'+dept.replace('vitals','overview')) });
+          card.appendChild(el('div', { class: 'dept-name' }, dept));
+          let deptScore = null;
+          if (health && health.departments && health.departments[dept]) {
+            deptScore = health.departments[dept].score;
+          } else if (health && health[dept] !== undefined) {
+            deptScore = health[dept];
+          }
+          const scoreEl = el('div', { class: 'dept-score' });
+          scoreEl.style.color = scoreColor(deptScore);
+          scoreEl.textContent = deptScore !== null && deptScore !== undefined ? Math.round(deptScore) : '--';
+          card.appendChild(scoreEl);
+          const grade = scoreToGrade(deptScore);
+          card.appendChild(el('span', { class: 'score-grade ' + gradeClass(grade), style: 'font-size:12px' }, grade));
+          deptGrid.appendChild(card);
+        });
+        frag.appendChild(deptGrid);
+
+        // Active diseases
+        if (diseases.length > 0) {
+          const diseaseCard = el('div', { class: 'card' });
+          diseaseCard.appendChild(el('div', { class: 'card-title' }, 'ACTIVE DIAGNOSES (' + diseases.filter(d=>d.status==='active').length + ')'));
+          const table = el('table', { class: 'table' });
+          table.appendChild(el('thead', {}, el('tr', {},
+            el('th', {}, 'Disease'), el('th', {}, 'Severity'), el('th', {}, 'Confidence'), el('th', {}, 'Status')
+          )));
+          const tbody = el('tbody');
+          diseases.slice(0, 10).forEach(d => {
+            tbody.appendChild(el('tr', {},
+              el('td', {}, d.definitionId),
+              el('td', {}, severityBadge(d.severity)),
+              el('td', {}, (d.confidence * 100).toFixed(0) + '%'),
+              el('td', {}, statusBadge(d.status))
+            ));
+          });
+          table.appendChild(tbody);
+          diseaseCard.appendChild(table);
+          frag.appendChild(diseaseCard);
+        }
+
+        // Trend chart
+        if (trends.length > 1) {
+          const chartCard = el('div', { class: 'card' });
+          chartCard.appendChild(el('div', { class: 'card-title' }, 'HEALTH TREND'));
+          const chartDiv = el('div', { class: 'chart-container' });
+          const canvas = el('canvas');
+          chartDiv.appendChild(canvas);
+          chartCard.appendChild(chartDiv);
+          frag.appendChild(chartCard);
+
+          MAIN.innerHTML = '';
+          MAIN.appendChild(frag);
+
+          if (typeof Chart !== 'undefined') {
+            new Chart(canvas, {
+              type: 'line',
+              data: {
+                labels: trends.map(t => new Date(t.timestamp).toLocaleDateString()),
+                datasets: [{
+                  label: 'Overall Score',
+                  data: trends.map(t => t.overall),
+                  borderColor: '#E8734A',
+                  backgroundColor: 'rgba(232, 115, 74, 0.1)',
+                  fill: true,
+                  tension: 0.3,
+                }],
+              },
+              options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                  y: { min: 0, max: 100, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#9da3b4' } },
+                  x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#9da3b4' } },
+                },
+                plugins: { legend: { labels: { color: '#e8eaf0' } } },
+              },
+            });
+          }
+        } else {
+          MAIN.innerHTML = '';
+          MAIN.appendChild(frag);
+        }
+      } catch (err) {
+        MAIN.innerHTML = '<div class="empty">Failed to load overview: ' + err.message + '</div>';
+      }
+    }
+
+    async function renderDeptPage(dept, title) {
+      MAIN.innerHTML = '<div class="loading">Loading</div>';
+      try {
+        const [metrics, diseases] = await Promise.all([
+          api('/api/metrics/' + dept).catch(() => null),
+          api('/api/diseases?dept=' + dept).catch(() => []),
+        ]);
+
+        const frag = document.createDocumentFragment();
+        frag.appendChild(el('h2', { class: 'page-title' }, title));
+
+        // Metrics card
+        if (metrics && metrics.metrics) {
+          const metricsCard = el('div', { class: 'card' });
+          metricsCard.appendChild(el('div', { class: 'card-title' }, dept.toUpperCase() + ' METRICS'));
+          const metricGrid = el('div', { class: 'grid grid-3' });
+          Object.entries(metrics.metrics).forEach(([key, value]) => {
+            if (typeof value === 'number' || typeof value === 'string' || typeof value === 'boolean') {
+              const item = el('div', { style: 'padding:8px' });
+              const displayVal = typeof value === 'number' ?
+                (Number.isInteger(value) ? value : value.toFixed(2)) : String(value);
+              item.appendChild(el('div', { class: 'metric-value' }, String(displayVal)));
+              item.appendChild(el('div', { class: 'metric-label' }, key));
+              metricGrid.appendChild(item);
+            }
+          });
+          metricsCard.appendChild(metricGrid);
+          frag.appendChild(metricsCard);
+        }
+
+        // Disease list
+        const diseaseCard = el('div', { class: 'card' });
+        diseaseCard.appendChild(el('div', { class: 'card-title' }, 'DIAGNOSES (' + diseases.length + ')'));
+        if (diseases.length === 0) {
+          diseaseCard.appendChild(el('div', { class: 'empty' }, 'No diagnoses for this department'));
+        } else {
+          const table = el('table', { class: 'table' });
+          table.appendChild(el('thead', {}, el('tr', {},
+            el('th', {}, 'ID'), el('th', {}, 'Disease'), el('th', {}, 'Severity'),
+            el('th', {}, 'Confidence'), el('th', {}, 'Status')
+          )));
+          const tbody = el('tbody');
+          diseases.forEach(d => {
+            tbody.appendChild(el('tr', {},
+              el('td', { style: 'font-family:monospace;font-size:12px' }, d.id.slice(0, 8)),
+              el('td', {}, d.definitionId),
+              el('td', {}, severityBadge(d.severity)),
+              el('td', {}, (d.confidence * 100).toFixed(0) + '%'),
+              el('td', {}, statusBadge(d.status))
+            ));
+          });
+          table.appendChild(tbody);
+          diseaseCard.appendChild(table);
+        }
+        frag.appendChild(diseaseCard);
+
+        MAIN.innerHTML = '';
+        MAIN.appendChild(frag);
+      } catch (err) {
+        MAIN.innerHTML = '<div class="empty">Failed to load ' + dept + ': ' + err.message + '</div>';
+      }
+    }
+
+    async function renderSkills() {
+      MAIN.innerHTML = '<div class="loading">Loading</div>';
+      try {
+        const data = await api('/api/skills');
+        const frag = document.createDocumentFragment();
+        frag.appendChild(el('h2', { class: 'page-title' }, 'Skills & Plugins'));
+
+        const card = el('div', { class: 'card' });
+        card.appendChild(el('div', { class: 'card-title' }, 'PLUGINS'));
+
+        const plugins = data.plugins || [];
+        if (plugins.length === 0) {
+          card.appendChild(el('div', { class: 'empty' }, 'No plugin data available'));
+        } else {
+          const table = el('table', { class: 'table' });
+          table.appendChild(el('thead', {}, el('tr', {},
+            el('th', {}, 'Plugin'), el('th', {}, 'Source'), el('th', {}, 'Status'),
+            el('th', {}, 'Tools'), el('th', {}, 'Version')
+          )));
+          const tbody = el('tbody');
+          plugins.forEach(p => {
+            tbody.appendChild(el('tr', {},
+              el('td', {}, p.name || p.id),
+              el('td', {}, p.source),
+              el('td', {}, statusBadge(p.status)),
+              el('td', {}, (p.registeredTools || []).join(', ') || '-'),
+              el('td', {}, p.version || '-')
+            ));
+          });
+          table.appendChild(tbody);
+          card.appendChild(table);
+        }
+        frag.appendChild(card);
+
+        MAIN.innerHTML = '';
+        MAIN.appendChild(frag);
+      } catch (err) {
+        MAIN.innerHTML = '<div class="empty">Failed to load skills: ' + err.message + '</div>';
+      }
+    }
+
+    async function renderMemory() {
+      MAIN.innerHTML = '<div class="loading">Loading</div>';
+      try {
+        const data = await api('/api/memory');
+        const frag = document.createDocumentFragment();
+        frag.appendChild(el('h2', { class: 'page-title' }, 'Memory'));
+
+        // Summary
+        const summaryCard = el('div', { class: 'card' });
+        summaryCard.appendChild(el('div', { class: 'card-title' }, 'MEMORY SUMMARY'));
+        const sumGrid = el('div', { class: 'grid grid-3' });
+        sumGrid.appendChild(el('div', {},
+          el('div', { class: 'metric-value' }, String(data.totalCount || 0)),
+          el('div', { class: 'metric-label' }, 'Total Files')
+        ));
+        sumGrid.appendChild(el('div', {},
+          el('div', { class: 'metric-value' }, formatBytes(data.totalSizeBytes || 0)),
+          el('div', { class: 'metric-label' }, 'Total Size')
+        ));
+        sumGrid.appendChild(el('div', {},
+          el('div', { class: 'metric-value' }, String((data.files || []).length)),
+          el('div', { class: 'metric-label' }, 'Tracked Files')
+        ));
+        summaryCard.appendChild(sumGrid);
+        frag.appendChild(summaryCard);
+
+        // File list
+        const fileCard = el('div', { class: 'card' });
+        fileCard.appendChild(el('div', { class: 'card-title' }, 'FILES'));
+        const files = data.files || [];
+        if (files.length === 0) {
+          fileCard.appendChild(el('div', { class: 'empty' }, 'No memory files tracked'));
+        } else {
+          const fileList = el('div', { class: 'file-list' });
+          files.forEach(f => {
+            fileList.appendChild(el('div', { class: 'file-item' },
+              el('span', { class: 'file-path' }, f.path),
+              el('span', { class: 'file-size' }, formatBytes(f.sizeBytes))
+            ));
+          });
+          fileCard.appendChild(fileList);
+        }
+        frag.appendChild(fileCard);
+
+        MAIN.innerHTML = '';
+        MAIN.appendChild(frag);
+      } catch (err) {
+        MAIN.innerHTML = '<div class="empty">Failed to load memory: ' + err.message + '</div>';
+      }
+    }
+
+    async function renderRx() {
+      MAIN.innerHTML = '<div class="loading">Loading</div>';
+      try {
+        const prescriptions = await api('/api/prescriptions');
+        const frag = document.createDocumentFragment();
+        frag.appendChild(el('h2', { class: 'page-title' }, 'Prescriptions'));
+
+        const card = el('div', { class: 'card' });
+        card.appendChild(el('div', { class: 'card-title' }, 'PRESCRIPTION LIST'));
+
+        if (!prescriptions || prescriptions.length === 0) {
+          card.appendChild(el('div', { class: 'empty' }, 'No prescriptions yet'));
+        } else {
+          const table = el('table', { class: 'table' });
+          table.appendChild(el('thead', {}, el('tr', {},
+            el('th', {}, 'ID'), el('th', {}, 'Diagnosis'), el('th', {}, 'Type'),
+            el('th', {}, 'Status'), el('th', {}, 'Actions')
+          )));
+          const tbody = el('tbody');
+          prescriptions.forEach(p => {
+            const row = el('tr', {},
+              el('td', { style: 'font-family:monospace;font-size:12px' }, String(p.id).slice(0, 8)),
+              el('td', {}, String(p.diagnosis_id || '')),
+              el('td', {}, String(p.type || '')),
+              el('td', {}, statusBadge(p.status || 'pending')),
+              el('td', {},
+                el('button', {
+                  style: 'padding:4px 10px;background:var(--brand);border:none;color:#fff;border-radius:4px;cursor:pointer;font-size:12px;margin-right:4px',
+                  onClick: () => api('/api/prescriptions/' + p.id + '/apply', { method: 'POST' })
+                    .then(r => alert(r.message || 'Applied'))
+                    .catch(e => alert(e.message))
+                }, 'Apply'),
+                el('button', {
+                  style: 'padding:4px 10px;background:var(--bg-secondary);border:1px solid var(--border);color:var(--text-secondary);border-radius:4px;cursor:pointer;font-size:12px',
+                  onClick: () => api('/api/prescriptions/' + p.id + '/rollback', { method: 'POST' })
+                    .then(r => alert(r.message || 'Rolled back'))
+                    .catch(e => alert(e.message))
+                }, 'Rollback')
+              )
+            );
+            tbody.appendChild(row);
+          });
+          table.appendChild(tbody);
+          card.appendChild(table);
+        }
+        frag.appendChild(card);
+
+        // Causal chains
+        try {
+          const chains = await api('/api/causal-chains');
+          if (chains && chains.length > 0) {
+            const chainCard = el('div', { class: 'card' });
+            chainCard.appendChild(el('div', { class: 'card-title' }, 'CAUSAL CHAINS'));
+            chains.forEach(chain => {
+              const item = el('div', { style: 'padding:8px 0;border-bottom:1px solid var(--border)' });
+              item.appendChild(el('div', { style: 'font-weight:600' }, chain.name?.en || chain.id));
+              if (chain.impact?.en) {
+                item.appendChild(el('div', { style: 'color:var(--text-muted);font-size:13px;margin-top:4px' }, chain.impact.en));
+              }
+              chainCard.appendChild(item);
+            });
+            frag.appendChild(chainCard);
+          }
+        } catch (e) { /* ignore */ }
+
+        MAIN.innerHTML = '';
+        MAIN.appendChild(frag);
+      } catch (err) {
+        MAIN.innerHTML = '<div class="empty">Failed to load prescriptions: ' + err.message + '</div>';
+      }
+    }
+
+    async function renderTimeline() {
+      MAIN.innerHTML = '<div class="loading">Loading</div>';
+      let page = 1;
+      const limit = 20;
+
+      async function loadPage(p) {
+        page = p;
+        const data = await api('/api/events?page=' + page + '&limit=' + limit);
+        const frag = document.createDocumentFragment();
+        frag.appendChild(el('h2', { class: 'page-title' }, 'Timeline'));
+
+        const card = el('div', { class: 'card' });
+        card.appendChild(el('div', { class: 'card-title' }, 'EVENTS (' + data.total + ' total)'));
+
+        if (!data.items || data.items.length === 0) {
+          card.appendChild(el('div', { class: 'empty' }, 'No events recorded'));
+        } else {
+          const table = el('table', { class: 'table' });
+          table.appendChild(el('thead', {}, el('tr', {},
+            el('th', {}, 'Time'), el('th', {}, 'Type'), el('th', {}, 'Source'),
+            el('th', {}, 'Session'), el('th', {}, 'Details')
+          )));
+          const tbody = el('tbody');
+          data.items.forEach(evt => {
+            tbody.appendChild(el('tr', {},
+              el('td', { style: 'font-size:12px;white-space:nowrap' },
+                new Date(evt.timestamp).toLocaleString()),
+              el('td', {}, el('span', { class: 'severity severity-info' }, evt.type)),
+              el('td', {}, evt.source || ''),
+              el('td', { style: 'font-family:monospace;font-size:11px' },
+                (evt.sessionKey || '').slice(0, 16)),
+              el('td', { style: 'font-size:12px;color:var(--text-muted);max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap' },
+                JSON.stringify(evt.data).slice(0, 80))
+            ));
+          });
+          table.appendChild(tbody);
+          card.appendChild(table);
+        }
+        frag.appendChild(card);
+
+        // Pagination
+        if (data.totalPages > 1) {
+          const pag = el('div', { class: 'pagination' });
+          const prevBtn = el('button', {
+            onClick: () => { if (page > 1) loadPage(page - 1); }
+          }, 'Prev');
+          if (page <= 1) prevBtn.disabled = true;
+          pag.appendChild(prevBtn);
+          pag.appendChild(el('span', { class: 'page-info' },
+            'Page ' + data.page + ' of ' + data.totalPages));
+          const nextBtn = el('button', {
+            onClick: () => { if (page < data.totalPages) loadPage(page + 1); }
+          }, 'Next');
+          if (page >= data.totalPages) nextBtn.disabled = true;
+          pag.appendChild(nextBtn);
+          frag.appendChild(pag);
+        }
+
+        MAIN.innerHTML = '';
+        MAIN.appendChild(frag);
+      }
+
+      try {
+        await loadPage(1);
+      } catch (err) {
+        MAIN.innerHTML = '<div class="empty">Failed to load timeline: ' + err.message + '</div>';
+      }
+    }
+
+    async function renderSettings() {
+      MAIN.innerHTML = '<div class="loading">Loading</div>';
+      try {
+        const config = await api('/api/config');
+        const frag = document.createDocumentFragment();
+        frag.appendChild(el('h2', { class: 'page-title' }, 'Settings'));
+
+        const card = el('div', { class: 'card' });
+        card.appendChild(el('div', { class: 'card-title' }, 'CONFIGURATION'));
+        const pre = el('div', { class: 'config-display' });
+        pre.textContent = JSON.stringify(config, null, 2);
+        card.appendChild(pre);
+        frag.appendChild(card);
+
+        MAIN.innerHTML = '';
+        MAIN.appendChild(frag);
+      } catch (err) {
+        MAIN.innerHTML = '<div class="empty">Failed to load config: ' + err.message + '</div>';
+      }
+    }
+
+    // --- Router ---
+    const ROUTES = {
+      '/overview': renderOverview,
+      '/skills': () => renderDeptPage('skill', 'Skills & Tools'),
+      '/memory': () => renderDeptPage('memory', 'Memory'),
+      '/behavior': () => renderDeptPage('behavior', 'Behavior'),
+      '/cost': () => renderDeptPage('cost', 'Cost'),
+      '/security': () => renderDeptPage('security', 'Security'),
+      '/rx': renderRx,
+      '/timeline': renderTimeline,
+      '/settings': renderSettings,
+    };
+
+    function navigate(path) {
+      window.location.hash = path;
+    }
+
+    function updateActiveNav(route) {
+      document.querySelectorAll('.nav-item').forEach(item => {
+        const r = item.getAttribute('data-route');
+        item.classList.toggle('active', r === route);
+      });
+    }
+
+    function onHashChange() {
+      const hash = window.location.hash.slice(1) || '/overview';
+      const route = ROUTES[hash] || ROUTES['/overview'];
+      updateActiveNav(hash);
+      route();
+    }
+
+    window.addEventListener('hashchange', onHashChange);
+    window.addEventListener('DOMContentLoaded', () => {
+      if (!window.location.hash) window.location.hash = '#/overview';
+      else onHashChange();
+    });
+  </script>
+</body>
+</html>
