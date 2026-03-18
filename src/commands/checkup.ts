@@ -11,6 +11,10 @@ import { runCheckup } from "../analysis/analysis-pipeline.js";
 import { renderReport } from "../report/terminal-report.js";
 import { buildReportViewModel } from "./report-builder.js";
 import { loadPlugins } from "../plugins/plugin-loader.js";
+import { openDatabase } from "../store/database.js";
+import { createPrescriptionExecutor } from "../prescription/prescription-executor.js";
+import { filterAutoApplicable } from "../prescription/auto-apply.js";
+import { loadConfig } from "../config/loader.js";
 import type { Department } from "../types/domain.js";
 import type { CheckupOptions } from "../analysis/analysis-pipeline.js";
 
@@ -65,6 +69,7 @@ export function registerCheckupCommand(program: Command): void {
     .option("--agent <agentId>", "Agent ID", "default")
     .option("--fail-on <severity>", "Exit with code 1 if diseases at or above this severity (critical, warning, info)")
     .option("--plugins <list>", "Comma-separated list of community plugin package names to load")
+    .option("--auto-fix", "Auto-apply low-risk prescriptions after checkup")
     .action(async (opts) => {
       try {
         const stateDir = process.env.CLAWDOC_STATE_DIR ?? join(homedir(), ".openclaw");
@@ -112,6 +117,27 @@ export function registerCheckupCommand(program: Command): void {
         }
 
         process.exitCode = determineExitCode(result.diseases, opts.failOn);
+
+        if (opts.autoFix && result.prescriptions?.length) {
+          const applicable = filterAutoApplicable(result.prescriptions);
+          if (applicable.length > 0) {
+            console.log(`\nAuto-applying ${applicable.length} low-risk prescription(s)...`);
+            const dbPath = join(homedir(), ".clawdoc", "clawdoc.db");
+            const configFilePath = join(stateDir, "clawdoc.json");
+            const config = loadConfig(configFilePath);
+            const db = openDatabase(dbPath);
+            const executor = createPrescriptionExecutor(db, config);
+            for (const rx of applicable) {
+              try {
+                const execResult = await executor.execute(rx.id);
+                console.log(`  ✓ ${rx.id}: ${execResult.success ? "applied" : "failed"}`);
+              } catch (e) {
+                console.log(`  ✗ ${rx.id}: ${e}`);
+              }
+            }
+            db.close();
+          }
+        }
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         console.error(`[clawdoc] checkup failed: ${message}`);
