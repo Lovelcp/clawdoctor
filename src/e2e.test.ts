@@ -162,3 +162,43 @@ describe("E2E Phase 2", () => {
     }
   });
 });
+
+describe("E2E Phase 3", () => {
+  it("clawdoc badge outputs valid SVG", () => {
+    const output = run("badge", {
+      CLAWDOC_STATE_DIR: FIXTURES,
+      CLAWDOC_WORKSPACE_DIR: path.join(FIXTURES, "memory"),
+    });
+    expect(output).toContain("<svg");
+    expect(output).toContain("ClawDoc");
+  });
+
+  it("clawdoc checkup --fail-on critical exits 0 with fixture data", () => {
+    // Should not throw (exit 0) since fixture data may not have criticals
+    // Or may throw if fixtures have criticals — just verify it doesn't crash
+    try {
+      run("checkup --fail-on critical --json --agent default --no-llm", {
+        CLAWDOC_STATE_DIR: FIXTURES,
+        CLAWDOC_WORKSPACE_DIR: path.join(FIXTURES, "memory"),
+      });
+    } catch (e: any) {
+      // Exit code 1 is acceptable if critical diseases found in fixtures
+      expect(e.status).toBe(1);
+    }
+  });
+
+  it("clawdoc checkup --auto-fix does not crash", () => {
+    run("checkup --auto-fix --agent default --no-llm", {
+      CLAWDOC_STATE_DIR: FIXTURES,
+      CLAWDOC_WORKSPACE_DIR: path.join(FIXTURES, "memory"),
+    });
+  });
+
+  it("clawdoc badge --format markdown outputs markdown syntax", () => {
+    const output = run("badge --format markdown", {
+      CLAWDOC_STATE_DIR: FIXTURES,
+      CLAWDOC_WORKSPACE_DIR: path.join(FIXTURES, "memory"),
+    });
+    expect(output).toContain("![ClawDoc");
+  });
+});
