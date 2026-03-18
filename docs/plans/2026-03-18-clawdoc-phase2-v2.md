@@ -121,7 +121,7 @@ interface BackupEntry {
 
 // Phase B: After apply — record new state
 interface FinalizedBackupEntry extends BackupEntry {
-  postApplyHash: string;           // hash of file AFTER apply
+  postApplyHash: string | null;    // hash of file AFTER apply; null = file was deleted
 }
 ```
 
@@ -828,7 +828,7 @@ A simple script that downloads CDN resources and inlines them into index.html:
 ```
 
 - [ ] **Step 6: Verify server + SPA manually**
-- [ ] **Step 6: Commit**
+- [ ] **Step 7: Commit**
 
 ```bash
 git add src/dashboard/ package.json pnpm-lock.yaml
@@ -1350,7 +1350,7 @@ git commit -m "feat: add Phase 2 E2E and integration tests"
 | 7 | A | LLM Analyzer 3-round | 1, 2, 6 | 8 |
 | 8 | B | Stream Collector + Plugin | 3, 4, 5 | 7, 9 |
 | 9 | A | Causal Chain Linker + Store | 7 | 10 |
-| 10 | — | Prescription Engine | 1, 7 | — |
+| 10 | — | Prescription Engine | 1, 7 | 9 |
 | 11 | — | Pipeline Integration | 7, 9, 10 | — |
 | 12 | — | CLI Commands (rx + dashboard) | 5, 10, 11 | — |
 | 13 | — | E2E + Integration Tests | 12 | — |
