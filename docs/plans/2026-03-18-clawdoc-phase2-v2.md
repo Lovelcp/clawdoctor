@@ -12,59 +12,193 @@
 
 ---
 
-## Key Architecture Decisions (resolved from v1 review)
+## Key Architecture Decisions
 
-### 1. LLM Provider Abstraction (not Anthropic-only)
+### 1. DB Persistence Semantics (single, unambiguous behavior)
 
-The LLM client uses a `LLMProvider` interface — not hardcoded to Anthropic.
+**Decision:** `clawdoc checkup` ALWAYS writes to `~/.clawdoc/clawdoc.db` (persistent).
 
-Phase 2 ships one implementation:
-- `AnthropicProvider`: Anthropic Messages API (used when `ANTHROPIC_API_KEY` or `OPENCLAW_API_KEY` is set)
+There is no in-memory default for CLI mode. The Phase 1 `:memory:` behavior is replaced. Rationale:
+- `rx list` needs to read diagnoses/prescriptions from the same DB that `checkup` wrote to
+- Dashboard needs to read health scores, events, causal chains
+- Plugin follow-up scheduler needs to query pending follow-ups
 
-Future (Phase 3): `OpenClawProvider` that delegates to OpenClaw's model routing when running as plugin. Deferred because it requires OpenClaw gateway runtime, which complicates testing.
+```
+clawdoc checkup     → writes to ~/.clawdoc/clawdoc.db
+clawdoc rx list     → reads from ~/.clawdoc/clawdoc.db
+clawdoc dashboard   → reads from ~/.clawdoc/clawdoc.db
+plugin mode         → writes to ~/.clawdoc/clawdoc.db (same file)
+```
+
+`CheckupOptions` gets a `dbPath?: string` (default: `~/.clawdoc/clawdoc.db`). For tests, pass `:memory:` explicitly. The `db?: Database.Database` from the previous plan is REMOVED — it created lifecycle ambiguity. Instead, the pipeline always opens/closes its own DB at the given path.
+
+### 2. Dedup/Replacement Strategy for Repeated Checkups
+
+**Decision:** "Latest checkup wins" — each checkup replaces previous results for the same agent.
+
+Before inserting new results, the pipeline:
+1. **Diagnoses:** Mark all previous `active` diagnoses → `resolved` (if not re-detected). Re-detected diseases UPDATE `last_seen` instead of INSERT.
+2. **Prescriptions:** Delete all `pending` prescriptions (stale). Applied/rolled-back prescriptions are preserved (they have history).
+3. **Causal chains:** Delete all previous chains for this agent (replaced by new analysis).
+4. **Health scores:** Append new score (time series — no deletion). Dashboard reads latest.
+5. **Events:** Append only (no dedup needed — events are immutable log entries).
+
+This requires `diagnosisStore` to support upsert-by-diseaseId and `prescriptionStore`/`causalChainStore` to support bulk delete for an agent.
+
+### 3. Dashboard Security (all endpoints authenticated, localhost only)
+
+**Decision:**
+- Server binds to `127.0.0.1` ONLY (never `0.0.0.0`)
+- ALL API endpoints require bearer token (read AND write) — config, memory, skills, events all contain sensitive workspace data
+- Only exception: `GET /` serves the SPA HTML shell without auth (the shell itself contains no data)
+- Token is injected into the SPA via `window.__CLAWDOC_TOKEN__` in a `<script>` tag that the server injects before serving index.html
+- SPA reads `window.__CLAWDOC_TOKEN__` and attaches `Authorization: Bearer <token>` to every `/api/*` fetch
 
 ```typescript
-interface LLMProvider {
-  chat(system: string, user: string, opts?: { maxTokens?: number }): Promise<LLMResponse>;
+// server.ts — token injection
+app.get("/", (c) => {
+  const html = SPA_HTML.replace(
+    "</head>",
+    `<script>window.__CLAWDOC_TOKEN__="${opts.authToken}";</script></head>`
+  );
+  return c.html(html);
+});
+
+// Auth middleware — ALL /api/* routes
+app.use("/api/*", async (c, next) => {
+  if (!opts.authToken) return next(); // no token = dev mode
+  const auth = c.req.header("Authorization");
+  if (auth !== `Bearer ${opts.authToken}`) return c.json({ error: "Unauthorized" }, 401);
+  return next();
+});
+```
+
+### 4. LLM Provider + Config Resolution (explicit and justified)
+
+**Decision:** Phase 2 ships `AnthropicProvider` only. Config resolution is:
+
+```
+1. config.llm.model → overrides model name (e.g. "claude-opus-4-20250514")
+2. config.llm.baseUrl → overrides API endpoint (for proxies, custom deployments)
+3. ANTHROPIC_API_KEY env var → API key for Anthropic
+4. Fallback model: "claude-sonnet-4-20250514"
+```
+
+`OPENCLAW_API_KEY` is NOT used — it was ambiguous (could be Anthropic key or another provider's key). Users who run OpenClaw with Anthropic should set `ANTHROPIC_API_KEY` directly. OpenClaw provider integration is deferred to Phase 3 where it can use the gateway's model routing API.
+
+`resolveLLMProvider()` returns `null` (with reason) when:
+- `config.llm.enabled === false` → reason: `"llm_disabled"`
+- No `ANTHROPIC_API_KEY` → reason: `"no_api_key"`
+
+These reasons flow into `CheckupResult.llmDegradationReason`.
+
+### 5. Per-Disease LLM Context (inputDataKeys → RawSampleProvider → prompt)
+
+**Decision:** The LLM Analyzer does NOT send a single global prompt. It iterates diseases and builds per-disease prompts using `resolveInputData()`.
+
+```
+For each disease to analyze:
+  1. Get disease.detection.analysisPromptTemplate
+  2. Call resolveInputData(disease, provider, metrics, agentId) → data dict
+  3. Format: template + data dict → user prompt
+  4. Call llmProvider.chat(systemPrompt, userPrompt)
+  5. Parse response → LLMDiagnosis
+```
+
+Diseases are batched by department to reduce LLM calls (one call per department, not per disease). The Round 1 prompt includes all diseases for a department with their resolved data.
+
+### 6. Backup Model (split pre/post apply phases)
+
+**Decision:** `PrescriptionBackup` is built in TWO phases, not one.
+
+```typescript
+// Phase A: Before apply — record original state
+interface BackupEntry {
+  path: string;
+  originalContent: string | null;  // null = file did not exist (new file created by apply)
+  preApplyHash: string | null;     // null = file did not exist
 }
 
-interface LLMResponse {
-  text: string;
-  tokensUsed: { input: number; output: number };
-  error?: string;
+// Phase B: After apply — record new state
+interface FinalizedBackupEntry extends BackupEntry {
+  postApplyHash: string;           // hash of file AFTER apply
 }
 ```
 
-Config resolution: `config.llm.model` override → OpenClaw model config → fallback to `claude-sonnet-4-20250514`.
+The executor flow:
+1. `createBackup(actions) → BackupEntry[]` — reads current files, computes preApplyHash
+2. Apply all actions (file_edit, file_delete, file_create)
+3. `finalizeBackup(entries) → FinalizedBackupEntry[]` — reads files again, computes postApplyHash
+4. Persist the finalized backup
 
-### 2. HealthScore Persistence (store full JSON, not flat)
+For file_delete: `originalContent` = file content before delete, `postApplyHash` = null (file gone).
+For new file created by apply: `originalContent` = null, `preApplyHash` = null, `postApplyHash` = hash of new file.
 
-Schema v2 adds `health_score_json TEXT` column to `health_scores` table. The full nested `HealthScore` (including `departments: Record<Department, DepartmentScore>`, `coverage.skippedDiseases`, per-department disease counts) is stored as JSON. Dashboard reads this directly — no reconstruction needed.
+Rollback:
+- `postApplyHash` matches current → safe to restore `originalContent`
+- `preApplyHash` matches current → already reverted, skip
+- Neither → conflict, show three-way diff
+- `originalContent === null` → rollback means delete the file (it was new)
 
-Also adds `queryLatestScore(agentId): HealthScore | null` to ScoreStore (ORDER BY timestamp DESC LIMIT 1).
+### 7. CausalChain Persistence (with prescription backfill)
 
-### 3. Plugin Types (peerDependency, not stubs)
+**Decision:** `causal-chain-store` has an `updateChainPrescription(chainId, prescriptionId)` method.
 
-`package.json` adds `"openclaw": "*"` as a peerDependency. Plugin code imports real types from `openclaw/plugin-sdk`:
+Pipeline order:
+1. LLM Analyzer produces raw causal chains (without prescriptions)
+2. `causalChainStore.insertChain(chain)` — `prescription_id` = NULL
+3. Prescription Generator runs for each confirmed disease
+4. For each chain whose `rootCause.diseaseId` has a generated prescription:
+   `causalChainStore.updateChainPrescription(chain.id, prescription.id)`
 
-```typescript
-import type { OpenClawPluginDefinition, OpenClawPluginApi } from "openclaw/plugin-sdk";
-```
+### 8. Dashboard Standalone Data Flow (precise scope)
 
-For development/testing without OpenClaw installed, a minimal type-only shim at `src/plugin/openclaw-types.ts` provides the interfaces. At runtime, the real OpenClaw types are used.
+**Decision:** Dashboard startup runs a full snapshot + analysis cycle. This populates:
 
-### 4. Dashboard Build Strategy
+| API Endpoint | Data Source | Populated by standalone checkup? |
+|-------------|------------|--------------------------------|
+| GET /api/health | health_scores.health_score_json | Yes |
+| GET /api/diseases | diagnoses table | Yes |
+| GET /api/prescriptions | prescriptions table | Yes (pending Rx from LLM) |
+| GET /api/metrics/:dept | aggregateMetrics(db) from events | Yes (snapshot events) |
+| GET /api/trends | health_scores time series | Partial (only one data point) |
+| GET /api/events | events table | Yes (snapshot events, no stream events) |
+| GET /api/causal-chains | causal_chains table | Yes (if LLM enabled) |
+| GET /api/config | config file (live read) | Yes |
+| GET /api/skills | latest plugin_snapshot event | Yes |
+| GET /api/memory | latest memory_snapshot event | Yes |
+
+Gaps in standalone mode (explicitly documented in dashboard UI):
+- `GET /api/trends`: only 1 data point (need multiple checkup runs for trends)
+- `GET /api/events`: only snapshot events (no stream events without plugin)
+- Skills/Memory: from latest snapshot, not real-time
+
+### 9. HealthScore Persistence (store full JSON, not flat)
+
+Schema v2 adds `health_score_json TEXT` column to `health_scores` table.
+
+### 10. Plugin Types (peerDependency, not stubs)
+
+`package.json` adds `"openclaw": "*"` as optional peerDependency. Dev-only type shim for development without OpenClaw installed.
+
+### 11. Dashboard Build Strategy
 
 **Development:** SPA loads Preact/HTM/Chart.js from esm.sh CDN. Single `index.html`, no build step.
-**Production (npm publish):** A `scripts/bundle-spa.ts` script downloads CDN resources and inlines them into `index.html`, producing a self-contained file at `dist/dashboard/index.html`. The Hono server serves this file.
+**Production:** `scripts/bundle-spa.ts` inlines CDN resources into self-contained HTML.
 
-### 5. Disease Definition Alignment
+### 12. Disease Definition Alignment
 
-Phase 1 already has all 43 diseases with real `analysisPromptTemplate` and `inputDataKeys`. Phase 2 adds a `RawSampleProvider` that maps each `inputDataKey` to live filesystem data. A new task creates the explicit mapping table and tests it against all 16 LLM/hybrid diseases.
+Phase 1 has all 43 diseases with real `analysisPromptTemplate` and `inputDataKeys`. Phase 2 adds `RawSampleProvider` + `input-key-mapper` to resolve `inputDataKeys` to live data.
 
-### 6. Existing Schema (clarification)
+### 13. Existing Schema (clarification)
 
-Phase 1's schema v1 already creates `prescriptions`, `followups`, `events`, `diagnoses`, `health_scores` tables. Phase 2 schema v2 only adds: `causal_chains` table + `health_score_json` column on `health_scores`.
+Phase 1 schema v1 already has `prescriptions`, `followups`, `events`, `diagnoses`, `health_scores` tables. Phase 2 schema v2 adds: `causal_chains` table + `health_score_json` column.
+
+### 14. API Route Count
+
+The dashboard has **15** API routes (not 14):
+- 12 GET: health, diseases, diseases/:id, prescriptions, prescriptions/:id/followup, metrics/:dept, trends, events, causal-chains, config, skills, memory
+- 3 write: PUT config, POST prescriptions/:id/apply, POST prescriptions/:id/rollback
 
 ---
 
@@ -107,7 +241,7 @@ src/
 │   └── openclaw-types.ts          # Dev-only type shim (real types from openclaw/plugin-sdk at runtime)
 ├── dashboard/
 │   ├── server.ts                  # Hono app: API routes + SPA serving + auth middleware
-│   ├── server.test.ts             # All 14 API routes tested against in-memory DB
+│   ├── server.test.ts             # All 15 API routes tested against in-memory DB
 │   ├── spa.test.ts                # Automated SPA validation (structure, routes, endpoints)
 │   └── public/
 │       └── index.html             # SPA (vanilla JS + CDN deps, inlined for production)
@@ -223,11 +357,14 @@ export interface PrescriptionBackup {
   entries: Array<{
     type: "file_content" | "config_snapshot";
     path: string;
-    originalContent: string;
-    preApplyHash: string;
-    postApplyHash: string;
+    originalContent: string | null;   // null = file did not exist before apply
+    preApplyHash: string | null;      // null = file did not exist before apply
+    postApplyHash: string;            // hash AFTER apply (computed in finalization phase)
   }>;
 }
+// NOTE: Backup is built in two phases (see Architecture Decision 6):
+// Phase A (before apply): createBackup() records originalContent + preApplyHash
+// Phase B (after apply): finalizeBackup() computes postApplyHash
 
 export interface FollowUpResult {
   prescriptionId: string;
@@ -564,7 +701,7 @@ git commit -m "feat: add event buffer with size-based and interval-based flushin
 
 This is intentionally ONE task — server + routes + SPA together. The v1 plan's split (Tasks 5/6/7/8) created untestable intermediate states.
 
-- [ ] **Step 1: Implement server.ts with ALL 14 API routes inline**
+- [ ] **Step 1: Implement server.ts with ALL 15 API routes inline**
 
 ```typescript
 // src/dashboard/server.ts
@@ -620,29 +757,30 @@ export function createDashboardApp(opts: DashboardOptions): Hono {
 
 GET /api/health reads the `health_score_json` column directly — no reconstruction from flat scores.
 
-**Standalone dashboard data flow:** When no persistent plugin DB exists, the dashboard command:
-1. Creates `~/.clawdoc/clawdoc.db` (persistent, not in-memory)
-2. Runs `runCheckup({ db, noLlm: config.llm.enabled ? false : true, ... })` to populate it
-3. Starts the Hono server using the same `db`
-
-This ensures all API endpoints (including `/api/metrics/:dept`, `/api/health`, `/api/prescriptions`) return real data from the checkup results. The DB persists across dashboard restarts.
+**Standalone dashboard data flow:** Dashboard reads from `~/.clawdoc/clawdoc.db` (same file that `clawdoc checkup` writes to). If no recent data exists, it runs a fresh checkup first:
 
 ```typescript
 // In dashboard-cmd.ts:
-const dbDir = join(process.env.HOME ?? "~", ".clawdoc");
-mkdirSync(dbDir, { recursive: true });
-const dbPath = join(dbDir, "clawdoc.db");
-const db = openDatabase(dbPath);
+const dbPath = join(homedir(), ".clawdoc", "clawdoc.db");
 
-// If no recent health score, run a fresh checkup to populate
-const scoreStore = createScoreStore(db);
+// Open a read connection to check freshness
+const checkDb = openDatabase(dbPath);
+const scoreStore = createScoreStore(checkDb);
 const latest = scoreStore.queryLatestScore("default");
+checkDb.close();
+
+// If stale or no data, run a fresh checkup (writes to same DB file)
 if (!latest || Date.now() - latest.timestamp > 3600_000) {
-  await runCheckup({ agentId: "default", stateDir, workspaceDir, db, noLlm: !config.llm.enabled });
+  console.log("Running fresh checkup to populate dashboard data...");
+  await runCheckup({ agentId: "default", stateDir, workspaceDir, noLlm: !config.llm.enabled });
 }
 
+// Open a read connection for the dashboard server
+const db = openDatabase(dbPath);
 await startDashboard({ db, config, port, authToken });
 ```
+
+Note: `runCheckup` opens its own connection, writes, and closes. Dashboard opens a separate read connection. This avoids the lifecycle ambiguity.
 
 - [ ] **Step 2: Write server.test.ts testing ALL 14 endpoints**
 
@@ -694,7 +832,7 @@ A simple script that downloads CDN resources and inlines them into index.html:
 
 ```bash
 git add src/dashboard/ package.json pnpm-lock.yaml
-git commit -m "feat: add dashboard with Hono server, 14 API routes, and 9-page SPA"
+git commit -m "feat: add dashboard with Hono server, 15 API routes, and 9-page SPA"
 ```
 
 ---
@@ -791,7 +929,8 @@ export interface LLMAnalyzerInput {
   suspects: RuleResult[];                    // from hybrid preFilter
   llmOnlyDiseases: DiseaseDefinition[];      // detection.type === "llm"
   metrics: MetricSet;
-  samples: { recentSessions: SessionSample[]; memoryFiles: MemoryFileSample[]; skillDefinitions: SkillDefinitionSample[] };
+  rawSampleProvider: RawSampleProvider;       // for per-disease context resolution via resolveInputData()
+  agentId: string;
   config: { maxTokensPerCheckup: number; maxTokensPerDiagnosis: number };
 }
 
@@ -804,6 +943,14 @@ export interface LLMAnalyzerResult {
 
 export async function analyzeLLM(input: LLMAnalyzerInput): Promise<LLMAnalyzerResult>
 ```
+
+**Per-disease context resolution (Architecture Decision 5):**
+Round 1 does NOT send one global prompt. It groups diseases by department, then for each group:
+1. Calls `resolveInputData(disease, input.rawSampleProvider, input.metrics, agentId)` per disease
+2. Formats disease-specific data into the prompt using `disease.detection.analysisPromptTemplate`
+3. Sends ONE LLM call per department batch (not per disease — batching for efficiency)
+
+This means `LLMAnalyzerInput` needs a `rawSampleProvider: RawSampleProvider` field (not just flat samples). The analyzer calls `resolveInputData()` from the input-key-mapper (Task 6) internally.
 
 3 rounds per spec §6.4. Token budget tracked cumulatively. If any round fails, capture error and stop (don't throw).
 
@@ -881,7 +1028,11 @@ Key test cases:
 
 - [ ] **Step 2: Implement causal-linker.ts and causal-chain-store.ts**
 
-The store provides: `insertChain()`, `queryChains(agentId)`, `deleteChains(agentId)`.
+The store provides:
+- `insertChain(chain)` — insert with `prescription_id = NULL`
+- `queryChains(agentId)` — query all chains for agent
+- `deleteByAgent(agentId)` — delete all chains for agent (used by dedup strategy)
+- `updateChainPrescription(chainId, prescriptionId)` — backfill prescription after generation (Architecture Decision 7)
 
 Convert LLM evidence descriptions (string) → Evidence.description ({ en: string }) with `type: "llm_analysis"` and `confidence` from LLMDiagnosis.
 
@@ -1016,11 +1167,9 @@ describe("evaluateRules — hybrid diseases", () => {
 });
 ```
 
-- [ ] **Step 3: Refactor runCheckup DB lifecycle (ROOT FIX for data persistence)**
+- [ ] **Step 3: Refactor runCheckup DB to always-persistent**
 
-**The core problem:** Phase 1's `runCheckup()` creates an in-memory DB, writes all data, returns `CheckupResult`, and closes the DB. In Phase 2, three consumers need persistent data: prescription CLI (`rx list`), dashboard (all API routes), and follow-up scheduler (plugin mode). The ephemeral DB means LLM diagnoses, prescriptions, causal chains, and health scores are all lost.
-
-**Fix:** Add `db?: Database.Database` to `CheckupOptions`. When provided, the pipeline uses the caller's DB and does NOT close it. When not provided, behavior is unchanged (ephemeral, auto-close).
+Replace the Phase 1 `:memory:` default with `~/.clawdoc/clawdoc.db`:
 
 ```typescript
 export interface CheckupOptions {
@@ -1031,26 +1180,44 @@ export interface CheckupOptions {
   since?: number;
   noLlm: boolean;
   configPath?: string;
-  db?: Database.Database;  // NEW: caller-provided persistent DB (caller owns lifecycle)
+  dbPath?: string;  // default: ~/.clawdoc/clawdoc.db. Use ":memory:" for tests only.
 }
 
 // In runCheckup():
-const db = opts.db ?? openDatabase(":memory:");
-const callerOwnsDb = !!opts.db;
+const dbDir = join(opts.stateDir ?? join(homedir(), ".clawdoc"));
+mkdirSync(dbDir, { recursive: true });
+const dbPath = opts.dbPath ?? join(dbDir, "clawdoc.db");
+const db = openDatabase(dbPath);
 try {
-  // ... full pipeline ...
+  // ... pipeline writes to persistent DB ...
 } finally {
-  if (!callerOwnsDb) db.close();
+  db.close(); // always close — other commands open their own connection
 }
 ```
 
-This enables:
-- **CLI mode (`clawdoc checkup`):** No DB provided → ephemeral, same as Phase 1.
-- **CLI mode (`clawdoc checkup` then `clawdoc rx list`):** `checkup` saves to `~/.clawdoc/clawdoc.db`, `rx list` reads from same.
-- **Dashboard standalone:** `dashboard-cmd.ts` opens `~/.clawdoc/clawdoc.db`, runs `runCheckup({ db })` to populate it, then serves the Hono app using the same DB.
-- **Plugin mode:** Plugin opens persistent DB, passes it to checkup calls.
+**Dedup strategy (latest checkup wins):**
+Before inserting new results:
+```typescript
+// 1. Resolve previous active diagnoses
+const previousDiagnoses = diagnosisStore.queryDiagnoses({ agentId, status: "active" });
 
-**Also add:** explicit `prescriptionStore.insertPrescription()` and `diagnosisStore.insertDiagnosis()` calls for LLM-confirmed diseases in the pipeline, and `causalChainStore.insertChain()` for causal chains. These must happen BEFORE `db.close()`.
+// 2. Delete stale pending prescriptions (not yet applied)
+prescriptionStore.deletePendingByAgent(agentId);
+
+// 3. Delete previous causal chains (replaced by new analysis)
+causalChainStore.deleteByAgent(agentId);
+
+// 4. After new analysis:
+// - Re-detected diseases: UPDATE last_seen
+// - New diseases: INSERT
+// - Disappeared diseases: UPDATE status → "resolved"
+diagnosisStore.reconcile(agentId, previousDiagnoses, newDiseases);
+```
+
+Add these methods to the stores:
+- `prescriptionStore.deletePendingByAgent(agentId)`
+- `causalChainStore.deleteByAgent(agentId)`
+- `diagnosisStore.reconcile(agentId, previous, current)` — handles upsert + resolve logic
 
 - [ ] **Step 4: Extend analysis pipeline with LLM step**
 
@@ -1067,23 +1234,26 @@ export interface CheckupResult {
 }
 ```
 
-When `noLlm` is false and LLM provider is available:
-1. Run hybrid preFilter via extended evaluateRules() → suspects
-2. Collect LLM-only diseases from registry
+**Always (both LLM and no-LLM modes):**
+0. **Dedup first:** `diagnosisStore.reconcile()` to resolve stale diseases, `prescriptionStore.deletePendingByAgent()`, `causalChainStore.deleteByAgent()`
+
+**When `noLlm` is false and LLM provider is available:**
+1. Run hybrid preFilter via extended evaluateRules() → suspects with `status: "suspect"`
+2. Collect LLM-only diseases from registry (`detection.type === "llm"`)
 3. Fetch raw samples via RawSampleProvider
-4. Call analyzeLLM()
-5. Merge LLM results with rule results (convert evidence: string → { en: string }, set type: "llm_analysis")
-6. **Persist** LLM-confirmed diseases: `diagnosisStore.insertDiagnosis()` for each new DiseaseInstance
-7. **Persist** causal chains: `causalChainStore.insertChain()` for each chain
+4. Call `analyzeLLM()` — iterates diseases, calls `resolveInputData()` per disease for per-disease prompts, batches by department
+5. Merge LLM results with rule results:
+   - Convert `LLMDiagnosis.evidence[].description` (string) → `Evidence.description` (`{ en: string }`)
+   - Set `Evidence.type` = `"llm_analysis"`, `Evidence.confidence` from LLMDiagnosis
+6. **Persist** all diseases via `diagnosisStore.reconcile(agentId, previous, current)` — insert new, update re-detected, resolve disappeared
+7. **Persist** causal chains via `causalChainStore.insertChain()` — `prescription_id = NULL` initially
 8. Generate prescriptions for confirmed diseases via `generatePrescription()`
-9. **Persist** prescriptions: `prescriptionStore.insertPrescription()` for each
-10. NOTE: Do NOT schedule follow-ups here. Prescriptions are generated with status "pending".
-    Follow-ups are only created when a prescription is APPLIED via `rx apply` (Task 10 Step 4).
-    The pipeline generates prescriptions but does not auto-apply them.
-11. Backfill `CausalChain.unifiedPrescription` for chains whose root cause has a generated prescription
+9. **Persist** prescriptions via `prescriptionStore.insertPrescription()` — status = `"pending"`
+10. **Backfill** causal chain prescriptions: `causalChainStore.updateChainPrescription(chainId, rxId)`
+11. NOTE: Follow-ups are NOT scheduled here — only on `rx apply` (Task 10 Step 4)
 12. Persist HealthScore as JSON via `insertHealthScoreWithJson()`
 
-When LLM fails: set `llmDegradationReason`, keep rule-only results.
+**When LLM fails:** set `llmDegradationReason`, keep rule-only results, still run steps 0, 6, 12.
 
 - [ ] **Step 5: Update terminal report for causal chains + prescriptions**
 - [ ] **Step 6: Run full test suite, fix any broken tests**
@@ -1137,6 +1307,9 @@ High-risk paths that MUST be covered:
 4. LLM degradation path: when no API key, checkup still produces rule-only results with degradation reason
 5. Plugin event buffer: mock hook calls → verify events reach SQLite (unit-level, not full OpenClaw)
 6. Prescription apply/rollback in temp directory: create fixture → apply → verify changes → rollback → verify restored
+7. **Schema migration v1→v2:** Create a v1 database with test data, run openDatabase() (triggers migration), verify causal_chains table exists and health_score_json column is present
+8. **Dedup/replacement:** Run checkup twice on same fixtures, verify no duplicate diagnoses/prescriptions/causal chains — second run replaces first
+9. **Cross-command data flow:** Run `checkup --json`, then `rx list --json` — verify prescriptions from checkup are visible in rx list (both read from same ~/.clawdoc/clawdoc.db)
 
 - [ ] **Step 2: Run full test suite**
 - [ ] **Step 3: Commit**
