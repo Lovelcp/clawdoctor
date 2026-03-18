@@ -677,7 +677,19 @@ describe("Dashboard SPA", () => {
 });
 ```
 
-- [ ] **Step 5: Verify server + SPA manually**
+- [ ] **Step 5: Create scripts/bundle-spa.ts (production build)**
+
+A simple script that downloads CDN resources and inlines them into index.html:
+```typescript
+// scripts/bundle-spa.ts
+// 1. Read src/dashboard/public/index.html
+// 2. For each <script src="https://esm.sh/..."> tag:
+//    - Fetch the URL, read content
+//    - Replace <script src="..."> with <script>{inlined content}</script>
+// 3. Write to dist/dashboard/index.html
+```
+
+- [ ] **Step 6: Verify server + SPA manually**
 - [ ] **Step 6: Commit**
 
 ```bash
@@ -1065,7 +1077,9 @@ When `noLlm` is false and LLM provider is available:
 7. **Persist** causal chains: `causalChainStore.insertChain()` for each chain
 8. Generate prescriptions for confirmed diseases via `generatePrescription()`
 9. **Persist** prescriptions: `prescriptionStore.insertPrescription()` for each
-10. Schedule follow-ups: `prescriptionStore.insertFollowup()` with T+1h/24h/7d checkpoints
+10. NOTE: Do NOT schedule follow-ups here. Prescriptions are generated with status "pending".
+    Follow-ups are only created when a prescription is APPLIED via `rx apply` (Task 10 Step 4).
+    The pipeline generates prescriptions but does not auto-apply them.
 11. Backfill `CausalChain.unifiedPrescription` for chains whose root cause has a generated prescription
 12. Persist HealthScore as JSON via `insertHealthScoreWithJson()`
 
