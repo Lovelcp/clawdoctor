@@ -24,6 +24,106 @@
 
 ---
 
+## Pre-Task 0: New Type Definitions
+
+Before any implementation, add all Phase 2 types to `src/types/domain.ts`:
+
+```typescript
+// ─── Phase 2 types (add to domain.ts) ───
+
+export interface CausalChain {
+  id: string;
+  name: I18nString;
+  rootCause: DiagnosisRef;
+  chain: DiagnosisRef[];
+  impact: I18nString;
+  unifiedPrescription: Prescription;
+}
+
+export interface PrescriptionPreview {
+  prescriptionId: string;
+  diagnosisName: I18nString;
+  actions: Array<{
+    description: I18nString;
+    type: PrescriptionAction["type"];
+    diff?: string;
+    command?: string;
+    risk: "low" | "medium" | "high";
+  }>;
+  estimatedImprovement: I18nString;
+  rollbackAvailable: boolean;
+}
+
+export interface ExecutionResult {
+  success: boolean;
+  appliedActions: Array<{
+    action: PrescriptionAction;
+    status: "applied" | "failed" | "skipped";
+    error?: string;
+  }>;
+  backup: PrescriptionBackup;
+  preApplyMetrics: MetricSnapshot;
+  immediateVerification: VerificationResult;
+}
+
+export interface PrescriptionBackup {
+  id: string;
+  prescriptionId: string;
+  createdAt: number;
+  entries: Array<{
+    type: "file_content" | "config_snapshot";
+    path: string;
+    originalContent: string;
+    preApplyHash: string;
+    postApplyHash: string;
+  }>;
+}
+
+export interface FollowUpResult {
+  prescriptionId: string;
+  diagnosisId: string;
+  timeSinceApplied: number;
+  comparison: {
+    before: MetricSnapshot;
+    after: MetricSnapshot;
+    improvement: Record<string, { from: number; to: number; changePercent: number }>;
+  };
+  verdict: FollowUpVerdict;
+}
+
+export type FollowUpVerdict =
+  | { status: "resolved"; message: I18nString }
+  | { status: "improving"; message: I18nString }
+  | { status: "unchanged"; message: I18nString }
+  | { status: "worsened"; message: I18nString; suggestRollback: boolean };
+```
+
+Also add to `src/store/database.ts` migration v2: a `causal_chains` table for persisting causal chain results:
+
+```sql
+CREATE TABLE IF NOT EXISTS causal_chains (
+  id          TEXT PRIMARY KEY,
+  agent_id    TEXT NOT NULL,
+  name_json   TEXT NOT NULL,
+  root_cause_json TEXT NOT NULL,
+  chain_json  TEXT NOT NULL,
+  impact_json TEXT NOT NULL,
+  prescription_id TEXT,
+  created_at  INTEGER NOT NULL DEFAULT (unixepoch('subsec') * 1000)
+);
+CREATE INDEX IF NOT EXISTS idx_causal_agent ON causal_chains(agent_id);
+```
+
+Update `CURRENT_SCHEMA_VERSION` to 2 and add the migration.
+
+Commit:
+```bash
+git add src/types/domain.ts src/store/database.ts
+git commit -m "feat: add Phase 2 types (CausalChain, PrescriptionBackup, ExecutionResult, FollowUpResult) and schema v2"
+```
+
+---
+
 ## File Structure (Phase 2 additions)
 
 ```
@@ -46,8 +146,7 @@ src/
 │   ├── prescription-generator.test.ts
 │   ├── prescription-executor.ts   # preview / apply / rollback
 │   ├── prescription-executor.test.ts
-│   ├── prescription-store.ts      # Prescription + followup persistence helpers
-│   ├── prescription-store.test.ts
+│   # NOTE: prescription-store lives at src/store/prescription-store.ts (follows existing convention)
 │   ├── backup.ts                  # Backup creation + conflict detection
 │   ├── backup.test.ts
 │   ├── followup.ts                # Follow-up scheduling + verdict computation
@@ -80,10 +179,18 @@ src/
 ├── commands/
 │   ├── rx-cmd.ts                  # clawdoc rx list/preview/apply/rollback/followup/history
 │   └── dashboard-cmd.ts           # clawdoc dashboard [--port]
+├── store/
+│   ├── prescription-store.ts      # Prescription + followup persistence helpers (follows existing store convention)
+│   ├── prescription-store.test.ts
+│   └── causal-chain-store.ts      # CausalChain persistence
 └── (modify existing)
-    ├── analysis/analysis-pipeline.ts  # Add LLM analyzer step when noLlm=false
+    ├── types/domain.ts                # Add CausalChain, PrescriptionBackup, ExecutionResult, FollowUpResult, FollowUpVerdict
+    ├── store/database.ts              # Schema v2 migration (causal_chains table)
+    ├── analysis/analysis-pipeline.ts  # Add LLM analyzer step when noLlm=false; add llmDegradationReason to CheckupResult
+    ├── analysis/rule-engine.ts        # Extend evaluateRules to evaluate hybrid disease preFilters (return as "suspect")
     ├── commands/checkup.ts            # Remove noLlm hardcode, support --no-llm flag
-    └── bin.ts                         # Register rx and dashboard commands
+    ├── bin.ts                         # Register rx and dashboard commands
+    └── package.json                   # Add ./plugin exports entry
 ```
 
 ---
@@ -91,16 +198,18 @@ src/
 ## Dependency Graph & Parallelism
 
 ```
-Round 1 (3-way parallel — no cross-dependencies):
+Round 1 (3-way parallel — independent file sets, no shared modifications):
   Track A → Tasks 1-4: LLM Analyzer (client, prompts, analyzer, causal linker)
-  Track B → Tasks 5-8: Dashboard (server, API routes, SPA, auth)
-  Track C → Tasks 9-11: Plugin (summarize, event buffer, stream collector, plugin entry)
+  Track B → Tasks 5-8: Dashboard (server, API routes, SPA, API tests)
+  Track C → Tasks 9-10: Plugin utilities (summarize, event buffer)
+  NOTE: Task 11 (Plugin entry) deferred to Round 2 — it needs Dashboard route from Task 5/6
 
-Round 2 (serial — depends on LLM Analyzer):
-  Task 12: Prescription Engine (generator, executor, backup, followup)
+Round 2 (2-way parallel — after Round 1):
+  Agent A → Task 11: Plugin entry (needs Tasks 5, 10)
+  Agent B → Task 12: Prescription Engine (needs Tasks 1-3)
 
 Round 3 (serial — integration):
-  Task 13: Pipeline Integration (wire LLM into analysis pipeline, update checkup CLI)
+  Task 13: Pipeline Integration (wire LLM + hybrid preFilter into analysis pipeline, update checkup CLI)
   Task 14: CLI Commands (rx commands, dashboard command)
   Task 15: E2E + Final Integration Tests
 ```
@@ -192,9 +301,13 @@ export interface LLMDiagnosis {
   status: "confirmed" | "ruled_out" | "inconclusive";
   severity?: Severity;
   confidence: number;
-  evidence: Array<{ description: string; dataReference?: string }>;
+  evidence: Array<{ description: string; dataReference?: string }>;  // plain strings from LLM
   rootCause?: string;
 }
+
+// When merging into DiseaseInstance, convert evidence descriptions:
+// LLMDiagnosis.evidence[i].description (string) → Evidence.description ({ en: string })
+// This mapping is done in analysis-pipeline.ts Task 13 integration step.
 
 export interface LLMResult {
   diagnoses: LLMDiagnosis[];
@@ -275,7 +388,10 @@ export interface RawSampleProvider {
 }
 ```
 
-Implement by reusing the existing session-parser and memory-scanner from Phase 1, but returning content-level data instead of event summaries.
+IMPORTANT: RawSampleProvider CANNOT reuse the existing session-parser or memory-scanner directly. Those return privacy-redacted event summaries (paramsSummary with types only, no values). RawSampleProvider needs separate parsing logic:
+- `getRecentSessionSamples()`: re-parse JSONL files but extract structural data (tool call sequences with error summaries) without the privacy redaction. Apply redactPatterns to error messages only.
+- `getMemoryFileContents()`: read actual file content (not just metadata) truncated to maxTokensPerFile. This is a new fs.readFileSync operation, not a reuse of the scanner.
+- `getSkillDefinitions()`: read plugin source code files for security analysis. New operation.
 
 - [ ] **Step 5: Run all tests, verify pass**
 
@@ -322,11 +438,11 @@ describe("TokenBudget", () => {
 
   it("truncates MetricSet details when samples gone and still over budget", () => {
     const bigMetrics = {
-      tokensBySession: Array(500).fill({ sessionKey: "s", tokens: 100 }),
-      errorMessages: Array(200).fill("error message ".repeat(20)),
+      cost: { tokensBySession: Array(500).fill({ sessionKey: "s", tokens: 100 }), dailyTrend: [] },
+      skill: { topErrorTools: Array(200).fill({ tool: "t", errorCount: 1, errorMessages: ["error ".repeat(20)] }) },
     };
     const result = truncateForBudget({ metrics: bigMetrics, samples: [] }, 3000);
-    expect(result.metrics.tokensBySession.length).toBeLessThanOrEqual(10);
+    expect(result.metrics.cost.tokensBySession.length).toBeLessThanOrEqual(10);
   });
 });
 ```
@@ -518,6 +634,31 @@ describe("CausalLinker", () => {
     const chains = parseCausalChains(null, []);
     expect(chains).toEqual([]);
   });
+
+  it("filters out chains referencing non-existent disease IDs", () => {
+    const llmResponse = [{ name: "test", rootCause: "FAKE-001", chain: ["FAKE-001", "FAKE-002"], impact: "test" }];
+    const chains = parseCausalChains(llmResponse, []);
+    expect(chains).toEqual([]); // no matching diseases → chain dropped
+  });
+
+  it("filters out single-element chains (no causal relationship)", () => {
+    const llmResponse = [{ name: "test", rootCause: "SK-002", chain: ["SK-002"], impact: "test" }];
+    const diseases = [{ id: "d1", definitionId: "SK-002", severity: "warning" as const }];
+    const chains = parseCausalChains(llmResponse, diseases);
+    expect(chains).toEqual([]); // single element = no chain
+  });
+
+  it("handles rootCause not matching first chain element", () => {
+    const llmResponse = [{ name: "test", rootCause: "CST-001", chain: ["MEM-004", "SK-002", "CST-001"], impact: "test" }];
+    const diseases = [
+      { id: "d1", definitionId: "MEM-004", severity: "warning" as const },
+      { id: "d2", definitionId: "SK-002", severity: "warning" as const },
+      { id: "d3", definitionId: "CST-001", severity: "warning" as const },
+    ];
+    const chains = parseCausalChains(llmResponse, diseases);
+    // rootCause should be normalized to the first element in chain
+    expect(chains[0].rootCause.diseaseId).toBe("MEM-004");
+  });
 });
 ```
 
@@ -694,14 +835,31 @@ Each file exports a function that registers routes on a Hono app:
 
 ```typescript
 // src/dashboard/api/health.ts
+// NOTE: The API must return the full nested HealthScore shape (with departments as
+// Record<Department, DepartmentScore>), not the flat HealthScoreRecord from score-store.
+// This requires either:
+// (a) Re-running a lightweight checkup to compute the full HealthScore (expensive), or
+// (b) Storing the full HealthScore JSON alongside the flat scores in a new column, or
+// (c) Reconstructing the nested shape from the flat scores + latest diagnoses.
+//
+// Approach (c) is chosen: query flat scores + active diagnoses, build HealthScore in memory.
 export function registerHealthRoutes(app: Hono, db: Database): void {
   app.get("/api/health", (c) => {
     const scoreStore = createScoreStore(db);
-    const latest = scoreStore.queryScoreHistory({ agentId: "default", limit: 1 });
-    if (latest.length === 0) return c.json({ error: "No health data" }, 404);
-    return c.json(latest[0]);
+    const diagnosisStore = createDiagnosisStore(db);
+    const latestScores = scoreStore.queryScoreHistory({ agentId: "default", limit: 1 });
+    if (latestScores.length === 0) return c.json({ error: "No health data" }, 404);
+
+    const activeDiseases = diagnosisStore.queryDiagnoses({ agentId: "default", status: "active" });
+    const healthScore = reconstructHealthScore(latestScores[0], activeDiseases);
+    return c.json(healthScore);
   });
 }
+
+// reconstructHealthScore: takes flat HealthScoreRecord + DiseaseInstance[] →
+// builds nested HealthScore with departments: Record<Department, DepartmentScore>
+function reconstructHealthScore(record: HealthScoreRecord, diseases: DiseaseInstance[]): HealthScore { ... }
+```
 ```
 
 - [ ] **Step 2: Write API integration tests**
@@ -770,18 +928,74 @@ Focus on:
 - Language toggle
 - LLM toggle
 
-- [ ] **Step 6: Test manually**
+- [ ] **Step 6: Write automated SPA tests**
 
-Start the dashboard server and verify all pages load:
+Create `src/dashboard/spa.test.ts`:
+
+```typescript
+import { describe, it, expect } from "vitest";
+import fs from "node:fs";
+import path from "node:path";
+
+const SPA_PATH = path.join(import.meta.dirname, "public/index.html");
+
+describe("Dashboard SPA", () => {
+  const html = fs.readFileSync(SPA_PATH, "utf-8");
+
+  it("is valid HTML with DOCTYPE", () => {
+    expect(html).toContain("<!DOCTYPE html>");
+    expect(html).toContain("<html");
+    expect(html).toContain("</html>");
+  });
+
+  it("contains all 9 page route definitions", () => {
+    for (const page of ["overview", "skills", "memory", "behavior", "cost", "security", "rx", "timeline", "settings"]) {
+      expect(html).toContain(page);
+    }
+  });
+
+  it("includes API endpoint calls for all 14 routes", () => {
+    for (const endpoint of ["/api/health", "/api/diseases", "/api/prescriptions", "/api/metrics", "/api/trends", "/api/events", "/api/config", "/api/skills", "/api/memory", "/api/causal-chains"]) {
+      expect(html).toContain(endpoint);
+    }
+  });
+
+  it("includes Chart.js for visualizations", () => {
+    expect(html.toLowerCase()).toContain("chart");
+  });
+
+  it("includes the lobster brand color", () => {
+    // Coral/orange brand color from terminal report design
+    expect(html).toMatch(/#[a-fA-F0-9]{6}|rgb|hsl/);
+  });
+
+  it("is self-contained (no external resource URLs except CDN)", () => {
+    // All resources should be either inline or from CDN (esm.sh/unpkg)
+    const externalUrls = html.match(/https?:\/\/[^\s"']+/g) ?? [];
+    for (const url of externalUrls) {
+      expect(url).toMatch(/esm\.sh|unpkg\.com|cdn\.jsdelivr/);
+    }
+  });
+});
+```
+
+- [ ] **Step 7: Run SPA tests**
+
+Run: `pnpm test src/dashboard/spa.test.ts`
+Expected: ALL PASS
+
+- [ ] **Step 8: Manual verification**
+
+Start the dashboard server and verify pages load:
 ```bash
 pnpm dev dashboard --port 9800
 # Open http://localhost:9800 in browser
 ```
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 9: Commit**
 
 ```bash
-git add src/dashboard/public/
+git add src/dashboard/public/ src/dashboard/spa.test.ts
 git commit -m "feat: add dashboard SPA with 9 pages, charts, and Rx management"
 ```
 
@@ -924,6 +1138,22 @@ describe("EventBuffer", () => {
 
     expect(flushFn).toHaveBeenCalledTimes(1);
     expect(flushFn).toHaveBeenCalledWith([{ id: "1" }, { id: "2" }]);
+  });
+
+  it("auto-flushes after interval even when size limit not reached", () => {
+    vi.useFakeTimers();
+    const flushFn = vi.fn();
+    const buffer = createEventBuffer({ maxSize: 100, flushIntervalMs: 5000, onFlush: flushFn });
+
+    buffer.push({ id: "1" } as any);
+    expect(flushFn).not.toHaveBeenCalled();
+
+    vi.advanceTimersByTime(5000);
+    expect(flushFn).toHaveBeenCalledTimes(1);
+    expect(flushFn).toHaveBeenCalledWith([{ id: "1" }]);
+
+    vi.useRealTimers();
+    buffer.stop();
   });
 });
 ```
@@ -1101,11 +1331,16 @@ git commit -m "feat: add prescription engine with generate, execute, backup, rol
 - [ ] **Step 1: Extend analysis pipeline with LLM step**
 
 When `noLlm` is false and LLM config is available:
-1. After rule engine: collect hybrid disease suspects (detection.type === "hybrid" where preFilter triggered)
-2. Collect LLM-only diseases (detection.type === "llm")
+1. **Modify `evaluateRules()` in `src/analysis/rule-engine.ts`** to also evaluate hybrid diseases:
+   - For `detection.type === "hybrid"`: evaluate `detection.preFilter` (the RuleDetection part)
+   - If preFilter triggers: return a RuleResult with `status: "suspect"` (not "confirmed")
+   - If preFilter does not trigger: skip (the LLM step won't be needed)
+   - This change is backward-compatible: Phase 1 `--no-llm` mode will see suspects but not process them
+2. Collect LLM-only diseases (detection.type === "llm") — these go directly to LLM without pre-filtering
 3. Run `analyzeLLM()` with suspects + LLM-only diseases + metrics + raw samples
-4. Merge LLM results with rule results
-5. If causal chains found, add to CheckupResult
+4. Merge LLM results with rule results, converting LLMDiagnosis.evidence.description (string) → Evidence.description ({ en: string })
+5. If causal chains found, persist to causal_chains table and add to CheckupResult
+6. Set `llmDegradationReason` if LLM was unavailable or failed
 
 Update `CheckupResult` to include:
 ```typescript
@@ -1116,6 +1351,7 @@ export interface CheckupResult {
   causalChains?: CausalChain[];     // NEW
   prescriptions?: Prescription[];    // NEW
   llmAvailable: boolean;             // NEW
+  llmDegradationReason?: string;     // NEW: "no_api_key" | "network_error" | "budget_exceeded" | "malformed_response"
 }
 ```
 
@@ -1171,6 +1407,12 @@ export function registerRxCommand(program: Command): void {
 - [ ] **Step 2: Implement dashboard-cmd.ts**
 
 ```typescript
+import { randomBytes } from "node:crypto";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
+import { openDatabase } from "../store/database.js";
+import { loadConfig } from "../config/loader.js";
+
 export function registerDashboardCommand(program: Command): void {
   program
     .command("dashboard")
@@ -1178,9 +1420,21 @@ export function registerDashboardCommand(program: Command): void {
     .option("--port <port>", "Port number", "9800")
     .action(async (opts) => {
       const { startDashboard } = await import("../dashboard/server.js");
-      const token = generateToken(); // random 32-char hex
+
+      // Detect persistent DB (plugin mode) or fall back to empty in-memory DB
+      const persistentDbPath = join(process.env.HOME ?? "~", ".clawdoc", "clawdoc.db");
+      const dbPath = existsSync(persistentDbPath) ? persistentDbPath : ":memory:";
+      const db = openDatabase(dbPath);
+
+      const configPath = join(process.env.HOME ?? "~", ".clawdoc", "config.json");
+      const config = loadConfig(configPath);
+
+      const token = randomBytes(16).toString("hex");
       console.log(`Dashboard: http://localhost:${opts.port}`);
       console.log(`Auth token: ${token}`);
+      if (dbPath === ":memory:") {
+        console.log("⚠ No persistent data found. Run 'clawdoc checkup' first or install the plugin.");
+      }
       await startDashboard({ db, config, port: parseInt(opts.port), authToken: token });
     });
 }
@@ -1259,8 +1513,8 @@ git commit -m "feat: add Phase 2 E2E tests for LLM, prescriptions, and dashboard
 | 8 | B | Dashboard API Tests | 6 | 3, 4, 11 |
 | 9 | C | Event Summarizer | — | 1, 5 |
 | 10 | C | Event Buffer | 9 | 2, 3, 6 |
-| 11 | C | Stream Collector + Plugin | 10 | 3, 4, 7 |
-| 12 | D | Prescription Engine | 1, 2, 3 | — |
+| 11 | C | Stream Collector + Plugin | 5, 10 | 4 |
+| 12 | D | Prescription Engine | 1, 2, 3 | 11 |
 | 13 | — | Pipeline Integration | 3, 4, 12 | — |
 | 14 | — | CLI Commands (rx + dashboard) | 5, 12 | — |
 | 15 | — | E2E + Final Integration | 13, 14 | — |
@@ -1268,12 +1522,13 @@ git commit -m "feat: add Phase 2 E2E tests for LLM, prescriptions, and dashboard
 **Optimal agent team allocation (3 parallel tracks + serial integration):**
 
 ```
+Round 0: Pre-Task 0 (add Phase 2 types + schema v2) — sequential
 Round 1: Agent A → Task 1 (LLM client)  |  Agent B → Task 5 (dashboard server)  |  Agent C → Task 9 (summarizer)
 Round 2: Agent A → Task 2 (prompts)     |  Agent B → Task 6 (API routes)       |  Agent C → Task 10 (buffer)
-Round 3: Agent A → Task 3 (analyzer)    |  Agent B → Task 7 (SPA)              |  Agent C → Task 11 (plugin)
-Round 4: Agent A → Task 4 (causal)      |  Agent B → Task 8 (API tests)
+Round 3: Agent A → Task 3 (analyzer)    |  Agent B → Task 7 (SPA)
+Round 4: Agent A → Task 4 (causal)      |  Agent B → Task 8 (API tests)        |  Agent C → Task 11 (plugin, needs 5+10)
 Round 5: Agent A → Task 12 (prescriptions)
-Round 6: Agent A → Task 13 (pipeline integration)
+Round 6: Agent A → Task 13 (pipeline integration — modify rule-engine + pipeline)
 Round 7: Agent A → Task 14 (CLI commands)
 Round 8: Agent A → Task 15 (E2E)
 ```
