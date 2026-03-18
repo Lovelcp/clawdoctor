@@ -20,6 +20,11 @@
   "engines": {
     "node": ">=22"
   },
+  "keywords": ["openclaw", "diagnostics", "health", "agent", "ai", "lobster", "clawdoc", "llm"],
+  "homepage": "https://github.com/openclaw/clawdoc",
+  "repository": { "type": "git", "url": "https://github.com/openclaw/clawdoc.git" },
+  "bugs": { "url": "https://github.com/openclaw/clawdoc/issues" },
+  "files": ["dist/", "README.md", "LICENSE"],
   "license": "MIT",
   "dependencies": {
     "@hono/node-server": "^1.19.11",
