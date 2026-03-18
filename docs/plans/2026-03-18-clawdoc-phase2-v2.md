@@ -304,15 +304,21 @@ Update `CURRENT_SCHEMA_VERSION` to 2.
 
 - [ ] **Step 3: Extend score-store.ts**
 
-Add two new methods:
+Extend the existing score-store:
+
+1. **Extend `HealthScoreRow`** to include `health_score_json: string | null` (new column from schema v2)
+2. **Extend `HealthScoreRecord`** to include `healthScoreJson?: string`
+3. **Update `rowToRecord()`** to map the new column
+4. **Add two new methods to ScoreStore interface:**
 
 ```typescript
-// In ScoreStore interface, add:
 insertHealthScoreWithJson(record: HealthScoreRecord, healthScoreJson: string): void;
-queryLatestScore(agentId: string): { record: HealthScoreRecord; json: string } | null;
+queryLatestScore(agentId: string): HealthScoreRecord | null;
+// → SELECT ... ORDER BY timestamp DESC LIMIT 1
+// Returns null if no scores exist
 ```
 
-`queryLatestScore` uses `ORDER BY timestamp DESC LIMIT 1`.
+5. **Existing `insertHealthScore()` is preserved** for backward compatibility (Phase 1 callers). It inserts with `health_score_json = NULL`. Phase 2's pipeline will call `insertHealthScoreWithJson()` instead.
 
 - [ ] **Step 4: Install new dependencies**
 
@@ -614,6 +620,16 @@ export function createDashboardApp(opts: DashboardOptions): Hono {
 
 GET /api/health reads the `health_score_json` column directly — no reconstruction from flat scores.
 
+**Standalone dashboard data flow:** When dashboard opens `:memory:` DB (no persistent plugin DB), it runs a fresh snapshot checkup on startup to populate events/diagnoses/health_scores. This ensures all API endpoints return real data even without the plugin:
+```typescript
+// In dashboard startup (dashboard-cmd.ts):
+if (dbPath === ":memory:") {
+  const checkupDb = openDatabase(":memory:");
+  const result = await runCheckup({ agentId: "default", stateDir, workspaceDir, noLlm: true, db: checkupDb });
+  // Copy events + diagnoses + scores into the dashboard's DB
+}
+```
+
 - [ ] **Step 2: Write server.test.ts testing ALL 14 endpoints**
 
 Test against in-memory DB seeded with fixture data. Key test cases:
@@ -865,7 +881,15 @@ Depends on: Task 1 (LLM provider), Task 7 (analyzer — for integration context)
 
 - [ ] **Step 1: Implement prescription-store.ts** (in `src/store/` following convention)
 
-Uses the existing prescriptions + followups tables from schema v1:
+Uses the existing prescriptions + followups tables from schema v1.
+
+**Column mapping (Prescription → prescriptions table):**
+- `rx.id` → `id`
+- `rx.diagnosisId` → `diagnosis_id`
+- `rx.level` → `type` column (the SQL column is named "type" for PrescriptionLevel)
+- `rx.actions` → `actions_json` (JSON serialized)
+- `rx.risk` + `rx.estimatedImprovement` → stored inside `actions_json` as metadata wrapper
+- `status` → "pending" on insert
 
 ```typescript
 export interface PrescriptionStore {
@@ -1067,7 +1091,7 @@ git commit -m "feat: add Phase 2 E2E and integration tests"
 | 4 | B | Event Buffer | 0 | 1, 2, 3, 5, 6 |
 | 5 | C | Dashboard (server + routes + SPA) | 0 | 1, 2, 3, 4, 6 |
 | 6 | D | RawSampleProvider + Input Key Mapper | 0 | 1, 2, 3, 4, 5 |
-| 7 | A | LLM Analyzer 3-round | 1, 2, 6 | 8, 9 |
+| 7 | A | LLM Analyzer 3-round | 1, 2, 6 | 8 |
 | 8 | B | Stream Collector + Plugin | 3, 4, 5 | 7, 9 |
 | 9 | A | Causal Chain Linker + Store | 7 | 10 |
 | 10 | — | Prescription Engine | 1, 7 | — |
