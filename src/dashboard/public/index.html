@@ -602,34 +602,7 @@
 </head>
 <body>
   <div id="app">
-    <aside class="sidebar">
-      <div class="sidebar-header">
-        <div class="logo">
-          <div class="logo-mark">&#129438;</div>
-          <span class="logo-text">ClawDoctor</span>
-        </div>
-        <div class="sidebar-tagline">Agent Health Diagnostics</div>
-      </div>
-      <button class="run-checkup-btn" id="run-checkup" onclick="doCheckup()">
-        <span>Run Checkup</span>
-      </button>
-      <nav class="nav">
-        <div class="nav-section">Dashboard</div>
-        <a class="nav-item" href="#/overview" data-route="/overview">Overview</a>
-        <div class="nav-section">Departments</div>
-        <a class="nav-item" href="#/vitals" data-route="/vitals">System Vitals</a>
-        <a class="nav-item" href="#/skills" data-route="/skills">Skills &amp; Tools</a>
-        <a class="nav-item" href="#/memory" data-route="/memory">Memory</a>
-        <a class="nav-item" href="#/behavior" data-route="/behavior">Behavior</a>
-        <a class="nav-item" href="#/cost" data-route="/cost">Cost</a>
-        <a class="nav-item" href="#/security" data-route="/security">Security</a>
-        <div class="nav-section">Tools</div>
-        <a class="nav-item" href="#/rx" data-route="/rx">Prescriptions</a>
-        <a class="nav-item" href="#/timeline" data-route="/timeline">Timeline</a>
-        <a class="nav-item" href="#/settings" data-route="/settings">Settings</a>
-      </nav>
-      <div class="sidebar-footer">ClawDoctor v0.1.0</div>
-    </aside>
+    <aside class="sidebar" id="sidebar"></aside>
     <main class="main" id="main-content">
       <div class="loading">Loading</div>
     </main>
@@ -638,8 +611,8 @@
   <div id="checkup-overlay" class="overlay hidden">
     <div class="overlay-content">
       <div class="overlay-spinner"></div>
-      <div class="overlay-text">Running health checkup</div>
-      <div class="overlay-subtext">Analyzing your agent's health...</div>
+      <div class="overlay-text" id="checkup-overlay-text"></div>
+      <div class="overlay-subtext" id="checkup-overlay-subtext"></div>
     </div>
   </div>
 
@@ -650,13 +623,300 @@
     //  ClawDoctor Dashboard SPA
     // ═══════════════════════════════════════════════
 
+    // ─── i18n: LOCALE_DICT ───
+
+    const LOCALE_DICT = {
+      // Brand
+      "brand.name": { en: "ClawDoctor", zh: "ClawDoctor" },
+      "brand.tagline": { en: "Agent Health Diagnostics", zh: "Agent 健康诊断" },
+      "brand.version": { en: "ClawDoctor v0.1.0", zh: "ClawDoctor v0.1.0" },
+
+      // Navigation
+      "nav.dashboard": { en: "Dashboard", zh: "仪表盘" },
+      "nav.overview": { en: "Overview", zh: "总览" },
+      "nav.vitals": { en: "System Vitals", zh: "基础体征" },
+      "nav.skill": { en: "Skills & Tools", zh: "技能与工具" },
+      "nav.memory": { en: "Memory", zh: "记忆" },
+      "nav.behavior": { en: "Behavior", zh: "行为" },
+      "nav.cost": { en: "Cost", zh: "成本" },
+      "nav.security": { en: "Security", zh: "安全" },
+      "nav.prescriptions": { en: "Prescriptions", zh: "处方" },
+      "nav.timeline": { en: "Timeline", zh: "时间线" },
+      "nav.settings": { en: "Settings", zh: "设置" },
+      "nav.departments": { en: "Departments", zh: "科室" },
+      "nav.tools": { en: "Tools", zh: "工具" },
+
+      // Actions
+      "action.runCheckup": { en: "Run Checkup", zh: "运行体检" },
+      "action.save": { en: "Save", zh: "保存" },
+      "action.testConnection": { en: "Test Connection", zh: "测试连接" },
+      "action.prev": { en: "Prev", zh: "上一页" },
+      "action.next": { en: "Next", zh: "下一页" },
+      "action.prescribe": { en: "Generate Prescription", zh: "生成处方" },
+
+      // Page titles
+      "page.healthOverview": { en: "Health Overview", zh: "健康总览" },
+      "page.overview.subtitle": { en: "Agent diagnostics summary", zh: "Agent 诊断摘要" },
+      "page.eventTimeline": { en: "Event Timeline", zh: "事件时间线" },
+      "page.settings.title": { en: "Settings", zh: "设置" },
+      "page.settings.subtitle": { en: "LLM provider and ClawDoctor configuration", zh: "LLM 提供商与 ClawDoctor 配置" },
+      "page.vitals": { en: "System Vitals", zh: "基础体征" },
+      "page.skills": { en: "Skills & Tools", zh: "技能与工具" },
+      "page.skills.subtitle": { en: "{count} plugins registered", zh: "{count} 个插件已注册" },
+      "page.memory": { en: "Memory Cognition", zh: "记忆认知" },
+      "page.memory.subtitle": { en: "{count} files tracked", zh: "正在跟踪 {count} 个文件" },
+      "page.behavior": { en: "Agent Behavior", zh: "Agent 行为" },
+      "page.cost": { en: "Cost Metabolism", zh: "成本代谢" },
+      "page.security": { en: "Security Immunity", zh: "安全免疫" },
+      "page.prescriptions.subtitle": { en: "{count} prescriptions", zh: "{count} 个处方" },
+      "page.timeline.subtitle": { en: "{total} events recorded", zh: "已记录 {total} 个事件" },
+      "page.deptDiagnosis": { en: "{count} diagnosis results", zh: "{count} 个诊断结果" },
+
+      // Health score
+      "health.grade": { en: "Grade", zh: "评级" },
+      "health.coverage": { en: "Coverage", zh: "覆盖率" },
+      "health.overallHealth": { en: "Overall Health", zh: "整体健康" },
+      "health.score": { en: "Score", zh: "分数" },
+
+      // Grade labels
+      "grade.A": { en: "Excellent", zh: "优秀" },
+      "grade.B": { en: "Good", zh: "良好" },
+      "grade.C": { en: "Fair", zh: "一般" },
+      "grade.D": { en: "Poor", zh: "较差" },
+      "grade.F": { en: "Critical", zh: "危险" },
+      "grade.NA": { en: "N/A", zh: "N/A" },
+
+      // Table headers
+      "table.disease": { en: "Disease", zh: "病症" },
+      "table.severity": { en: "Severity", zh: "严重程度" },
+      "table.department": { en: "Department", zh: "科室" },
+      "table.status": { en: "Status", zh: "状态" },
+      "table.detectedAt": { en: "Detected At", zh: "检测时间" },
+      "table.occurredAt": { en: "Occurred At", zh: "发生时间" },
+      "table.type": { en: "Type", zh: "类型" },
+      "table.timestamp": { en: "Timestamp", zh: "时间戳" },
+      "table.data": { en: "Data", zh: "数据" },
+      "table.actions": { en: "Actions", zh: "操作" },
+      "table.id": { en: "ID", zh: "编号" },
+      "table.diagnosis": { en: "Diagnosis", zh: "诊断" },
+      "table.period": { en: "Period", zh: "周期" },
+      "table.level": { en: "Level", zh: "级别" },
+      "table.plugin": { en: "Plugin", zh: "插件" },
+      "table.source": { en: "Source", zh: "来源" },
+      "table.tools": { en: "Tools", zh: "工具" },
+      "table.version": { en: "Version", zh: "版本" },
+      "table.time": { en: "Time", zh: "时间" },
+      "table.session": { en: "Session", zh: "会话" },
+      "table.details": { en: "Details", zh: "详情" },
+
+      // Severity labels
+      "severity.critical": { en: "Critical", zh: "严重" },
+      "severity.warning": { en: "Warning", zh: "警告" },
+      "severity.info": { en: "Info", zh: "信息" },
+
+      // Status labels
+      "status.active": { en: "Active", zh: "活跃" },
+      "status.recovering": { en: "Recovering", zh: "恢复中" },
+      "status.resolved": { en: "Resolved", zh: "已解决" },
+
+      // Settings page
+      "settings.language": { en: "Language", zh: "语言" },
+      "settings.llmStatus": { en: "LLM Status", zh: "LLM 状态" },
+      "settings.llmUnavailable": { en: "LLM Unavailable — API key required.", zh: "LLM 不可用 — 需要 API 密钥。" },
+      "settings.llmAvailable": { en: "LLM Available", zh: "LLM 可用" },
+      "settings.provider": { en: "Provider", zh: "提供商" },
+      "settings.providerAnthropic": { en: "Anthropic (Claude)", zh: "Anthropic (Claude)" },
+      "settings.providerOpenAI": { en: "OpenAI Compatible (Moonshot, DeepSeek, etc.)", zh: "OpenAI 兼容（Moonshot、DeepSeek 等）" },
+      "settings.model": { en: "Model", zh: "模型" },
+      "settings.apiKey": { en: "API Key", zh: "API 密钥" },
+      "settings.baseUrl": { en: "Base URL", zh: "Base URL" },
+      "settings.openclawDetected": { en: "OpenClaw detected:", zh: "检测到 OpenClaw:" },
+      "settings.openclawHint": { en: "You can use this model by selecting OpenAI Compatible provider and entering your API key.", zh: "你可以选择 OpenAI 兼容提供商并输入 API 密钥来使用此模型。" },
+
+      // Checkup overlay
+      "checkup.running": { en: "Running health checkup", zh: "正在运行健康体检" },
+      "checkup.analyzing": { en: "Analyzing your agent's health...", zh: "正在分析 Agent 健康状况..." },
+      "checkup.completed": { en: "Checkup completed!", zh: "体检完成！" },
+
+      // Prescriptions page
+      "rx.title": { en: "Prescriptions", zh: "处方" },
+      "rx.count": { en: "{count} prescriptions", zh: "{count} 个处方" },
+      "rx.noPrescriptions": { en: "No prescriptions", zh: "暂无处方" },
+
+      // Disease detail
+      "disease.requiresLlm": { en: "Requires LLM analysis", zh: "需要 LLM 分析" },
+      "disease.rootCauses": { en: "Root Causes", zh: "根本原因" },
+      "disease.evidence": { en: "Evidence", zh: "证据" },
+      "disease.description": { en: "Description", zh: "描述" },
+      "disease.possibleRootCauses": { en: "Possible Root Causes", zh: "可能的根本原因" },
+      "disease.metadata": { en: "Metadata", zh: "元数据" },
+      "disease.dataPeriod": { en: "Data period", zh: "数据周期" },
+      "disease.detected": { en: "Detected", zh: "检测于" },
+      "disease.lastSeen": { en: "Last seen", zh: "最后看到" },
+
+      // Section cards
+      "card.activeIssues": { en: "Active Issues", zh: "活跃问题" },
+      "card.healthTrend": { en: "Health Trend", zh: "健康趋势" },
+      "card.keyMetrics": { en: "Key Metrics", zh: "关键指标" },
+      "card.diagnoses": { en: "Diagnoses", zh: "诊断结果" },
+      "card.plugins": { en: "Plugins", zh: "插件" },
+      "card.summary": { en: "Summary", zh: "摘要" },
+      "card.files": { en: "Files", zh: "文件" },
+      "card.prescriptionList": { en: "Prescription List", zh: "处方列表" },
+      "card.causalChains": { en: "Causal Chains", zh: "因果链" },
+      "card.rawConfig": { en: "Raw Configuration", zh: "原始配置" },
+
+      // Empty states
+      "empty.noHealth": { en: "No health data yet. Run a checkup to get started.", zh: "暂无健康数据。运行体检开始。" },
+      "empty.noIssues": { en: "No issues detected", zh: "未检测到问题" },
+      "empty.noPlugins": { en: "No plugin data", zh: "没有插件数据" },
+      "empty.noPrescriptions": { en: "No prescriptions generated yet", zh: "尚未生成处方" },
+      "empty.noEvents": { en: "No events recorded", zh: "未记录事件" },
+
+      // Metric labels
+      "metric.toolCalls": { en: "Tool Calls", zh: "工具调用" },
+      "metric.successRate": { en: "Success Rate", zh: "成功率" },
+      "metric.errorRate": { en: "Error Rate", zh: "错误率" },
+      "metric.avgDuration": { en: "Avg Duration", zh: "平均耗时" },
+      "metric.totalFiles": { en: "Total Files", zh: "总文件数" },
+      "metric.totalSize": { en: "Total Size", zh: "总大小" },
+      "metric.avgAge": { en: "Avg Age", zh: "平均年龄" },
+
+      // Button states
+      "button.generating": { en: "Generating…", zh: "生成中…" },
+      "button.generated": { en: "Generated", zh: "已生成" },
+      "button.saving": { en: "Saving…", zh: "保存中…" },
+      "button.testing": { en: "Testing…", zh: "测试中…" },
+      "button.running": { en: "Running…", zh: "运行中…" },
+      "button.apply": { en: "Apply", zh: "应用" },
+      "button.rollback": { en: "Rollback", zh: "回滚" },
+      "button.useOpenclawConfig": { en: "Use OpenClaw Config", zh: "使用 OpenClaw 配置" },
+
+      // LLM settings detail
+      "llm.configuration": { en: "LLM Configuration", zh: "LLM 配置" },
+      "llm.saved": { en: "LLM settings saved", zh: "LLM 设置已保存" },
+      "llm.testSuccess": { en: "LLM connection successful", zh: "LLM 连接成功" },
+      "llm.testFailed": { en: "Connection failed: {error}", zh: "连接失败: {error}" },
+      "llm.usingEnv": { en: "(using ANTHROPIC_API_KEY env)", zh: "（使用 ANTHROPIC_API_KEY 环境变量）" },
+      "llm.baseUrl.hint": { en: "Required for OpenAI-compatible providers.", zh: "OpenAI 兼容提供商需要。" },
+      "llm.model.hint": { en: "Leave empty for provider default", zh: "留空使用提供商默认值" },
+      "llm.apiKey.hint": { en: "Stored locally in ~/.clawdoctor/config.json", zh: "本地存储在 ~/.clawdoctor/config.json" },
+
+      // Department card labels
+      "dept.activeIssue": { en: "active issue", zh: "个活跃问题" },
+      "dept.checked": { en: "checked", zh: "已检查" },
+
+      // Error messages (client-side)
+      "error.checkupInProgress": { en: "Checkup already in progress", zh: "体检已在进行中" },
+      "error.failedLoad": { en: "Failed to load: {error}", zh: "加载失败: {error}" },
+
+      // Chart
+      "chart.overall": { en: "Overall", zh: "总体" },
+
+      // Common
+      "common.loading": { en: "Loading", zh: "加载中" },
+      "common.error": { en: "Error", zh: "错误" },
+      "common.noData": { en: "No data available", zh: "暂无数据" },
+      "common.page": { en: "Page {current} of {total}", zh: "第 {current} 页 / 共 {total} 页" },
+    };
+
+    // ─── i18n: Translation functions ───
+
+    let currentLocale = window.__CLAWDOCTOR_LOCALE__ || 'en';
+
+    function t(key, vars) {
+      const entry = LOCALE_DICT[key];
+      if (!entry) return key;
+      let result = entry[currentLocale] || entry.en;
+      if (vars) {
+        for (const [k, v] of Object.entries(vars)) {
+          result = result.replaceAll('{' + k + '}', String(v));
+        }
+      }
+      return result;
+    }
+
+    function tObj(obj) {
+      if (!obj) return '';
+      if (typeof obj === 'string') return obj;
+      return obj[currentLocale] || obj.en || '';
+    }
+
+    async function switchLocale(locale) {
+      currentLocale = locale;
+      window.__CLAWDOCTOR_LOCALE__ = locale;
+      document.documentElement.lang = locale;
+      await fetch('/api/config', {
+        method: 'PUT',
+        headers: {
+          'Authorization': 'Bearer ' + window.__CLAWDOCTOR_TOKEN__,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ locale })
+      });
+      renderNav();
+      onHashChange();
+    }
+
+    // ─── Render Nav ───
+
+    function renderNav() {
+      var sb = document.getElementById('sidebar');
+      sb.innerHTML = '';
+      // Header
+      var header = document.createElement('div');
+      header.className = 'sidebar-header';
+      header.innerHTML = '<div class="logo"><div class="logo-mark">&#129438;</div><span class="logo-text">' + t('brand.name') + '</span></div>'
+        + '<div class="sidebar-tagline">' + t('brand.tagline') + '</div>';
+      sb.appendChild(header);
+      // Run Checkup button
+      var btn = document.createElement('button');
+      btn.className = 'run-checkup-btn';
+      btn.id = 'run-checkup';
+      btn.setAttribute('onclick', 'doCheckup()');
+      btn.innerHTML = '<span>' + t('action.runCheckup') + '</span>';
+      sb.appendChild(btn);
+      // Nav
+      var nav = document.createElement('nav');
+      nav.className = 'nav';
+      nav.innerHTML = '<div class="nav-section">' + t('nav.dashboard') + '</div>'
+        + '<a class="nav-item" href="#/overview" data-route="/overview">' + t('nav.overview') + '</a>'
+        + '<div class="nav-section">' + t('nav.departments') + '</div>'
+        + '<a class="nav-item" href="#/vitals" data-route="/vitals">' + t('nav.vitals') + '</a>'
+        + '<a class="nav-item" href="#/skills" data-route="/skills">' + t('nav.skill') + '</a>'
+        + '<a class="nav-item" href="#/memory" data-route="/memory">' + t('nav.memory') + '</a>'
+        + '<a class="nav-item" href="#/behavior" data-route="/behavior">' + t('nav.behavior') + '</a>'
+        + '<a class="nav-item" href="#/cost" data-route="/cost">' + t('nav.cost') + '</a>'
+        + '<a class="nav-item" href="#/security" data-route="/security">' + t('nav.security') + '</a>'
+        + '<div class="nav-section">' + t('nav.tools') + '</div>'
+        + '<a class="nav-item" href="#/rx" data-route="/rx">' + t('nav.prescriptions') + '</a>'
+        + '<a class="nav-item" href="#/timeline" data-route="/timeline">' + t('nav.timeline') + '</a>'
+        + '<a class="nav-item" href="#/settings" data-route="/settings">' + t('nav.settings') + '</a>';
+      sb.appendChild(nav);
+      // Footer
+      var footer = document.createElement('div');
+      footer.className = 'sidebar-footer';
+      footer.textContent = t('brand.version');
+      sb.appendChild(footer);
+      // Update overlay text
+      var overlayText = document.getElementById('checkup-overlay-text');
+      var overlaySubtext = document.getElementById('checkup-overlay-subtext');
+      if (overlayText) overlayText.textContent = t('checkup.running');
+      if (overlaySubtext) overlaySubtext.textContent = t('checkup.analyzing');
+      // Re-apply active state
+      var hash = window.location.hash.slice(1) || '/overview';
+      updateActiveNav(hash);
+    }
+
+    // ─── Core Constants ───
+
     const TOKEN = window.__CLAWDOCTOR_TOKEN__ || '';
     const MAIN = document.getElementById('main-content');
 
     const DEPT_LABELS = {
-      vitals: 'System Vitals', skill: 'Skills & Tools',
-      memory: 'Memory Cognition', behavior: 'Agent Behavior',
-      cost: 'Cost Metabolism', security: 'Security Immunity',
+      vitals: 'page.vitals', skill: 'page.skills',
+      memory: 'page.memory', behavior: 'page.behavior',
+      cost: 'page.cost', security: 'page.security',
     };
 
     const DEPT_ROUTES = {
@@ -735,16 +995,9 @@
     function sevBadge(s) { return el('span', { class: 'badge badge-' + s }, s); }
     function statusBadge(s) { return el('span', { class: 'badge badge-' + s }, s); }
 
-    // i18n: resolve I18nString to display string (prefer en)
-    function t(i18n) {
-      if (!i18n) return '';
-      if (typeof i18n === 'string') return i18n;
-      return i18n.en || i18n.zh || Object.values(i18n)[0] || '';
-    }
-
     // Disease name from enriched response
     function diseaseName(d) {
-      if (d.definition && d.definition.name) return t(d.definition.name);
+      if (d.definition && d.definition.name) return tObj(d.definition.name);
       return d.definitionId;
     }
 
@@ -758,17 +1011,17 @@
 
       if (d.definition && d.definition.description) {
         const sec = el('div', { class: 'detail-section' });
-        sec.appendChild(el('div', { class: 'detail-label' }, 'Description'));
-        sec.appendChild(el('div', { class: 'detail-value' }, t(d.definition.description)));
+        sec.appendChild(el('div', { class: 'detail-label' }, t('disease.description')));
+        sec.appendChild(el('div', { class: 'detail-value' }, tObj(d.definition.description)));
         left.appendChild(sec);
       }
 
       if (d.definition && d.definition.rootCauses && d.definition.rootCauses.length > 0) {
         const sec = el('div', { class: 'detail-section' });
-        sec.appendChild(el('div', { class: 'detail-label' }, 'Possible Root Causes'));
+        sec.appendChild(el('div', { class: 'detail-label' }, t('disease.possibleRootCauses')));
         const list = el('div', { class: 'detail-value' });
         d.definition.rootCauses.forEach(rc => {
-          list.appendChild(el('div', { style: 'margin-bottom:2px' }, '\u2022 ' + t(rc)));
+          list.appendChild(el('div', { style: 'margin-bottom:2px' }, '\u2022 ' + tObj(rc)));
         });
         sec.appendChild(list);
         left.appendChild(sec);
@@ -781,11 +1034,11 @@
 
       if (d.evidence && d.evidence.length > 0) {
         const sec = el('div', { class: 'detail-section' });
-        sec.appendChild(el('div', { class: 'detail-label' }, 'Evidence (' + d.evidence.length + ')'));
+        sec.appendChild(el('div', { class: 'detail-label' }, t('disease.evidence') + ' (' + d.evidence.length + ')'));
         d.evidence.forEach(ev => {
           const item = el('div', { class: 'evidence-item' });
           item.appendChild(el('div', { class: 'evidence-type' }, ev.type));
-          item.appendChild(el('div', { class: 'evidence-desc' }, t(ev.description)));
+          item.appendChild(el('div', { class: 'evidence-desc' }, tObj(ev.description)));
           if (ev.value != null || ev.threshold != null) {
             const vals = el('div', { class: 'evidence-values' });
             if (ev.value != null) vals.appendChild(el('span', {}, 'value: ' + ev.value));
@@ -800,7 +1053,7 @@
 
       // Metadata row
       const metaSec = el('div', { class: 'detail-section' });
-      metaSec.appendChild(el('div', { class: 'detail-label' }, 'Metadata'));
+      metaSec.appendChild(el('div', { class: 'detail-label' }, t('disease.metadata')));
       const metaVal = el('div', { class: 'detail-value' });
       if (d.definition) {
         if (d.definition.department) metaVal.appendChild(el('span', { class: 'detail-tag' }, d.definition.department));
@@ -816,11 +1069,11 @@
       if (d.context && d.context.dataTimeRange) {
         const r = d.context.dataTimeRange;
         timeInfo.appendChild(el('div', {},
-          'Data period: ' + new Date(r.from).toLocaleDateString() + ' \u2013 ' + new Date(r.to).toLocaleDateString()
+          t('disease.dataPeriod') + ': ' + new Date(r.from).toLocaleDateString() + ' \u2013 ' + new Date(r.to).toLocaleDateString()
         ));
       }
-      if (d.firstDetectedAt) timeInfo.appendChild(el('div', {}, 'Detected: ' + new Date(d.firstDetectedAt).toLocaleString()));
-      if (d.lastSeenAt && d.lastSeenAt !== d.firstDetectedAt) timeInfo.appendChild(el('div', {}, 'Last seen: ' + new Date(d.lastSeenAt).toLocaleString()));
+      if (d.firstDetectedAt) timeInfo.appendChild(el('div', {}, t('disease.detected') + ': ' + new Date(d.firstDetectedAt).toLocaleString()));
+      if (d.lastSeenAt && d.lastSeenAt !== d.firstDetectedAt) timeInfo.appendChild(el('div', {}, t('disease.lastSeen') + ': ' + new Date(d.lastSeenAt).toLocaleString()));
       metaVal.appendChild(timeInfo);
       metaSec.appendChild(metaVal);
       right.appendChild(metaSec);
@@ -831,23 +1084,23 @@
       // Action bar: Generate Rx button
       if (d.id && d.status === 'active') {
         const actionBar = el('div', { style: 'margin-top:14px;padding-top:12px;border-top:1px solid var(--border);display:flex;gap:8px;align-items:center' });
-        const rxBtn = el('button', { class: 'btn btn-primary', style: 'font-size:12px' }, 'Generate Prescription');
+        const rxBtn = el('button', { class: 'btn btn-primary', style: 'font-size:12px' }, t('action.prescribe'));
         const rxStatus = el('span', { style: 'font-size:12px;color:var(--text-2)' });
         rxBtn.addEventListener('click', async (e) => {
           e.stopPropagation();
           rxBtn.disabled = true;
-          rxBtn.textContent = 'Generating\u2026';
+          rxBtn.textContent = t('button.generating');
           rxStatus.textContent = '';
           try {
             const rx = await api('/api/diseases/' + d.id + '/prescribe', { method: 'POST' });
-            rxBtn.textContent = 'Generated';
+            rxBtn.textContent = t('button.generated');
             rxBtn.classList.remove('btn-primary');
             rxBtn.classList.add('btn-ghost');
             rxStatus.textContent = rx.id ? 'Rx ' + rx.id.slice(0, 8) + ' created' : 'Done';
             rxStatus.style.color = 'var(--grade-a)';
             toast('Prescription generated for ' + d.definitionId, 'success');
           } catch (err) {
-            rxBtn.textContent = 'Generate Prescription';
+            rxBtn.textContent = t('action.prescribe');
             rxBtn.disabled = false;
             rxStatus.textContent = err.message || 'Failed';
             rxStatus.style.color = 'var(--sev-critical)';
@@ -880,8 +1133,8 @@
       const showId = opts.showId !== false;
       const t_el = el('table', { class: 'table' });
       const headers = [];
-      if (showId) headers.push(el('th', {}, 'ID'));
-      headers.push(el('th', {}, 'Disease'), el('th', {}, 'Period'), el('th', {}, 'Severity'), el('th', {}, 'Confidence'), el('th', {}, 'Status'));
+      if (showId) headers.push(el('th', {}, t('table.id')));
+      headers.push(el('th', {}, t('table.disease')), el('th', {}, t('table.period')), el('th', {}, t('table.severity')), el('th', {}, 'Confidence'), el('th', {}, t('table.status')));
       t_el.appendChild(el('thead', {}, el('tr', {}, ...headers)));
 
       const tb = el('tbody');
@@ -965,7 +1218,7 @@
           if (s.status === 'completed') {
             clearInterval(checkupPollTimer); checkupPollTimer = null;
             endCheckupUI();
-            toast('Checkup completed', 'success');
+            toast(t('checkup.completed'), 'success');
             onHashChange();
           } else if (s.status === 'error') {
             clearInterval(checkupPollTimer); checkupPollTimer = null;
@@ -980,13 +1233,13 @@
       document.getElementById('checkup-overlay').classList.add('hidden');
       const btn = document.getElementById('run-checkup');
       btn.classList.remove('running');
-      btn.innerHTML = '<span>Run Checkup</span>';
+      btn.innerHTML = '<span>' + t('action.runCheckup') + '</span>';
     }
 
     async function doCheckup() {
       const btn = document.getElementById('run-checkup');
       btn.classList.add('running');
-      btn.innerHTML = '<span>Running\u2026</span>';
+      btn.innerHTML = '<span>' + t('button.running') + '</span>';
       document.getElementById('checkup-overlay').classList.remove('hidden');
 
       try {
@@ -994,7 +1247,7 @@
         pollCheckupStatus();
       } catch (err) {
         endCheckupUI();
-        if (err.status === 409) toast('Checkup already in progress', 'error');
+        if (err.status === 409) toast(t('error.checkupInProgress'), 'error');
         else toast('Failed to start: ' + err.message, 'error');
       }
     }
@@ -1004,7 +1257,7 @@
       if (s.status === 'running') {
         const btn = document.getElementById('run-checkup');
         btn.classList.add('running');
-        btn.innerHTML = '<span>Running\u2026</span>';
+        btn.innerHTML = '<span>' + t('button.running') + '</span>';
         document.getElementById('checkup-overlay').classList.remove('hidden');
         pollCheckupStatus();
       }
@@ -1017,7 +1270,7 @@
     // ─── Overview ───
 
     async function renderOverview() {
-      MAIN.innerHTML = '<div class="loading">Loading</div>';
+      MAIN.innerHTML = '<div class="loading">' + t('common.loading') + '</div>';
       try {
         const [health, diseases, trends] = await Promise.all([
           api('/api/health').catch(() => null),
@@ -1027,8 +1280,8 @@
 
         const f = document.createDocumentFragment();
         f.appendChild(el('div', { class: 'page-header' },
-          el('h2', { class: 'page-title' }, 'Health Overview'),
-          el('div', { class: 'page-subtitle' }, 'Agent diagnostics summary')
+          el('h2', { class: 'page-title' }, t('page.healthOverview')),
+          el('div', { class: 'page-subtitle' }, t('page.overview.subtitle'))
         ));
 
         // Gauge card
@@ -1041,19 +1294,19 @@
           const info = el('div', { class: 'gauge-info' });
           const gEl = el('div', { class: 'gauge-grade' });
           gEl.style.color = scoreColor(ov);
-          gEl.textContent = gr === 'N/A' ? 'No Data' : 'Grade ' + gr;
+          gEl.textContent = gr === 'N/A' ? t('common.noData') : t('health.grade') + ' ' + gr;
           info.appendChild(gEl);
           const meta = el('div', { class: 'gauge-meta' });
           if (health.dataMode) meta.appendChild(el('span', {}, 'Mode: ' + health.dataMode));
           if (health.coverage) {
             const r = health.coverage.ratio != null ? health.coverage.ratio : health.coverage;
-            meta.appendChild(el('span', {}, 'Coverage: ' + (typeof r === 'number' ? (r * 100).toFixed(0) + '%' : '\u2014')));
+            meta.appendChild(el('span', {}, t('health.coverage') + ': ' + (typeof r === 'number' ? (r * 100).toFixed(0) + '%' : '\u2014')));
           }
           info.appendChild(meta);
           gc.appendChild(info);
           sc.appendChild(gc);
         } else {
-          sc.appendChild(el('div', { class: 'empty' }, 'No health data yet. Run a checkup to get started.'));
+          sc.appendChild(el('div', { class: 'empty' }, t('empty.noHealth')));
         }
         f.appendChild(sc);
 
@@ -1068,16 +1321,16 @@
             ev = dd.evaluatedDiseases || 0; ac = dd.activeDiseases || 0;
           }
           const card = el('div', { class: 'card dept-card', onClick: () => navigate(DEPT_ROUTES[d]) });
-          card.appendChild(el('div', { class: 'dept-name' }, DEPT_LABELS[d]));
+          card.appendChild(el('div', { class: 'dept-name' }, t(DEPT_LABELS[d])));
           const sEl = el('div', { class: 'dept-score' });
           sEl.style.color = scoreColor(ds);
           sEl.textContent = ds != null ? Math.round(ds) : '\u2014';
           card.appendChild(sEl);
           card.appendChild(el('span', { class: 'dept-grade ' + gradeClass(dGr) }, dGr));
           if (ac > 0)
-            card.appendChild(el('div', { class: 'dept-detail', style: 'color:var(--sev-warning)' }, ac + ' active issue' + (ac > 1 ? 's' : '')));
+            card.appendChild(el('div', { class: 'dept-detail', style: 'color:var(--sev-warning)' }, ac + ' ' + t('dept.activeIssue') + (currentLocale === 'en' && ac > 1 ? 's' : '')));
           else
-            card.appendChild(el('div', { class: 'dept-detail' }, ev + ' checked'));
+            card.appendChild(el('div', { class: 'dept-detail' }, ev + ' ' + t('dept.checked')));
           dg.appendChild(card);
         });
         f.appendChild(dg);
@@ -1086,7 +1339,7 @@
         const active = diseases.filter(d => d.status === 'active');
         if (active.length > 0) {
           const dc = el('div', { class: 'card' });
-          dc.appendChild(el('div', { class: 'card-title' }, 'Active Issues (' + active.length + ')'));
+          dc.appendChild(el('div', { class: 'card-title' }, t('card.activeIssues') + ' (' + active.length + ')'));
           dc.appendChild(buildDiseaseTable(active.slice(0, 12), { showId: false }));
           if (active.length > 12)
             dc.appendChild(el('div', { style: 'text-align:center;padding:8px;color:var(--text-2);font-size:11px' }, '+ ' + (active.length - 12) + ' more'));
@@ -1096,7 +1349,7 @@
         // Trend chart
         if (trends.length > 1) {
           const cc = el('div', { class: 'card' });
-          cc.appendChild(el('div', { class: 'card-title' }, 'Health Trend'));
+          cc.appendChild(el('div', { class: 'card-title' }, t('card.healthTrend')));
           const cd = el('div', { class: 'chart-container' });
           const cv = el('canvas'); cd.appendChild(cv); cc.appendChild(cd);
           f.appendChild(cc);
@@ -1105,9 +1358,9 @@
             new Chart(cv, {
               type: 'line',
               data: {
-                labels: trends.map(t => new Date(t.timestamp).toLocaleDateString()),
+                labels: trends.map(tr => new Date(tr.timestamp).toLocaleDateString()),
                 datasets: [{
-                  label: 'Overall', data: trends.map(t => t.overall),
+                  label: t('chart.overall'), data: trends.map(tr => tr.overall),
                   borderColor: '#E8734A', backgroundColor: 'rgba(232,115,74,0.06)',
                   fill: true, tension: 0.3, pointRadius: 3, pointBackgroundColor: '#E8734A',
                 }],
@@ -1126,14 +1379,14 @@
           MAIN.innerHTML = ''; MAIN.appendChild(f);
         }
       } catch (err) {
-        MAIN.innerHTML = '<div class="empty">Failed to load: ' + err.message + '</div>';
+        MAIN.innerHTML = '<div class="empty">' + t('error.failedLoad', { error: err.message }) + '</div>';
       }
     }
 
     // ─── Generic Department Page ───
 
-    async function renderDeptPage(dept, title) {
-      MAIN.innerHTML = '<div class="loading">Loading</div>';
+    async function renderDeptPage(dept, titleKey) {
+      MAIN.innerHTML = '<div class="loading">' + t('common.loading') + '</div>';
       try {
         const [mr, diseases] = await Promise.all([
           api('/api/metrics/' + dept).catch(() => null),
@@ -1142,13 +1395,13 @@
 
         const f = document.createDocumentFragment();
         f.appendChild(el('div', { class: 'page-header' },
-          el('h2', { class: 'page-title' }, title),
-          el('div', { class: 'page-subtitle' }, diseases.length + ' diagnosis result' + (diseases.length !== 1 ? 's' : ''))
+          el('h2', { class: 'page-title' }, t(titleKey)),
+          el('div', { class: 'page-subtitle' }, t('page.deptDiagnosis', { count: diseases.length }))
         ));
 
         if (mr && mr.metrics) {
           const mc = el('div', { class: 'card' });
-          mc.appendChild(el('div', { class: 'card-title' }, 'Key Metrics'));
+          mc.appendChild(el('div', { class: 'card-title' }, t('card.keyMetrics'));
           const mg = el('div', { class: 'grid grid-3' });
           Object.entries(mr.metrics).forEach(([k, v]) => {
             if (v == null || typeof v === 'object') return;
@@ -1165,23 +1418,23 @@
         }
 
         const dc = el('div', { class: 'card' });
-        dc.appendChild(el('div', { class: 'card-title' }, 'Diagnoses (' + diseases.length + ')'));
+        dc.appendChild(el('div', { class: 'card-title' }, t('card.diagnoses') + ' (' + diseases.length + ')'));
         if (diseases.length === 0) {
-          dc.appendChild(el('div', { class: 'empty' }, 'No issues detected'));
+          dc.appendChild(el('div', { class: 'empty' }, t('empty.noIssues')));
         } else {
           dc.appendChild(buildDiseaseTable(diseases));
         }
         f.appendChild(dc);
         MAIN.innerHTML = ''; MAIN.appendChild(f);
       } catch (err) {
-        MAIN.innerHTML = '<div class="empty">Failed to load ' + dept + ': ' + err.message + '</div>';
+        MAIN.innerHTML = '<div class="empty">' + t('error.failedLoad', { error: dept + ': ' + err.message }) + '</div>';
       }
     }
 
     // ─── Skills Page ───
 
     async function renderSkills() {
-      MAIN.innerHTML = '<div class="loading">Loading</div>';
+      MAIN.innerHTML = '<div class="loading">' + t('common.loading') + '</div>';
       try {
         const [data, mr, diseases] = await Promise.all([
           api('/api/skills').catch(() => ({ plugins: [] })),
@@ -1192,21 +1445,21 @@
         const f = document.createDocumentFragment();
         const plugins = data.plugins || [];
         f.appendChild(el('div', { class: 'page-header' },
-          el('h2', { class: 'page-title' }, 'Skills & Tools'),
-          el('div', { class: 'page-subtitle' }, plugins.length + ' plugin' + (plugins.length !== 1 ? 's' : '') + ' registered')
+          el('h2', { class: 'page-title' }, t('page.skills')),
+          el('div', { class: 'page-subtitle' }, t('page.skills.subtitle', { count: plugins.length }))
         ));
 
         // Metrics
         if (mr && mr.metrics) {
           const m = mr.metrics;
           const mc = el('div', { class: 'card' });
-          mc.appendChild(el('div', { class: 'card-title' }, 'Key Metrics'));
+          mc.appendChild(el('div', { class: 'card-title' }, t('card.keyMetrics')));
           const mg = el('div', { class: 'grid grid-3' });
           [
-            ['Tool Calls', fmtNum(m.toolCallCount)],
-            ['Success Rate', fmtPct(m.toolSuccessRate)],
-            ['Error Rate', fmtPct(m.toolErrorRate)],
-            ['Avg Duration', m.avgToolDurationMs != null ? Math.round(m.avgToolDurationMs) + 'ms' : '\u2014'],
+            [t('metric.toolCalls'), fmtNum(m.toolCallCount)],
+            [t('metric.successRate'), fmtPct(m.toolSuccessRate)],
+            [t('metric.errorRate'), fmtPct(m.toolErrorRate)],
+            [t('metric.avgDuration'), m.avgToolDurationMs != null ? Math.round(m.avgToolDurationMs) + 'ms' : '\u2014'],
           ].forEach(([l, v]) => {
             if (v === '\u2014') return;
             const item = el('div', { class: 'metric' });
@@ -1219,13 +1472,13 @@
 
         // Plugins
         const pc = el('div', { class: 'card' });
-        pc.appendChild(el('div', { class: 'card-title' }, 'Plugins'));
+        pc.appendChild(el('div', { class: 'card-title' }, t('card.plugins')));
         if (plugins.length === 0) {
-          pc.appendChild(el('div', { class: 'empty' }, 'No plugin data'));
+          pc.appendChild(el('div', { class: 'empty' }, t('empty.noPlugins')));
         } else {
-          const t = el('table', { class: 'table' });
-          t.appendChild(el('thead', {}, el('tr', {},
-            el('th', {}, 'Plugin'), el('th', {}, 'Source'), el('th', {}, 'Status'), el('th', {}, 'Tools'), el('th', {}, 'Version')
+          const tbl = el('table', { class: 'table' });
+          tbl.appendChild(el('thead', {}, el('tr', {},
+            el('th', {}, t('table.plugin')), el('th', {}, t('table.source')), el('th', {}, t('table.status')), el('th', {}, t('table.tools')), el('th', {}, t('table.version'))
           )));
           const tb = el('tbody');
           plugins.forEach(p => {
@@ -1237,28 +1490,28 @@
               el('td', { class: 'mono' }, p.version || '\u2014')
             ));
           });
-          t.appendChild(tb); pc.appendChild(t);
+          tbl.appendChild(tb); pc.appendChild(tbl);
         }
         f.appendChild(pc);
 
         // Diseases
         if (diseases.length > 0) {
           const dc = el('div', { class: 'card' });
-          dc.appendChild(el('div', { class: 'card-title' }, 'Diagnoses (' + diseases.length + ')'));
+          dc.appendChild(el('div', { class: 'card-title' }, t('card.diagnoses') + ' (' + diseases.length + ')'));
           dc.appendChild(buildDiseaseTable(diseases, { showId: false }));
           f.appendChild(dc);
         }
 
         MAIN.innerHTML = ''; MAIN.appendChild(f);
       } catch (err) {
-        MAIN.innerHTML = '<div class="empty">Failed to load skills: ' + err.message + '</div>';
+        MAIN.innerHTML = '<div class="empty">' + t('error.failedLoad', { error: err.message }) + '</div>';
       }
     }
 
     // ─── Memory Page ───
 
     async function renderMemory() {
-      MAIN.innerHTML = '<div class="loading">Loading</div>';
+      MAIN.innerHTML = '<div class="loading">' + t('common.loading') + '</div>';
       try {
         const [data, mr, diseases] = await Promise.all([
           api('/api/memory').catch(() => ({ files: [], totalCount: 0, totalSizeBytes: 0 })),
@@ -1268,19 +1521,19 @@
 
         const f = document.createDocumentFragment();
         f.appendChild(el('div', { class: 'page-header' },
-          el('h2', { class: 'page-title' }, 'Memory Cognition'),
-          el('div', { class: 'page-subtitle' }, (data.files || []).length + ' file' + ((data.files || []).length !== 1 ? 's' : '') + ' tracked')
+          el('h2', { class: 'page-title' }, t('page.memory')),
+          el('div', { class: 'page-subtitle' }, t('page.memory.subtitle', { count: (data.files || []).length }))
         ));
 
         // Summary
         const m = mr ? mr.metrics || {} : {};
         const sc = el('div', { class: 'card' });
-        sc.appendChild(el('div', { class: 'card-title' }, 'Summary'));
+        sc.appendChild(el('div', { class: 'card-title' }, t('card.summary')));
         const sg = el('div', { class: 'grid grid-3' });
         [
-          ['Total Files', fmtNum(data.totalCount || m.fileCount || 0)],
-          ['Total Size', formatBytes(data.totalSizeBytes || m.totalSizeBytes || 0)],
-          ['Avg Age', m.avgAgeDays != null ? Math.round(m.avgAgeDays) + 'd' : '\u2014'],
+          [t('metric.totalFiles'), fmtNum(data.totalCount || m.fileCount || 0)],
+          [t('metric.totalSize'), formatBytes(data.totalSizeBytes || m.totalSizeBytes || 0)],
+          [t('metric.avgAge'), m.avgAgeDays != null ? Math.round(m.avgAgeDays) + 'd' : '\u2014'],
         ].forEach(([l, v]) => {
           const item = el('div', { class: 'metric' });
           item.appendChild(el('div', { class: 'metric-value' }, v));
@@ -1293,7 +1546,7 @@
         const files = data.files || [];
         if (files.length > 0) {
           const fc = el('div', { class: 'card' });
-          fc.appendChild(el('div', { class: 'card-title' }, 'Files (' + files.length + ')'));
+          fc.appendChild(el('div', { class: 'card-title' }, t('card.files') + ' (' + files.length + ')'));
           const fl = el('div', { class: 'file-list' });
           files.forEach(file => {
             fl.appendChild(el('div', { class: 'file-item' },
@@ -1307,37 +1560,37 @@
         // Diseases
         if (diseases.length > 0) {
           const dc = el('div', { class: 'card' });
-          dc.appendChild(el('div', { class: 'card-title' }, 'Diagnoses (' + diseases.length + ')'));
+          dc.appendChild(el('div', { class: 'card-title' }, t('card.diagnoses') + ' (' + diseases.length + ')'));
           dc.appendChild(buildDiseaseTable(diseases, { showId: false }));
           f.appendChild(dc);
         }
 
         MAIN.innerHTML = ''; MAIN.appendChild(f);
       } catch (err) {
-        MAIN.innerHTML = '<div class="empty">Failed to load memory: ' + err.message + '</div>';
+        MAIN.innerHTML = '<div class="empty">' + t('error.failedLoad', { error: err.message }) + '</div>';
       }
     }
 
     // ─── Prescriptions Page ───
 
     async function renderRx() {
-      MAIN.innerHTML = '<div class="loading">Loading</div>';
+      MAIN.innerHTML = '<div class="loading">' + t('common.loading') + '</div>';
       try {
         const prescriptions = await api('/api/prescriptions');
         const f = document.createDocumentFragment();
         f.appendChild(el('div', { class: 'page-header' },
-          el('h2', { class: 'page-title' }, 'Prescriptions'),
-          el('div', { class: 'page-subtitle' }, (prescriptions || []).length + ' prescription' + ((prescriptions || []).length !== 1 ? 's' : ''))
+          el('h2', { class: 'page-title' }, t('rx.title')),
+          el('div', { class: 'page-subtitle' }, t('page.prescriptions.subtitle', { count: (prescriptions || []).length }))
         ));
 
         const pc = el('div', { class: 'card' });
-        pc.appendChild(el('div', { class: 'card-title' }, 'Prescription List'));
+        pc.appendChild(el('div', { class: 'card-title' }, t('card.prescriptionList')));
         if (!prescriptions || prescriptions.length === 0) {
-          pc.appendChild(el('div', { class: 'empty' }, 'No prescriptions generated yet'));
+          pc.appendChild(el('div', { class: 'empty' }, t('empty.noPrescriptions')));
         } else {
-          const t = el('table', { class: 'table' });
-          t.appendChild(el('thead', {}, el('tr', {},
-            el('th', {}, 'ID'), el('th', {}, 'Diagnosis'), el('th', {}, 'Level'), el('th', {}, 'Status'), el('th', {}, 'Actions')
+          const tbl = el('table', { class: 'table' });
+          tbl.appendChild(el('thead', {}, el('tr', {},
+            el('th', {}, t('table.id')), el('th', {}, t('table.diagnosis')), el('th', {}, t('table.level')), el('th', {}, t('table.status')), el('th', {}, t('table.actions'))
           )));
           const tb = el('tbody');
           prescriptions.forEach(p => {
@@ -1351,16 +1604,16 @@
                   class: 'btn btn-primary', style: 'margin-right:4px',
                   onClick: () => api('/api/prescriptions/' + p.id + '/apply', { method: 'POST' })
                     .then(r => toast(r.message || 'Applied', 'success')).catch(e => toast(e.message, 'error'))
-                }, 'Apply'),
+                }, t('button.apply')),
                 el('button', {
                   class: 'btn btn-ghost',
                   onClick: () => api('/api/prescriptions/' + p.id + '/rollback', { method: 'POST' })
                     .then(r => toast(r.message || 'Rolled back', 'success')).catch(e => toast(e.message, 'error'))
-                }, 'Rollback')
+                }, t('button.rollback'))
               )
             ));
           });
-          t.appendChild(tb); pc.appendChild(t);
+          tbl.appendChild(tb); pc.appendChild(tbl);
         }
         f.appendChild(pc);
 
@@ -1369,12 +1622,12 @@
           const chains = await api('/api/causal-chains');
           if (chains && chains.length > 0) {
             const cc = el('div', { class: 'card' });
-            cc.appendChild(el('div', { class: 'card-title' }, 'Causal Chains (' + chains.length + ')'));
+            cc.appendChild(el('div', { class: 'card-title' }, t('card.causalChains') + ' (' + chains.length + ')'));
             chains.forEach(chain => {
               const item = el('div', { style: 'padding:10px 0;border-bottom:1px solid var(--border)' });
-              item.appendChild(el('div', { style: 'font-weight:600;font-size:13px' }, chain.name?.en || chain.id));
-              if (chain.impact?.en)
-                item.appendChild(el('div', { style: 'color:var(--text-2);font-size:12px;margin-top:3px' }, chain.impact.en));
+              item.appendChild(el('div', { style: 'font-weight:600;font-size:13px' }, tObj(chain.name) || chain.id));
+              if (chain.impact)
+                item.appendChild(el('div', { style: 'color:var(--text-2);font-size:12px;margin-top:3px' }, tObj(chain.impact)));
               cc.appendChild(item);
             });
             f.appendChild(cc);
@@ -1383,14 +1636,14 @@
 
         MAIN.innerHTML = ''; MAIN.appendChild(f);
       } catch (err) {
-        MAIN.innerHTML = '<div class="empty">Failed to load prescriptions: ' + err.message + '</div>';
+        MAIN.innerHTML = '<div class="empty">' + t('error.failedLoad', { error: err.message }) + '</div>';
       }
     }
 
     // ─── Timeline Page ───
 
     async function renderTimeline() {
-      MAIN.innerHTML = '<div class="loading">Loading</div>';
+      MAIN.innerHTML = '<div class="loading">' + t('common.loading') + '</div>';
       let page = 1;
       const limit = 25;
 
@@ -1399,17 +1652,17 @@
         const data = await api('/api/events?page=' + page + '&limit=' + limit);
         const f = document.createDocumentFragment();
         f.appendChild(el('div', { class: 'page-header' },
-          el('h2', { class: 'page-title' }, 'Event Timeline'),
-          el('div', { class: 'page-subtitle' }, data.total + ' events recorded')
+          el('h2', { class: 'page-title' }, t('page.eventTimeline')),
+          el('div', { class: 'page-subtitle' }, t('page.timeline.subtitle', { total: data.total }))
         ));
 
         const ec = el('div', { class: 'card' });
         if (!data.items || data.items.length === 0) {
-          ec.appendChild(el('div', { class: 'empty' }, 'No events recorded'));
+          ec.appendChild(el('div', { class: 'empty' }, t('empty.noEvents')));
         } else {
-          const t = el('table', { class: 'table' });
-          t.appendChild(el('thead', {}, el('tr', {},
-            el('th', {}, 'Time'), el('th', {}, 'Type'), el('th', {}, 'Source'), el('th', {}, 'Session'), el('th', {}, 'Details')
+          const tbl = el('table', { class: 'table' });
+          tbl.appendChild(el('thead', {}, el('tr', {},
+            el('th', {}, t('table.time')), el('th', {}, t('table.type')), el('th', {}, t('table.source')), el('th', {}, t('table.session')), el('th', {}, t('table.details'))
           )));
           const tb = el('tbody');
           data.items.forEach(evt => {
@@ -1425,17 +1678,17 @@
                 JSON.stringify(evt.data).slice(0, 80))
             ));
           });
-          t.appendChild(tb); ec.appendChild(t);
+          tbl.appendChild(tb); ec.appendChild(tbl);
         }
         f.appendChild(ec);
 
         if (data.totalPages > 1) {
           const pg = el('div', { class: 'pagination' });
-          const prev = el('button', { onClick: () => { if (page > 1) loadPage(page - 1); } }, 'Prev');
+          const prev = el('button', { onClick: () => { if (page > 1) loadPage(page - 1); } }, t('action.prev'));
           if (page <= 1) prev.disabled = true;
           pg.appendChild(prev);
-          pg.appendChild(el('span', { class: 'page-info' }, 'Page ' + data.page + ' / ' + data.totalPages));
-          const next = el('button', { onClick: () => { if (page < data.totalPages) loadPage(page + 1); } }, 'Next');
+          pg.appendChild(el('span', { class: 'page-info' }, t('common.page', { current: data.page, total: data.totalPages })));
+          const next = el('button', { onClick: () => { if (page < data.totalPages) loadPage(page + 1); } }, t('action.next'));
           if (page >= data.totalPages) next.disabled = true;
           pg.appendChild(next);
           f.appendChild(pg);
@@ -1445,13 +1698,13 @@
       }
 
       try { await loadPage(1); }
-      catch (err) { MAIN.innerHTML = '<div class="empty">Failed to load timeline: ' + err.message + '</div>'; }
+      catch (err) { MAIN.innerHTML = '<div class="empty">' + t('error.failedLoad', { error: err.message }) + '</div>'; }
     }
 
     // ─── Settings Page ───
 
     async function renderSettings() {
-      MAIN.innerHTML = '<div class="loading">Loading</div>';
+      MAIN.innerHTML = '<div class="loading">' + t('common.loading') + '</div>';
       try {
         const [config, llmStatus] = await Promise.all([
           api('/api/config'),
@@ -1460,13 +1713,28 @@
 
         const f = document.createDocumentFragment();
         f.appendChild(el('div', { class: 'page-header' },
-          el('h2', { class: 'page-title' }, 'Settings'),
-          el('div', { class: 'page-subtitle' }, 'LLM provider and ClawDoctor configuration')
+          el('h2', { class: 'page-title' }, t('page.settings.title')),
+          el('div', { class: 'page-subtitle' }, t('page.settings.subtitle'))
         ));
+
+        // ── Language Selector Card ──
+        const langCard = el('div', { class: 'card' });
+        langCard.appendChild(el('div', { class: 'card-title' }, t('settings.language')));
+        var langSelect = el('select', {
+          id: 'locale-select',
+          class: 'form-select',
+          style: 'max-width:200px'
+        });
+        langSelect.appendChild(el('option', { value: 'en' }, 'English'));
+        langSelect.appendChild(el('option', { value: 'zh' }, '\u4e2d\u6587'));
+        langSelect.value = currentLocale;
+        langSelect.addEventListener('change', function() { switchLocale(this.value); });
+        langCard.appendChild(langSelect);
+        f.appendChild(langCard);
 
         // ── LLM Configuration Card ──
         const llmCard = el('div', { class: 'card' });
-        llmCard.appendChild(el('div', { class: 'card-title' }, 'LLM Configuration'));
+        llmCard.appendChild(el('div', { class: 'card-title' }, t('llm.configuration')));
 
         // Status indicator
         if (llmStatus) {
@@ -1474,12 +1742,12 @@
           var dotClass = llmStatus.available ? 'green' : (llmStatus.config.hasApiKey || llmStatus.envApiKey ? 'yellow' : 'red');
           statusEl.appendChild(el('span', { class: 'status-dot ' + dotClass }));
           statusEl.appendChild(document.createTextNode(
-            llmStatus.available ? 'LLM Available' :
+            llmStatus.available ? t('settings.llmAvailable') :
             llmStatus.reason === 'llm_disabled' ? 'LLM Disabled' :
-            'LLM Unavailable \u2014 API key required'
+            t('settings.llmUnavailable')
           ));
           if (llmStatus.envApiKey && !llmStatus.config.hasApiKey) {
-            statusEl.appendChild(el('span', { style: 'margin-left:8px;font-size:11px;color:var(--text-2)' }, '(using ANTHROPIC_API_KEY env)'));
+            statusEl.appendChild(el('span', { style: 'margin-left:8px;font-size:11px;color:var(--text-2)' }, t('llm.usingEnv')));
           }
           llmCard.appendChild(statusEl);
 
@@ -1487,11 +1755,11 @@
           if (llmStatus.openclaw) {
             var oc = llmStatus.openclaw;
             var hint = el('div', { class: 'openclaw-hint' });
-            hint.appendChild(el('div', {}, el('strong', {}, 'OpenClaw detected: '), document.createTextNode(oc.provider + '/' + oc.model)));
+            hint.appendChild(el('div', {}, el('strong', {}, t('settings.openclawDetected') + ' '), document.createTextNode(oc.provider + '/' + oc.model)));
             hint.appendChild(el('div', { style: 'margin-top:2px;font-size:11px;color:var(--text-2)' },
               'Base URL: ' + oc.baseUrl + ' \u00b7 API: ' + oc.apiFormat));
             hint.appendChild(el('div', { style: 'margin-top:4px;font-size:11px' },
-              'You can use this model by selecting "OpenAI Compatible" below and entering your API key.'));
+              t('settings.openclawHint')));
             llmCard.appendChild(hint);
           }
         }
@@ -1504,17 +1772,17 @@
 
         // Provider select
         var providerGroup = el('div', { class: 'form-group' });
-        providerGroup.appendChild(el('label', { class: 'form-label' }, 'Provider'));
+        providerGroup.appendChild(el('label', { class: 'form-label' }, t('settings.provider')));
         var providerSelect = el('select', { class: 'form-select', id: 'llm-provider' });
-        providerSelect.appendChild(el('option', { value: 'anthropic' }, 'Anthropic (Claude)'));
-        providerSelect.appendChild(el('option', { value: 'openai-compatible' }, 'OpenAI Compatible (Moonshot, DeepSeek, etc.)'));
+        providerSelect.appendChild(el('option', { value: 'anthropic' }, t('settings.providerAnthropic')));
+        providerSelect.appendChild(el('option', { value: 'openai-compatible' }, t('settings.providerOpenAI')));
         providerSelect.value = currentProvider;
         providerGroup.appendChild(providerSelect);
         llmCard.appendChild(providerGroup);
 
         // Base URL (show/hide based on provider)
         var baseUrlGroup = el('div', { class: 'form-group', id: 'baseurl-group' });
-        baseUrlGroup.appendChild(el('label', { class: 'form-label' }, 'Base URL'));
+        baseUrlGroup.appendChild(el('label', { class: 'form-label' }, t('settings.baseUrl')));
         var baseUrlPlaceholder = 'https://api.anthropic.com';
         if (llmStatus && llmStatus.openclaw && currentProvider === 'openai-compatible') {
           baseUrlPlaceholder = llmStatus.openclaw.baseUrl;
@@ -1527,36 +1795,36 @@
             document.getElementById('llm-model').value = llmStatus.openclaw.model;
             document.getElementById('llm-provider').value = 'openai-compatible';
             updateBaseUrlVisibility();
-          }}, 'Use OpenClaw Config');
+          }}, t('button.useOpenclawConfig'));
           baseUrlGroup.appendChild(useOcBtn);
         }
-        baseUrlGroup.appendChild(el('div', { class: 'form-hint' }, 'Required for OpenAI-compatible providers. Leave empty for Anthropic default.'));
+        baseUrlGroup.appendChild(el('div', { class: 'form-hint' }, t('llm.baseUrl.hint')));
         llmCard.appendChild(baseUrlGroup);
 
         // Model
         var modelGroup = el('div', { class: 'form-group' });
-        modelGroup.appendChild(el('label', { class: 'form-label' }, 'Model'));
+        modelGroup.appendChild(el('label', { class: 'form-label' }, t('settings.model')));
         var modelInput = el('input', { class: 'form-input', id: 'llm-model', type: 'text', placeholder: 'claude-sonnet-4-20250514', value: currentModel });
         modelGroup.appendChild(modelInput);
-        modelGroup.appendChild(el('div', { class: 'form-hint' }, 'Leave empty for provider default'));
+        modelGroup.appendChild(el('div', { class: 'form-hint' }, t('llm.model.hint')));
         llmCard.appendChild(modelGroup);
 
         // API Key
         var keyGroup = el('div', { class: 'form-group' });
-        keyGroup.appendChild(el('label', { class: 'form-label' }, 'API Key'));
+        keyGroup.appendChild(el('label', { class: 'form-label' }, t('settings.apiKey')));
         var keyInput = el('input', { class: 'form-input', id: 'llm-apikey', type: 'password', placeholder: hasKey ? '\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022 (saved)' : 'sk-...' });
         keyGroup.appendChild(keyInput);
-        keyGroup.appendChild(el('div', { class: 'form-hint' }, 'Stored locally in ~/.clawdoctor/config.json. Overrides ANTHROPIC_API_KEY env var.'));
+        keyGroup.appendChild(el('div', { class: 'form-hint' }, t('llm.apiKey.hint')));
         llmCard.appendChild(keyGroup);
 
         // Action buttons
         var actions = el('div', { style: 'display:flex;gap:8px;margin-top:16px' });
-        var saveBtn = el('button', { class: 'btn btn-primary', id: 'llm-save' }, 'Save');
-        var testBtn = el('button', { class: 'btn btn-ghost', id: 'llm-test' }, 'Test Connection');
+        var saveBtn = el('button', { class: 'btn btn-primary', id: 'llm-save' }, t('action.save'));
+        var testBtn = el('button', { class: 'btn btn-ghost', id: 'llm-test' }, t('action.testConnection'));
         var saveStatus = el('span', { style: 'font-size:12px;margin-left:8px;line-height:28px', id: 'llm-status' });
 
         saveBtn.addEventListener('click', async function() {
-          saveBtn.disabled = true; saveBtn.textContent = 'Saving\u2026';
+          saveBtn.disabled = true; saveBtn.textContent = t('button.saving');
           saveStatus.textContent = ''; saveStatus.style.color = '';
           try {
             var body = {
@@ -1568,36 +1836,36 @@
             var keyVal = document.getElementById('llm-apikey').value;
             if (keyVal) body.apiKey = keyVal;
             await api('/api/llm/config', { method: 'PUT', body: JSON.stringify(body) });
-            saveBtn.textContent = 'Save';
+            saveBtn.textContent = t('action.save');
             saveBtn.disabled = false;
-            saveStatus.textContent = 'Saved';
+            saveStatus.textContent = t('llm.saved');
             saveStatus.style.color = 'var(--grade-a)';
-            toast('LLM settings saved', 'success');
+            toast(t('llm.saved'), 'success');
             document.getElementById('llm-apikey').value = '';
             document.getElementById('llm-apikey').placeholder = '\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022 (saved)';
           } catch (err) {
-            saveBtn.textContent = 'Save'; saveBtn.disabled = false;
+            saveBtn.textContent = t('action.save'); saveBtn.disabled = false;
             saveStatus.textContent = err.message; saveStatus.style.color = 'var(--sev-critical)';
           }
         });
 
         testBtn.addEventListener('click', async function() {
-          testBtn.disabled = true; testBtn.textContent = 'Testing\u2026';
+          testBtn.disabled = true; testBtn.textContent = t('button.testing');
           saveStatus.textContent = ''; saveStatus.style.color = '';
           try {
             var result = await api('/api/llm/test', { method: 'POST' });
-            testBtn.textContent = 'Test Connection'; testBtn.disabled = false;
+            testBtn.textContent = t('action.testConnection'); testBtn.disabled = false;
             if (result.success) {
               saveStatus.textContent = 'Connected \u2014 model: ' + result.model;
               saveStatus.style.color = 'var(--grade-a)';
-              toast('LLM connection successful', 'success');
+              toast(t('llm.testSuccess'), 'success');
             } else {
               saveStatus.textContent = result.error || 'Failed';
               saveStatus.style.color = 'var(--sev-critical)';
-              toast('Connection failed: ' + (result.error || 'unknown'), 'error');
+              toast(t('llm.testFailed', { error: result.error || 'unknown' }), 'error');
             }
           } catch (err) {
-            testBtn.textContent = 'Test Connection'; testBtn.disabled = false;
+            testBtn.textContent = t('action.testConnection'); testBtn.disabled = false;
             saveStatus.textContent = err.message; saveStatus.style.color = 'var(--sev-critical)';
           }
         });
@@ -1617,7 +1885,7 @@
 
         // ── Raw Config Card ──
         var cc = el('div', { class: 'card' });
-        cc.appendChild(el('div', { class: 'card-title' }, 'Raw Configuration'));
+        cc.appendChild(el('div', { class: 'card-title' }, t('card.rawConfig')));
         var pre = el('div', { class: 'config-display' });
         // Hide apiKey from display
         var displayConfig = JSON.parse(JSON.stringify(config));
@@ -1629,7 +1897,7 @@
         MAIN.innerHTML = ''; MAIN.appendChild(f);
         updateBaseUrlVisibility();
       } catch (err) {
-        MAIN.innerHTML = '<div class="empty">Failed to load config: ' + err.message + '</div>';
+        MAIN.innerHTML = '<div class="empty">' + t('error.failedLoad', { error: err.message }) + '</div>';
       }
     }
 
@@ -1639,12 +1907,12 @@
 
     const ROUTES = {
       '/overview': renderOverview,
-      '/vitals': () => renderDeptPage('vitals', 'System Vitals'),
+      '/vitals': () => renderDeptPage('vitals', 'page.vitals'),
       '/skills': renderSkills,
       '/memory': renderMemory,
-      '/behavior': () => renderDeptPage('behavior', 'Agent Behavior'),
-      '/cost': () => renderDeptPage('cost', 'Cost Metabolism'),
-      '/security': () => renderDeptPage('security', 'Security Immunity'),
+      '/behavior': () => renderDeptPage('behavior', 'page.behavior'),
+      '/cost': () => renderDeptPage('cost', 'page.cost'),
+      '/security': () => renderDeptPage('security', 'page.security'),
       '/rx': renderRx,
       '/timeline': renderTimeline,
       '/settings': renderSettings,
@@ -1667,6 +1935,7 @@
 
     window.addEventListener('hashchange', onHashChange);
     window.addEventListener('DOMContentLoaded', () => {
+      renderNav();
       if (!window.location.hash) window.location.hash = '#/overview';
       else onHashChange();
     });

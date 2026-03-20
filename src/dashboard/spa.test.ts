@@ -152,4 +152,27 @@ describe("SPA Structure", () => {
       expect(html).toContain("sev-info");
     });
   });
+
+  // ─── i18n infrastructure ───
+
+  describe("i18n infrastructure", () => {
+    it("contains LOCALE_DICT with en and zh for all entries", () => {
+      const dictMatch = html.match(/const LOCALE_DICT\s*=\s*\{[\s\S]*?\n\s*\};/);
+      expect(dictMatch).not.toBeNull();
+      const entryCount = (dictMatch![0].match(/"[a-zA-Z][a-zA-Z.]+"\s*:/g) || []).length;
+      expect(entryCount).toBeGreaterThanOrEqual(100);
+    });
+
+    it("contains tObj function for server-returned I18nString objects", () => {
+      expect(html).toContain("function tObj(");
+    });
+
+    it("contains switchLocale function", () => {
+      expect(html).toContain("function switchLocale(");
+    });
+
+    it("contains renderNav function", () => {
+      expect(html).toContain("function renderNav(");
+    });
+  });
 });
