@@ -178,7 +178,7 @@ export const clawdoctorPlugin: OpenClawPluginDefinition = {
             new URL(proxiedUrl, `http://${req.headers?.host ?? "localhost"}`),
             {
               method: req.method,
-              headers: req.headers as HeadersInit,
+              headers: req.headers as unknown as Record<string, string>,
             },
           );
 

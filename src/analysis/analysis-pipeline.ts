@@ -177,7 +177,9 @@ export async function runCheckup(opts: CheckupOptions): Promise<CheckupResult> {
         firstDetectedAt: now,
         lastSeenAt: now,
         status: "active",
-        context: {},
+        context: {
+          dataTimeRange: { from: timeRange.from, to: timeRange.to },
+        },
       };
       return instance;
     });
@@ -251,7 +253,10 @@ export async function runCheckup(opts: CheckupOptions): Promise<CheckupResult> {
               firstDetectedAt: now,
               lastSeenAt: now,
               status: "active",
-              context: confirmed.rootCause ? { rootCause: confirmed.rootCause } : {},
+              context: {
+                ...(confirmed.rootCause ? { rootCause: confirmed.rootCause } : {}),
+                dataTimeRange: { from: timeRange.from, to: timeRange.to },
+              },
             };
 
             // If this was a suspect (hybrid), upgrade the existing disease entry

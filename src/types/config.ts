@@ -63,7 +63,10 @@ export interface ClawDoctorConfig {
   // ─── LLM Settings ───
   llm: {
     enabled: boolean;                // default true
+    provider?: string;               // "anthropic" | "openai-compatible"
     model?: string;                  // override diagnosis model; defaults to OpenClaw config
+    apiKey?: string;                 // API key (stored in config, overrides env)
+    baseUrl?: string;                // base URL for API calls
     maxTokensPerDiagnosis?: number;  // token budget per LLM call
     maxTokensPerCheckup?: number;    // total token budget per checkup
   };

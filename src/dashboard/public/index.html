@@ -3,139 +3,210 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ClawDoctor Dashboard</title>
+  <title>ClawDoctor</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
   <style>
     :root {
-      --bg-primary: #0f1117;
-      --bg-secondary: #1a1d27;
-      --bg-card: #222536;
-      --bg-hover: #2a2e42;
-      --text-primary: #e8eaf0;
-      --text-secondary: #9da3b4;
-      --text-muted: #6b7280;
+      --bg-0: #060810;
+      --bg-1: #0c0f18;
+      --bg-2: #131722;
+      --bg-3: #1b1f2e;
+      --bg-hover: #222840;
       --brand: #E8734A;
-      --brand-light: #f0916f;
-      --brand-dark: #c55a33;
-      --severity-critical: #ef4444;
-      --severity-warning: #f59e0b;
-      --severity-info: #3b82f6;
-      --grade-a: #22c55e;
-      --grade-b: #84cc16;
-      --grade-c: #eab308;
+      --brand-dim: rgba(232,115,74,0.8);
+      --brand-glow: rgba(232,115,74,0.08);
+      --text-0: #eef0f4;
+      --text-1: #9ea4b4;
+      --text-2: #5c6478;
+      --border: rgba(255,255,255,0.06);
+      --border-hover: rgba(255,255,255,0.12);
+      --grade-a: #10b981;
+      --grade-b: #34d399;
+      --grade-c: #fbbf24;
       --grade-d: #f97316;
       --grade-f: #ef4444;
-      --border: #2d3148;
+      --sev-critical: #ef4444;
+      --sev-warning: #f59e0b;
+      --sev-info: #3b82f6;
       --radius: 8px;
+      --radius-sm: 4px;
+      --font: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+      --mono: 'JetBrains Mono', 'SF Mono', 'Cascadia Code', monospace;
+      --ease: cubic-bezier(0.4, 0, 0.2, 1);
     }
 
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-      background: var(--bg-primary);
-      color: var(--text-primary);
+      font-family: var(--font);
+      background: var(--bg-0);
+      color: var(--text-0);
       min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.012) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.012) 1px, transparent 1px);
+      background-size: 48px 48px;
     }
 
-    #app {
-      display: flex;
-      min-height: 100vh;
-    }
+    #app { display: flex; min-height: 100vh; }
 
-    /* Sidebar */
+    /* ─── Sidebar ─── */
     .sidebar {
       width: 220px;
-      background: var(--bg-secondary);
+      background: var(--bg-1);
       border-right: 1px solid var(--border);
-      padding: 20px 0;
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      position: fixed;
+      top: 0; left: 0; bottom: 0;
+      z-index: 10;
+    }
+
+    .sidebar-header { padding: 24px 20px 12px; }
+
+    .logo { display: flex; align-items: center; gap: 10px; }
+
+    .logo-mark {
+      width: 30px; height: 30px;
+      background: rgba(232,115,74,0.15);
+      border: 1px solid rgba(232,115,74,0.2);
+      border-radius: 7px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px;
       flex-shrink: 0;
     }
 
-    .sidebar-logo {
-      padding: 0 20px 20px;
-      border-bottom: 1px solid var(--border);
-      margin-bottom: 10px;
+    .logo-text {
+      font-size: 16px; font-weight: 600;
+      color: var(--text-0);
+      letter-spacing: -0.3px;
     }
 
-    .sidebar-logo h1 {
-      font-size: 18px;
-      color: var(--brand);
-      letter-spacing: 1px;
+    .sidebar-tagline {
+      font-size: 10px; color: var(--text-2);
+      margin-top: 4px; padding-left: 40px;
+      letter-spacing: 0.3px;
     }
 
-    .sidebar-logo .subtitle {
-      font-size: 11px;
-      color: var(--text-muted);
-      margin-top: 2px;
+    /* Run Checkup */
+    .run-checkup-btn {
+      margin: 16px 16px 12px;
+      padding: 9px 16px;
+      background: var(--brand);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius);
+      font-family: var(--font);
+      font-size: 12px; font-weight: 600;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      transition: background 150ms var(--ease), transform 80ms ease;
+      letter-spacing: 0.2px;
+    }
+
+    .run-checkup-btn:hover { filter: brightness(1.1); transform: translateY(-1px); }
+    .run-checkup-btn:active { transform: translateY(0); }
+
+    .run-checkup-btn.running {
+      background: var(--bg-3); color: var(--text-2);
+      cursor: not-allowed; pointer-events: none;
+    }
+
+    .run-checkup-btn.running::before {
+      content: ''; width: 12px; height: 12px;
+      border: 2px solid var(--text-2); border-top-color: var(--brand);
+      border-radius: 50%; animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Nav */
+    .nav { flex: 1; overflow-y: auto; padding: 4px 0; }
+
+    .nav-section {
+      padding: 18px 20px 6px;
+      font-size: 9px; font-weight: 600;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--text-2);
     }
 
     .nav-item {
-      display: block;
-      padding: 10px 20px;
-      color: var(--text-secondary);
-      text-decoration: none;
-      font-size: 14px;
+      display: block; padding: 7px 20px;
+      color: var(--text-1); text-decoration: none;
+      font-size: 13px; font-weight: 400;
       cursor: pointer;
-      transition: background 0.15s, color 0.15s;
-      border-left: 3px solid transparent;
+      transition: color 150ms, background 150ms;
+      border-left: 2px solid transparent;
     }
 
-    .nav-item:hover {
-      background: var(--bg-hover);
-      color: var(--text-primary);
-    }
+    .nav-item:hover { color: var(--text-0); background: rgba(255,255,255,0.02); }
 
     .nav-item.active {
-      background: var(--bg-hover);
-      color: var(--brand);
-      border-left-color: var(--brand);
+      color: var(--brand); background: var(--brand-glow);
+      border-left-color: var(--brand); font-weight: 500;
     }
 
-    .nav-item .nav-icon {
-      display: inline-block;
-      width: 22px;
-      text-align: center;
-      margin-right: 8px;
+    .sidebar-footer {
+      padding: 12px 20px;
+      border-top: 1px solid var(--border);
+      font-size: 10px; color: var(--text-2);
+      letter-spacing: 0.3px;
     }
 
-    /* Main content */
+    /* ─── Main ─── */
     .main {
-      flex: 1;
-      padding: 24px 32px;
-      overflow-y: auto;
+      flex: 1; margin-left: 220px;
+      padding: 32px 40px;
+      min-height: 100vh;
+      max-width: 1200px;
     }
+
+    .page-header { margin-bottom: 24px; }
 
     .page-title {
-      font-size: 22px;
-      font-weight: 600;
-      margin-bottom: 20px;
-      color: var(--text-primary);
+      font-size: 20px; font-weight: 600;
+      color: var(--text-0); letter-spacing: -0.3px;
     }
 
-    /* Cards */
+    .page-subtitle {
+      font-size: 12px; color: var(--text-2); margin-top: 3px;
+    }
+
+    /* ─── Cards ─── */
     .card {
-      background: var(--bg-card);
+      background: var(--bg-2);
       border: 1px solid var(--border);
       border-radius: var(--radius);
       padding: 20px;
       margin-bottom: 16px;
+      animation: fadeUp 0.35s var(--ease) backwards;
+    }
+
+    .card:nth-child(2) { animation-delay: 0.04s; }
+    .card:nth-child(3) { animation-delay: 0.08s; }
+    .card:nth-child(4) { animation-delay: 0.12s; }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
     }
 
     .card-title {
-      font-size: 13px;
+      font-size: 10px; font-weight: 600;
+      letter-spacing: 1px;
       text-transform: uppercase;
-      letter-spacing: 0.5px;
-      color: var(--text-muted);
-      margin-bottom: 12px;
+      color: var(--text-2);
+      margin-bottom: 14px;
     }
 
-    /* Grid */
-    .grid {
-      display: grid;
-      gap: 16px;
-    }
-
+    /* ─── Grid ─── */
+    .grid { display: grid; gap: 12px; }
     .grid-2 { grid-template-columns: repeat(2, 1fr); }
     .grid-3 { grid-template-columns: repeat(3, 1fr); }
     .grid-6 { grid-template-columns: repeat(6, 1fr); }
@@ -147,256 +218,454 @@
 
     @media (max-width: 768px) {
       .grid-6, .grid-3, .grid-2 { grid-template-columns: 1fr; }
-      .sidebar { width: 60px; }
-      .nav-item span { display: none; }
+      .sidebar { width: 56px; }
+      .main { margin-left: 56px; padding: 16px; }
+      .nav-section, .sidebar-tagline, .logo-text, .sidebar-footer { display: none; }
+      .nav-item { font-size: 0; padding: 10px 0; text-align: center; border-left: none; border-bottom: 2px solid transparent; }
+      .nav-item.active { border-left: none; border-bottom-color: var(--brand); }
+      .run-checkup-btn span { display: none; }
+      .run-checkup-btn::after { content: '\25B6'; font-size: 14px; }
     }
 
-    /* Health score */
-    .score-big {
-      font-size: 56px;
-      font-weight: 700;
-      line-height: 1;
+    /* ─── Gauge ─── */
+    .gauge-container { display: flex; align-items: center; gap: 32px; }
+    .gauge-info { display: flex; flex-direction: column; gap: 4px; }
+
+    .gauge-grade {
+      font-size: 22px; font-weight: 700;
+      letter-spacing: -0.5px;
     }
 
-    .score-grade {
-      display: inline-block;
-      padding: 4px 12px;
-      border-radius: 4px;
-      font-size: 14px;
-      font-weight: 600;
-      margin-left: 12px;
+    .gauge-meta {
+      font-size: 12px; color: var(--text-2);
+      display: flex; flex-direction: column; gap: 2px;
+      margin-top: 4px;
     }
 
-    .grade-A { background: var(--grade-a); color: #000; }
-    .grade-B { background: var(--grade-b); color: #000; }
-    .grade-C { background: var(--grade-c); color: #000; }
-    .grade-D { background: var(--grade-d); color: #000; }
-    .grade-F { background: var(--grade-f); color: #fff; }
-    .grade-NA { background: var(--text-muted); color: #fff; }
+    .gauge-fill { transition: stroke-dashoffset 1s var(--ease); }
 
-    /* Department card */
+    /* ─── Department Cards ─── */
     .dept-card {
-      text-align: center;
       cursor: pointer;
-      transition: border-color 0.15s;
+      transition: border-color 200ms, box-shadow 200ms;
+      text-align: center;
+      padding: 16px 8px;
     }
 
     .dept-card:hover {
-      border-color: var(--brand);
-    }
-
-    .dept-score {
-      font-size: 32px;
-      font-weight: 700;
-      margin: 8px 0;
+      border-color: rgba(232,115,74,0.3);
+      box-shadow: 0 0 0 1px rgba(232,115,74,0.1);
     }
 
     .dept-name {
-      font-size: 13px;
-      color: var(--text-secondary);
-      text-transform: capitalize;
-    }
-
-    /* Severity badges */
-    .severity {
-      display: inline-block;
-      padding: 2px 8px;
-      border-radius: 4px;
-      font-size: 11px;
-      font-weight: 600;
+      font-size: 10px; font-weight: 600;
+      color: var(--text-2);
       text-transform: uppercase;
+      letter-spacing: 0.6px;
+      margin-bottom: 8px;
     }
 
-    .severity-critical { background: rgba(239, 68, 68, 0.2); color: var(--severity-critical); }
-    .severity-warning { background: rgba(245, 158, 11, 0.2); color: var(--severity-warning); }
-    .severity-info { background: rgba(59, 130, 246, 0.2); color: var(--severity-info); }
-
-    /* Table */
-    .table {
-      width: 100%;
-      border-collapse: collapse;
+    .dept-score {
+      font-size: 28px; font-weight: 700;
+      letter-spacing: -1px; line-height: 1;
     }
+
+    .dept-grade {
+      display: inline-block; padding: 2px 8px;
+      border-radius: var(--radius-sm);
+      font-size: 10px; font-weight: 600;
+      margin-top: 6px;
+    }
+
+    .dept-detail {
+      font-size: 10px; color: var(--text-2);
+      margin-top: 6px;
+    }
+
+    /* ─── Grades ─── */
+    .grade-A { background: rgba(16,185,129,0.12); color: var(--grade-a); }
+    .grade-B { background: rgba(52,211,153,0.12); color: var(--grade-b); }
+    .grade-C { background: rgba(251,191,36,0.12); color: var(--grade-c); }
+    .grade-D { background: rgba(249,115,22,0.12); color: var(--grade-d); }
+    .grade-F { background: rgba(239,68,68,0.12); color: var(--grade-f); }
+    .grade-NA { background: rgba(92,100,120,0.12); color: var(--text-2); }
+
+    /* ─── Tables ─── */
+    .table { width: 100%; border-collapse: collapse; }
 
     .table th {
-      text-align: left;
-      padding: 8px 12px;
-      font-size: 12px;
-      text-transform: uppercase;
-      color: var(--text-muted);
+      text-align: left; padding: 8px 12px;
+      font-size: 9px; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.8px;
+      color: var(--text-2);
       border-bottom: 1px solid var(--border);
     }
 
     .table td {
-      padding: 10px 12px;
+      padding: 9px 12px; font-size: 13px;
+      color: var(--text-1);
       border-bottom: 1px solid var(--border);
-      font-size: 14px;
-      color: var(--text-secondary);
     }
 
-    .table tr:hover td {
-      background: var(--bg-hover);
+    .table tr:last-child td { border-bottom: none; }
+    .table tr:hover td { background: rgba(255,255,255,0.015); }
+
+    /* ─── Badges ─── */
+    .badge {
+      display: inline-block; padding: 2px 8px;
+      border-radius: var(--radius-sm);
+      font-size: 10px; font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
     }
 
-    /* Status badges */
-    .status {
-      display: inline-block;
-      padding: 2px 8px;
-      border-radius: 4px;
-      font-size: 11px;
-      font-weight: 600;
+    .badge-critical { background: rgba(239,68,68,0.12); color: var(--sev-critical); }
+    .badge-warning { background: rgba(245,158,11,0.12); color: var(--sev-warning); }
+    .badge-info { background: rgba(59,130,246,0.12); color: var(--sev-info); }
+    .badge-active { background: rgba(239,68,68,0.10); color: #f87171; }
+    .badge-recovering { background: rgba(245,158,11,0.10); color: #fbbf24; }
+    .badge-resolved { background: rgba(34,197,94,0.10); color: #4ade80; }
+    .badge-pending { background: rgba(59,130,246,0.10); color: #60a5fa; }
+    .badge-applied { background: rgba(34,197,94,0.10); color: #4ade80; }
+    .badge-loaded { background: rgba(34,197,94,0.10); color: #4ade80; }
+    .badge-error { background: rgba(239,68,68,0.10); color: #f87171; }
+    .badge-disabled { background: rgba(92,100,120,0.10); color: var(--text-2); }
+
+    /* ─── Metrics ─── */
+    .metric {
+      padding: 14px;
+      background: var(--bg-3);
+      border-radius: var(--radius);
     }
 
-    .status-active { background: rgba(239, 68, 68, 0.15); color: #f87171; }
-    .status-recovering { background: rgba(245, 158, 11, 0.15); color: #fbbf24; }
-    .status-resolved { background: rgba(34, 197, 94, 0.15); color: #4ade80; }
-    .status-pending { background: rgba(59, 130, 246, 0.15); color: #60a5fa; }
-    .status-applied { background: rgba(34, 197, 94, 0.15); color: #4ade80; }
+    .metric-value {
+      font-size: 20px; font-weight: 600;
+      color: var(--text-0);
+      font-feature-settings: 'tnum';
+    }
 
-    /* Loading / Empty */
+    .metric-label {
+      font-size: 10px; color: var(--text-2);
+      margin-top: 4px; letter-spacing: 0.2px;
+    }
+
+    /* ─── States ─── */
     .loading, .empty {
-      text-align: center;
-      padding: 40px;
-      color: var(--text-muted);
-      font-size: 14px;
+      text-align: center; padding: 48px 24px;
+      color: var(--text-2); font-size: 13px;
     }
 
     .loading::after {
-      content: '...';
-      animation: dots 1.5s steps(4, end) infinite;
+      content: ''; display: inline-block;
+      width: 14px; height: 14px;
+      border: 2px solid var(--border-hover); border-top-color: var(--brand);
+      border-radius: 50%; animation: spin 0.8s linear infinite;
+      margin-left: 8px; vertical-align: middle;
     }
 
-    @keyframes dots {
-      0%, 20% { content: ''; }
-      40% { content: '.'; }
-      60% { content: '..'; }
-      80%, 100% { content: '...'; }
-    }
+    /* ─── Chart ─── */
+    .chart-container { position: relative; height: 260px; margin-top: 4px; }
 
-    /* Chart container */
-    .chart-container {
-      position: relative;
-      height: 280px;
-      margin-top: 12px;
-    }
-
-    /* Pagination */
+    /* ─── Pagination ─── */
     .pagination {
-      display: flex;
-      gap: 8px;
-      align-items: center;
-      margin-top: 16px;
-      justify-content: center;
+      display: flex; gap: 8px; align-items: center;
+      justify-content: center; margin-top: 16px;
     }
 
     .pagination button {
       padding: 6px 14px;
-      background: var(--bg-card);
-      border: 1px solid var(--border);
-      border-radius: 4px;
-      color: var(--text-secondary);
-      cursor: pointer;
-      font-size: 13px;
+      background: var(--bg-2); border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text-1); cursor: pointer;
+      font-size: 12px; font-family: var(--font);
+      transition: border-color 150ms;
     }
 
     .pagination button:hover { border-color: var(--brand); color: var(--brand); }
-    .pagination button:disabled { opacity: 0.4; cursor: not-allowed; }
-    .pagination .page-info { font-size: 13px; color: var(--text-muted); }
+    .pagination button:disabled { opacity: 0.3; cursor: not-allowed; }
+    .page-info { font-size: 12px; color: var(--text-2); }
 
-    /* Config display */
+    /* ─── Config ─── */
     .config-display {
-      background: var(--bg-primary);
+      background: var(--bg-0);
       border: 1px solid var(--border);
       border-radius: var(--radius);
       padding: 16px;
-      font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
-      font-size: 13px;
-      color: var(--text-secondary);
-      white-space: pre-wrap;
-      word-break: break-all;
-      max-height: 600px;
-      overflow-y: auto;
+      font-family: var(--mono);
+      font-size: 12px; color: var(--text-1);
+      white-space: pre-wrap; word-break: break-all;
+      max-height: 600px; overflow-y: auto;
+      line-height: 1.7;
     }
 
-    /* Metric value */
-    .metric-value {
-      font-size: 24px;
-      font-weight: 600;
-      color: var(--text-primary);
-    }
+    /* ─── Mono ─── */
+    .mono { font-family: var(--mono); font-size: 12px; }
 
-    .metric-label {
-      font-size: 12px;
-      color: var(--text-muted);
-      margin-top: 4px;
-    }
-
-    /* File list for memory */
-    .file-list {
-      max-height: 400px;
-      overflow-y: auto;
-    }
+    /* ─── Files ─── */
+    .file-list { max-height: 400px; overflow-y: auto; }
 
     .file-item {
-      display: flex;
-      justify-content: space-between;
-      padding: 8px 12px;
+      display: flex; justify-content: space-between;
+      align-items: center;
+      padding: 7px 12px;
       border-bottom: 1px solid var(--border);
-      font-size: 13px;
+      font-size: 12px;
     }
 
-    .file-item:hover { background: var(--bg-hover); }
-    .file-path { color: var(--text-primary); font-family: monospace; }
-    .file-size { color: var(--text-muted); }
+    .file-item:last-child { border-bottom: none; }
+    .file-item:hover { background: rgba(255,255,255,0.015); }
+    .file-path { color: var(--text-0); font-family: var(--mono); }
+    .file-size { color: var(--text-2); font-family: var(--mono); }
+
+    /* ─── Buttons ─── */
+    .btn {
+      padding: 5px 12px; border-radius: var(--radius-sm);
+      font-size: 11px; font-family: var(--font); font-weight: 500;
+      cursor: pointer; border: none;
+      transition: all 150ms;
+    }
+
+    .btn-primary { background: var(--brand); color: #fff; }
+    .btn-primary:hover { filter: brightness(1.1); }
+    .btn-ghost {
+      background: transparent; color: var(--text-1);
+      border: 1px solid var(--border);
+    }
+    .btn-ghost:hover { border-color: var(--text-2); color: var(--text-0); }
+
+    /* ─── Disease Detail Row ─── */
+    .disease-row { cursor: pointer; }
+    .disease-row:hover td { background: rgba(232,115,74,0.03); }
+    .disease-row td:first-child { position: relative; padding-left: 24px; }
+    .disease-row td:first-child::before {
+      content: '\25B8'; position: absolute; left: 10px; top: 50%;
+      transform: translateY(-50%); color: var(--text-2); font-size: 10px;
+      transition: transform 150ms;
+    }
+    .disease-row.expanded td:first-child::before { transform: translateY(-50%) rotate(90deg); }
+
+    .disease-detail-row td {
+      padding: 0 !important; border-bottom: 1px solid var(--border);
+      background: var(--bg-3);
+    }
+
+    .disease-detail {
+      padding: 16px 20px;
+      animation: fadeUp 0.2s var(--ease);
+    }
+
+    .disease-detail-grid {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 12px 24px;
+    }
+
+    .detail-section { margin-bottom: 12px; }
+    .detail-section:last-child { margin-bottom: 0; }
+
+    .detail-label {
+      font-size: 9px; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.8px;
+      color: var(--text-2); margin-bottom: 4px;
+    }
+
+    .detail-value {
+      font-size: 12px; color: var(--text-1); line-height: 1.5;
+    }
+
+    .detail-tag {
+      display: inline-block; padding: 1px 6px; margin: 2px 2px 2px 0;
+      background: rgba(255,255,255,0.04); border-radius: 3px;
+      font-size: 10px; color: var(--text-2);
+      font-family: var(--mono);
+    }
+
+    .evidence-item {
+      padding: 8px 10px; margin-bottom: 6px;
+      background: rgba(255,255,255,0.02);
+      border-left: 2px solid var(--border-hover);
+      border-radius: 0 4px 4px 0;
+      font-size: 12px;
+    }
+
+    .evidence-item:last-child { margin-bottom: 0; }
+
+    .evidence-type {
+      font-size: 9px; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 0.5px; color: var(--text-2); margin-bottom: 2px;
+    }
+
+    .evidence-desc { color: var(--text-1); }
+
+    .evidence-values {
+      display: flex; gap: 12px; margin-top: 3px;
+      font-family: var(--mono); font-size: 11px; color: var(--text-2);
+    }
+
+    /* ─── Forms ─── */
+    .form-group { margin-bottom: 14px; }
+    .form-label {
+      display: block; font-size: 11px; font-weight: 500;
+      color: var(--text-1); margin-bottom: 4px;
+    }
+    .form-input {
+      width: 100%; padding: 8px 10px;
+      background: var(--bg-0); border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      font-family: var(--mono); font-size: 12px;
+      color: var(--text-0); outline: none;
+      transition: border-color 150ms;
+    }
+    .form-input:focus { border-color: var(--brand); }
+    .form-input::placeholder { color: var(--text-2); }
+    .form-select {
+      width: 100%; padding: 8px 10px;
+      background: var(--bg-0); border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      font-family: var(--font); font-size: 12px;
+      color: var(--text-0); outline: none; cursor: pointer;
+    }
+    .form-hint { font-size: 10px; color: var(--text-2); margin-top: 3px; }
+    .form-row { display: flex; gap: 12px; align-items: flex-end; }
+    .form-row > * { flex: 1; }
+
+    .status-dot {
+      display: inline-block; width: 8px; height: 8px;
+      border-radius: 50%; margin-right: 6px;
+      vertical-align: middle;
+    }
+    .status-dot.green { background: var(--grade-a); box-shadow: 0 0 4px var(--grade-a); }
+    .status-dot.red { background: var(--sev-critical); }
+    .status-dot.yellow { background: var(--sev-warning); }
+    .status-dot.gray { background: var(--text-2); }
+
+    .openclaw-hint {
+      padding: 10px 12px; margin-bottom: 14px;
+      background: rgba(232,115,74,0.06);
+      border: 1px solid rgba(232,115,74,0.15);
+      border-radius: var(--radius);
+      font-size: 12px; color: var(--text-1);
+    }
+    .openclaw-hint strong { color: var(--brand); }
+
+    /* ─── Overlay ─── */
+    .overlay {
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(6,8,16,0.82);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 100; backdrop-filter: blur(4px);
+    }
+
+    .overlay.hidden { display: none; }
+
+    .overlay-content { text-align: center; }
+
+    .overlay-spinner {
+      width: 40px; height: 40px;
+      border: 3px solid var(--border-hover);
+      border-top-color: var(--brand);
+      border-radius: 50%; animation: spin 1s linear infinite;
+      margin: 0 auto 16px;
+    }
+
+    .overlay-text { font-size: 14px; font-weight: 500; color: var(--text-0); }
+    .overlay-subtext { font-size: 12px; color: var(--text-2); margin-top: 4px; }
+
+    /* ─── Toast ─── */
+    .toast-container {
+      position: fixed; bottom: 24px; right: 24px;
+      z-index: 200; display: flex; flex-direction: column; gap: 8px;
+    }
+
+    .toast {
+      padding: 10px 16px;
+      background: var(--bg-3); border: 1px solid var(--border);
+      border-radius: var(--radius);
+      font-size: 13px; color: var(--text-0);
+      animation: toastIn 0.25s var(--ease);
+      max-width: 340px;
+    }
+
+    .toast.success { border-left: 3px solid var(--grade-a); }
+    .toast.error { border-left: 3px solid var(--sev-critical); }
+
+    @keyframes toastIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ─── Scrollbar ─── */
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border-hover); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--text-2); }
   </style>
 </head>
 <body>
   <div id="app">
-    <nav class="sidebar">
-      <div class="sidebar-logo">
-        <h1>ClawDoctor</h1>
-        <div class="subtitle">Agent Health Monitor</div>
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="logo">
+          <div class="logo-mark">&#129438;</div>
+          <span class="logo-text">ClawDoctor</span>
+        </div>
+        <div class="sidebar-tagline">Agent Health Diagnostics</div>
       </div>
-      <a class="nav-item" href="#/overview" data-route="/overview">
-        <span class="nav-icon">&#9764;</span><span>Overview</span>
-      </a>
-      <a class="nav-item" href="#/skills" data-route="/skills">
-        <span class="nav-icon">&#9881;</span><span>Skills</span>
-      </a>
-      <a class="nav-item" href="#/memory" data-route="/memory">
-        <span class="nav-icon">&#9998;</span><span>Memory</span>
-      </a>
-      <a class="nav-item" href="#/behavior" data-route="/behavior">
-        <span class="nav-icon">&#9654;</span><span>Behavior</span>
-      </a>
-      <a class="nav-item" href="#/cost" data-route="/cost">
-        <span class="nav-icon">&#9733;</span><span>Cost</span>
-      </a>
-      <a class="nav-item" href="#/security" data-route="/security">
-        <span class="nav-icon">&#9888;</span><span>Security</span>
-      </a>
-      <a class="nav-item" href="#/rx" data-route="/rx">
-        <span class="nav-icon">&#8478;</span><span>Prescriptions</span>
-      </a>
-      <a class="nav-item" href="#/timeline" data-route="/timeline">
-        <span class="nav-icon">&#8986;</span><span>Timeline</span>
-      </a>
-      <a class="nav-item" href="#/settings" data-route="/settings">
-        <span class="nav-icon">&#9881;</span><span>Settings</span>
-      </a>
-    </nav>
+      <button class="run-checkup-btn" id="run-checkup" onclick="doCheckup()">
+        <span>Run Checkup</span>
+      </button>
+      <nav class="nav">
+        <div class="nav-section">Dashboard</div>
+        <a class="nav-item" href="#/overview" data-route="/overview">Overview</a>
+        <div class="nav-section">Departments</div>
+        <a class="nav-item" href="#/vitals" data-route="/vitals">System Vitals</a>
+        <a class="nav-item" href="#/skills" data-route="/skills">Skills &amp; Tools</a>
+        <a class="nav-item" href="#/memory" data-route="/memory">Memory</a>
+        <a class="nav-item" href="#/behavior" data-route="/behavior">Behavior</a>
+        <a class="nav-item" href="#/cost" data-route="/cost">Cost</a>
+        <a class="nav-item" href="#/security" data-route="/security">Security</a>
+        <div class="nav-section">Tools</div>
+        <a class="nav-item" href="#/rx" data-route="/rx">Prescriptions</a>
+        <a class="nav-item" href="#/timeline" data-route="/timeline">Timeline</a>
+        <a class="nav-item" href="#/settings" data-route="/settings">Settings</a>
+      </nav>
+      <div class="sidebar-footer">ClawDoctor v0.1.0</div>
+    </aside>
     <main class="main" id="main-content">
       <div class="loading">Loading</div>
     </main>
   </div>
 
+  <div id="checkup-overlay" class="overlay hidden">
+    <div class="overlay-content">
+      <div class="overlay-spinner"></div>
+      <div class="overlay-text">Running health checkup</div>
+      <div class="overlay-subtext">Analyzing your agent's health...</div>
+    </div>
+  </div>
+
+  <div class="toast-container" id="toasts"></div>
+
   <script>
-    // ===================================================
-    //  ClawDoctor SPA — Vanilla JS, hash-based routing
-    // ===================================================
+    // ═══════════════════════════════════════════════
+    //  ClawDoctor Dashboard SPA
+    // ═══════════════════════════════════════════════
 
     const TOKEN = window.__CLAWDOCTOR_TOKEN__ || '';
+    const MAIN = document.getElementById('main-content');
 
-    // --- API helper ---
+    const DEPT_LABELS = {
+      vitals: 'System Vitals', skill: 'Skills & Tools',
+      memory: 'Memory Cognition', behavior: 'Agent Behavior',
+      cost: 'Cost Metabolism', security: 'Security Immunity',
+    };
+
+    const DEPT_ROUTES = {
+      vitals: '/vitals', skill: '/skills', memory: '/memory',
+      behavior: '/behavior', cost: '/cost', security: '/security',
+    };
+
+    // ─── API ───
+
     async function api(path, opts = {}) {
       const headers = { 'Content-Type': 'application/json' };
       if (TOKEN) headers['Authorization'] = 'Bearer ' + TOKEN;
@@ -408,62 +677,344 @@
       return res.json();
     }
 
-    // --- Utility ---
+    // ─── DOM Helpers ───
+
     function el(tag, attrs, ...children) {
       const e = document.createElement(tag);
       if (attrs) Object.entries(attrs).forEach(([k, v]) => {
         if (k === 'class') e.className = v;
-        else if (k.startsWith('on')) e.addEventListener(k.slice(2).toLowerCase(), v);
         else if (k === 'html') e.innerHTML = v;
-        else e.setAttribute(k, v);
+        else if (k.startsWith('on')) e.addEventListener(k.slice(2).toLowerCase(), v);
+        else e.setAttribute(k, String(v));
       });
-      children.forEach(c => {
-        if (typeof c === 'string') e.appendChild(document.createTextNode(c));
-        else if (c) e.appendChild(c);
+      children.flat().forEach(c => {
+        if (c == null) return;
+        if (typeof c === 'string' || typeof c === 'number')
+          e.appendChild(document.createTextNode(String(c)));
+        else e.appendChild(c);
       });
       return e;
     }
 
-    function severityBadge(severity) {
-      return el('span', { class: 'severity severity-' + severity }, severity);
+    // ─── Utilities ───
+
+    function scoreToGrade(s) {
+      if (s == null) return 'N/A';
+      if (s >= 90) return 'A'; if (s >= 70) return 'B';
+      if (s >= 50) return 'C'; if (s >= 25) return 'D'; return 'F';
     }
 
-    function statusBadge(status) {
-      return el('span', { class: 'status status-' + status }, status);
+    function gradeClass(g) { return 'grade-' + (g === 'N/A' ? 'NA' : g); }
+
+    function scoreColor(s) {
+      if (s == null) return '#5c6478';
+      if (s >= 90) return '#10b981'; if (s >= 70) return '#34d399';
+      if (s >= 50) return '#fbbf24'; if (s >= 25) return '#f97316'; return '#ef4444';
     }
 
-    function gradeClass(grade) {
-      if (!grade || grade === 'N/A') return 'grade-NA';
-      return 'grade-' + grade;
+    function formatBytes(b) {
+      if (!b) return '0 B';
+      if (b < 1024) return b + ' B';
+      if (b < 1048576) return (b / 1024).toFixed(1) + ' KB';
+      return (b / 1048576).toFixed(1) + ' MB';
     }
 
-    function scoreToGrade(score) {
-      if (score === null || score === undefined) return 'N/A';
-      if (score >= 90) return 'A';
-      if (score >= 70) return 'B';
-      if (score >= 50) return 'C';
-      if (score >= 25) return 'D';
-      return 'F';
+    function fmtNum(n) {
+      if (n == null) return '\u2014';
+      if (typeof n === 'number') return Number.isInteger(n) ? n.toLocaleString() : n.toFixed(2);
+      return String(n);
     }
 
-    function formatBytes(bytes) {
-      if (bytes < 1024) return bytes + ' B';
-      if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-      return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+    function fmtPct(n) { return n == null ? '\u2014' : (n * 100).toFixed(0) + '%'; }
+
+    function fmtLabel(k) {
+      return k.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase())
+        .replace(/ Ms$/, ' (ms)').replace(/ Bytes$/, ' (bytes)').trim();
     }
 
-    function scoreColor(score) {
-      if (score === null || score === undefined) return 'var(--text-muted)';
-      if (score >= 90) return 'var(--grade-a)';
-      if (score >= 70) return 'var(--grade-b)';
-      if (score >= 50) return 'var(--grade-c)';
-      if (score >= 25) return 'var(--grade-d)';
-      return 'var(--grade-f)';
+    function sevBadge(s) { return el('span', { class: 'badge badge-' + s }, s); }
+    function statusBadge(s) { return el('span', { class: 'badge badge-' + s }, s); }
+
+    // i18n: resolve I18nString to display string (prefer en)
+    function t(i18n) {
+      if (!i18n) return '';
+      if (typeof i18n === 'string') return i18n;
+      return i18n.en || i18n.zh || Object.values(i18n)[0] || '';
     }
 
-    const MAIN = document.getElementById('main-content');
+    // Disease name from enriched response
+    function diseaseName(d) {
+      if (d.definition && d.definition.name) return t(d.definition.name);
+      return d.definitionId;
+    }
 
-    // --- Pages ---
+    // Build expandable disease detail row
+    function buildDiseaseDetail(d) {
+      const detail = el('div', { class: 'disease-detail' });
+      const grid = el('div', { class: 'disease-detail-grid' });
+
+      // Left column: description + root causes
+      const left = el('div');
+
+      if (d.definition && d.definition.description) {
+        const sec = el('div', { class: 'detail-section' });
+        sec.appendChild(el('div', { class: 'detail-label' }, 'Description'));
+        sec.appendChild(el('div', { class: 'detail-value' }, t(d.definition.description)));
+        left.appendChild(sec);
+      }
+
+      if (d.definition && d.definition.rootCauses && d.definition.rootCauses.length > 0) {
+        const sec = el('div', { class: 'detail-section' });
+        sec.appendChild(el('div', { class: 'detail-label' }, 'Possible Root Causes'));
+        const list = el('div', { class: 'detail-value' });
+        d.definition.rootCauses.forEach(rc => {
+          list.appendChild(el('div', { style: 'margin-bottom:2px' }, '\u2022 ' + t(rc)));
+        });
+        sec.appendChild(list);
+        left.appendChild(sec);
+      }
+
+      grid.appendChild(left);
+
+      // Right column: evidence + metadata
+      const right = el('div');
+
+      if (d.evidence && d.evidence.length > 0) {
+        const sec = el('div', { class: 'detail-section' });
+        sec.appendChild(el('div', { class: 'detail-label' }, 'Evidence (' + d.evidence.length + ')'));
+        d.evidence.forEach(ev => {
+          const item = el('div', { class: 'evidence-item' });
+          item.appendChild(el('div', { class: 'evidence-type' }, ev.type));
+          item.appendChild(el('div', { class: 'evidence-desc' }, t(ev.description)));
+          if (ev.value != null || ev.threshold != null) {
+            const vals = el('div', { class: 'evidence-values' });
+            if (ev.value != null) vals.appendChild(el('span', {}, 'value: ' + ev.value));
+            if (ev.threshold != null) vals.appendChild(el('span', {}, 'threshold: ' + ev.threshold));
+            if (ev.confidence != null) vals.appendChild(el('span', {}, 'conf: ' + fmtPct(ev.confidence)));
+            item.appendChild(vals);
+          }
+          sec.appendChild(item);
+        });
+        right.appendChild(sec);
+      }
+
+      // Metadata row
+      const metaSec = el('div', { class: 'detail-section' });
+      metaSec.appendChild(el('div', { class: 'detail-label' }, 'Metadata'));
+      const metaVal = el('div', { class: 'detail-value' });
+      if (d.definition) {
+        if (d.definition.department) metaVal.appendChild(el('span', { class: 'detail-tag' }, d.definition.department));
+        if (d.definition.category) metaVal.appendChild(el('span', { class: 'detail-tag' }, d.definition.category));
+        if (d.definition.prescriptionTemplate) {
+          metaVal.appendChild(el('span', { class: 'detail-tag' }, 'rx: ' + d.definition.prescriptionTemplate.level));
+          metaVal.appendChild(el('span', { class: 'detail-tag' }, 'risk: ' + d.definition.prescriptionTemplate.risk));
+        }
+        if (d.definition.tags) d.definition.tags.forEach(tag => metaVal.appendChild(el('span', { class: 'detail-tag' }, tag)));
+      }
+      // Time info
+      const timeInfo = el('div', { style: 'margin-top:6px;font-size:11px;color:var(--text-2);line-height:1.6' });
+      if (d.context && d.context.dataTimeRange) {
+        const r = d.context.dataTimeRange;
+        timeInfo.appendChild(el('div', {},
+          'Data period: ' + new Date(r.from).toLocaleDateString() + ' \u2013 ' + new Date(r.to).toLocaleDateString()
+        ));
+      }
+      if (d.firstDetectedAt) timeInfo.appendChild(el('div', {}, 'Detected: ' + new Date(d.firstDetectedAt).toLocaleString()));
+      if (d.lastSeenAt && d.lastSeenAt !== d.firstDetectedAt) timeInfo.appendChild(el('div', {}, 'Last seen: ' + new Date(d.lastSeenAt).toLocaleString()));
+      metaVal.appendChild(timeInfo);
+      metaSec.appendChild(metaVal);
+      right.appendChild(metaSec);
+
+      grid.appendChild(right);
+      detail.appendChild(grid);
+
+      // Action bar: Generate Rx button
+      if (d.id && d.status === 'active') {
+        const actionBar = el('div', { style: 'margin-top:14px;padding-top:12px;border-top:1px solid var(--border);display:flex;gap:8px;align-items:center' });
+        const rxBtn = el('button', { class: 'btn btn-primary', style: 'font-size:12px' }, 'Generate Prescription');
+        const rxStatus = el('span', { style: 'font-size:12px;color:var(--text-2)' });
+        rxBtn.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          rxBtn.disabled = true;
+          rxBtn.textContent = 'Generating\u2026';
+          rxStatus.textContent = '';
+          try {
+            const rx = await api('/api/diseases/' + d.id + '/prescribe', { method: 'POST' });
+            rxBtn.textContent = 'Generated';
+            rxBtn.classList.remove('btn-primary');
+            rxBtn.classList.add('btn-ghost');
+            rxStatus.textContent = rx.id ? 'Rx ' + rx.id.slice(0, 8) + ' created' : 'Done';
+            rxStatus.style.color = 'var(--grade-a)';
+            toast('Prescription generated for ' + d.definitionId, 'success');
+          } catch (err) {
+            rxBtn.textContent = 'Generate Prescription';
+            rxBtn.disabled = false;
+            rxStatus.textContent = err.message || 'Failed';
+            rxStatus.style.color = 'var(--sev-critical)';
+            toast('Failed: ' + (err.message || 'unknown error'), 'error');
+          }
+        });
+        actionBar.appendChild(rxBtn);
+        actionBar.appendChild(rxStatus);
+        const rxNote = el('a', { href: '#/settings', style: 'margin-left:auto;font-size:10px;color:var(--text-2);cursor:pointer', onClick: function(e) { e.stopPropagation(); navigate('/settings'); } }, 'Configure LLM \u2192');
+        actionBar.appendChild(rxNote);
+        detail.appendChild(actionBar);
+      }
+
+      return detail;
+    }
+
+    // Format data time range for table column
+    function fmtPeriod(d) {
+      if (d.context && d.context.dataTimeRange) {
+        var r = d.context.dataTimeRange;
+        return new Date(r.from).toLocaleDateString() + ' \u2013 ' + new Date(r.to).toLocaleDateString();
+      }
+      if (d.firstDetectedAt) return new Date(d.firstDetectedAt).toLocaleDateString();
+      return '\u2014';
+    }
+
+    // Build a disease table with expandable rows
+    function buildDiseaseTable(diseases, opts) {
+      opts = opts || {};
+      const showId = opts.showId !== false;
+      const t_el = el('table', { class: 'table' });
+      const headers = [];
+      if (showId) headers.push(el('th', {}, 'ID'));
+      headers.push(el('th', {}, 'Disease'), el('th', {}, 'Period'), el('th', {}, 'Severity'), el('th', {}, 'Confidence'), el('th', {}, 'Status'));
+      t_el.appendChild(el('thead', {}, el('tr', {}, ...headers)));
+
+      const tb = el('tbody');
+      diseases.forEach(d => {
+        const cells = [];
+        if (showId) cells.push(el('td', { class: 'mono' }, d.id ? d.id.slice(0, 8) : ''));
+        cells.push(
+          el('td', {},
+            el('div', { style: 'font-weight:500' }, diseaseName(d)),
+            el('div', { class: 'mono', style: 'font-size:10px;color:var(--text-2);margin-top:1px' }, d.definitionId)
+          ),
+          el('td', { style: 'font-size:12px;color:var(--text-2);white-space:nowrap' }, fmtPeriod(d)),
+          el('td', {}, sevBadge(d.severity)),
+          el('td', {}, fmtPct(d.confidence)),
+          el('td', {}, statusBadge(d.status))
+        );
+
+        const row = el('tr', { class: 'disease-row' }, ...cells);
+        const detailRow = el('tr', { class: 'disease-detail-row', style: 'display:none' });
+        const colspan = (showId ? 6 : 5);
+        const detailTd = el('td', { colspan: String(colspan) });
+        detailTd.appendChild(buildDiseaseDetail(d));
+        detailRow.appendChild(detailTd);
+
+        row.addEventListener('click', () => {
+          const isExpanded = row.classList.toggle('expanded');
+          detailRow.style.display = isExpanded ? '' : 'none';
+        });
+
+        tb.appendChild(row);
+        tb.appendChild(detailRow);
+      });
+
+      t_el.appendChild(tb);
+      return t_el;
+    }
+
+    // ─── SVG Gauge ───
+
+    function renderGauge(score, size) {
+      size = size || 160;
+      const cx = size / 2, cy = size / 2;
+      const r = (size - 24) / 2;
+      const circ = 2 * Math.PI * r;
+      const arc = circ * 0.75, gap = circ * 0.25;
+      const pct = score == null ? 0 : Math.max(0, Math.min(100, score)) / 100;
+      const off = arc * (1 - pct);
+      const color = scoreColor(score);
+      const grade = scoreToGrade(score);
+      const txt = score != null ? Math.round(score) : '\u2014';
+      const fs = size > 100 ? 36 : 16;
+      const gs = size > 100 ? 13 : 9;
+      const ty = size > 100 ? 18 : 8;
+      return '<svg width="' + size + '" height="' + size + '" viewBox="0 0 ' + size + ' ' + size + '">'
+        + '<circle cx="' + cx + '" cy="' + cy + '" r="' + r + '" fill="none" stroke="rgba(255,255,255,0.04)" stroke-width="10" '
+        + 'stroke-dasharray="' + arc.toFixed(2) + ' ' + gap.toFixed(2) + '" transform="rotate(135 ' + cx + ' ' + cy + ')" stroke-linecap="round"/>'
+        + '<circle cx="' + cx + '" cy="' + cy + '" r="' + r + '" fill="none" stroke="' + color + '" stroke-width="10" '
+        + 'stroke-dasharray="' + arc.toFixed(2) + ' ' + gap.toFixed(2) + '" stroke-dashoffset="' + off.toFixed(2) + '" '
+        + 'transform="rotate(135 ' + cx + ' ' + cy + ')" stroke-linecap="round" class="gauge-fill"/>'
+        + '<text x="' + cx + '" y="' + (cy - 6) + '" text-anchor="middle" fill="' + color + '" font-size="' + fs + '" font-weight="700" font-family="Outfit,sans-serif">' + txt + '</text>'
+        + '<text x="' + cx + '" y="' + (cy + ty) + '" text-anchor="middle" fill="#5c6478" font-size="' + gs + '" font-family="Outfit,sans-serif">' + grade + '</text>'
+        + '</svg>';
+    }
+
+    // ─── Toast ───
+
+    function toast(msg, type) {
+      const t = el('div', { class: 'toast ' + (type || '') }, msg);
+      document.getElementById('toasts').appendChild(t);
+      setTimeout(() => t.remove(), 5000);
+    }
+
+    // ─── Run Checkup ───
+
+    let checkupPollTimer = null;
+
+    function pollCheckupStatus() {
+      checkupPollTimer = setInterval(async () => {
+        try {
+          const s = await api('/api/checkup/status');
+          if (s.status === 'completed') {
+            clearInterval(checkupPollTimer); checkupPollTimer = null;
+            endCheckupUI();
+            toast('Checkup completed', 'success');
+            onHashChange();
+          } else if (s.status === 'error') {
+            clearInterval(checkupPollTimer); checkupPollTimer = null;
+            endCheckupUI();
+            toast('Checkup failed: ' + (s.error || 'unknown'), 'error');
+          }
+        } catch (_) { /* ignore poll errors */ }
+      }, 1000);
+    }
+
+    function endCheckupUI() {
+      document.getElementById('checkup-overlay').classList.add('hidden');
+      const btn = document.getElementById('run-checkup');
+      btn.classList.remove('running');
+      btn.innerHTML = '<span>Run Checkup</span>';
+    }
+
+    async function doCheckup() {
+      const btn = document.getElementById('run-checkup');
+      btn.classList.add('running');
+      btn.innerHTML = '<span>Running\u2026</span>';
+      document.getElementById('checkup-overlay').classList.remove('hidden');
+
+      try {
+        await api('/api/checkup', { method: 'POST', body: JSON.stringify({ noLlm: true }) });
+        pollCheckupStatus();
+      } catch (err) {
+        endCheckupUI();
+        if (err.status === 409) toast('Checkup already in progress', 'error');
+        else toast('Failed to start: ' + err.message, 'error');
+      }
+    }
+
+    // On init, resume polling if checkup is already running
+    api('/api/checkup/status').then(s => {
+      if (s.status === 'running') {
+        const btn = document.getElementById('run-checkup');
+        btn.classList.add('running');
+        btn.innerHTML = '<span>Running\u2026</span>';
+        document.getElementById('checkup-overlay').classList.remove('hidden');
+        pollCheckupStatus();
+      }
+    }).catch(() => {});
+
+    // ═══════════════════════════════════════════════
+    //  Pages
+    // ═══════════════════════════════════════════════
+
+    // ─── Overview ───
 
     async function renderOverview() {
       MAIN.innerHTML = '<div class="loading">Loading</div>';
@@ -474,459 +1025,636 @@
           api('/api/trends').catch(() => []),
         ]);
 
-        const frag = document.createDocumentFragment();
-        frag.appendChild(el('h2', { class: 'page-title' }, 'Overview'));
+        const f = document.createDocumentFragment();
+        f.appendChild(el('div', { class: 'page-header' },
+          el('h2', { class: 'page-title' }, 'Health Overview'),
+          el('div', { class: 'page-subtitle' }, 'Agent diagnostics summary')
+        ));
 
-        // Health score card
-        const scoreCard = el('div', { class: 'card' });
-        scoreCard.appendChild(el('div', { class: 'card-title' }, 'HEALTH SCORE'));
+        // Gauge card
+        const sc = el('div', { class: 'card' });
         if (health && health.overall !== undefined) {
-          const overall = typeof health.overall === 'number' ? health.overall : null;
-          const grade = health.overallGrade || scoreToGrade(overall);
-          const scoreRow = el('div', { style: 'display:flex;align-items:center;gap:16px' });
-          const scoreNum = el('span', { class: 'score-big' });
-          scoreNum.style.color = scoreColor(overall);
-          scoreNum.textContent = overall !== null ? Math.round(overall) : '--';
-          scoreRow.appendChild(scoreNum);
-          scoreRow.appendChild(el('span', { class: 'score-grade ' + gradeClass(grade) }, grade));
-          if (health.dataMode) {
-            scoreRow.appendChild(el('span', { style: 'color:var(--text-muted);font-size:12px;margin-left:8px' }, health.dataMode));
+          const ov = typeof health.overall === 'number' ? health.overall : null;
+          const gr = health.overallGrade || scoreToGrade(ov);
+          const gc = el('div', { class: 'gauge-container' });
+          gc.appendChild(el('div', { html: renderGauge(ov, 160) }));
+          const info = el('div', { class: 'gauge-info' });
+          const gEl = el('div', { class: 'gauge-grade' });
+          gEl.style.color = scoreColor(ov);
+          gEl.textContent = gr === 'N/A' ? 'No Data' : 'Grade ' + gr;
+          info.appendChild(gEl);
+          const meta = el('div', { class: 'gauge-meta' });
+          if (health.dataMode) meta.appendChild(el('span', {}, 'Mode: ' + health.dataMode));
+          if (health.coverage) {
+            const r = health.coverage.ratio != null ? health.coverage.ratio : health.coverage;
+            meta.appendChild(el('span', {}, 'Coverage: ' + (typeof r === 'number' ? (r * 100).toFixed(0) + '%' : '\u2014')));
           }
-          scoreCard.appendChild(scoreRow);
+          info.appendChild(meta);
+          gc.appendChild(info);
+          sc.appendChild(gc);
         } else {
-          scoreCard.appendChild(el('div', { class: 'empty' }, 'No health score data available'));
+          sc.appendChild(el('div', { class: 'empty' }, 'No health data yet. Run a checkup to get started.'));
         }
-        frag.appendChild(scoreCard);
+        f.appendChild(sc);
 
         // Department grid
         const depts = ['vitals', 'skill', 'memory', 'behavior', 'cost', 'security'];
-        const deptGrid = el('div', { class: 'grid grid-6' });
-        depts.forEach(dept => {
-          const card = el('div', { class: 'card dept-card', onClick: () => navigate('/'+dept.replace('vitals','overview')) });
-          card.appendChild(el('div', { class: 'dept-name' }, dept));
-          let deptScore = null;
-          if (health && health.departments && health.departments[dept]) {
-            deptScore = health.departments[dept].score;
-          } else if (health && health[dept] !== undefined) {
-            deptScore = health[dept];
+        const dg = el('div', { class: 'grid grid-6' });
+        depts.forEach(d => {
+          let ds = null, dGr = 'N/A', ev = 0, ac = 0;
+          if (health && health.departments && health.departments[d]) {
+            const dd = health.departments[d];
+            ds = dd.score; dGr = dd.grade || scoreToGrade(dd.score);
+            ev = dd.evaluatedDiseases || 0; ac = dd.activeDiseases || 0;
           }
-          const scoreEl = el('div', { class: 'dept-score' });
-          scoreEl.style.color = scoreColor(deptScore);
-          scoreEl.textContent = deptScore !== null && deptScore !== undefined ? Math.round(deptScore) : '--';
-          card.appendChild(scoreEl);
-          const grade = scoreToGrade(deptScore);
-          card.appendChild(el('span', { class: 'score-grade ' + gradeClass(grade), style: 'font-size:12px' }, grade));
-          deptGrid.appendChild(card);
+          const card = el('div', { class: 'card dept-card', onClick: () => navigate(DEPT_ROUTES[d]) });
+          card.appendChild(el('div', { class: 'dept-name' }, DEPT_LABELS[d]));
+          const sEl = el('div', { class: 'dept-score' });
+          sEl.style.color = scoreColor(ds);
+          sEl.textContent = ds != null ? Math.round(ds) : '\u2014';
+          card.appendChild(sEl);
+          card.appendChild(el('span', { class: 'dept-grade ' + gradeClass(dGr) }, dGr));
+          if (ac > 0)
+            card.appendChild(el('div', { class: 'dept-detail', style: 'color:var(--sev-warning)' }, ac + ' active issue' + (ac > 1 ? 's' : '')));
+          else
+            card.appendChild(el('div', { class: 'dept-detail' }, ev + ' checked'));
+          dg.appendChild(card);
         });
-        frag.appendChild(deptGrid);
+        f.appendChild(dg);
 
         // Active diseases
-        if (diseases.length > 0) {
-          const diseaseCard = el('div', { class: 'card' });
-          diseaseCard.appendChild(el('div', { class: 'card-title' }, 'ACTIVE DIAGNOSES (' + diseases.filter(d=>d.status==='active').length + ')'));
-          const table = el('table', { class: 'table' });
-          table.appendChild(el('thead', {}, el('tr', {},
-            el('th', {}, 'Disease'), el('th', {}, 'Severity'), el('th', {}, 'Confidence'), el('th', {}, 'Status')
-          )));
-          const tbody = el('tbody');
-          diseases.slice(0, 10).forEach(d => {
-            tbody.appendChild(el('tr', {},
-              el('td', {}, d.definitionId),
-              el('td', {}, severityBadge(d.severity)),
-              el('td', {}, (d.confidence * 100).toFixed(0) + '%'),
-              el('td', {}, statusBadge(d.status))
-            ));
-          });
-          table.appendChild(tbody);
-          diseaseCard.appendChild(table);
-          frag.appendChild(diseaseCard);
+        const active = diseases.filter(d => d.status === 'active');
+        if (active.length > 0) {
+          const dc = el('div', { class: 'card' });
+          dc.appendChild(el('div', { class: 'card-title' }, 'Active Issues (' + active.length + ')'));
+          dc.appendChild(buildDiseaseTable(active.slice(0, 12), { showId: false }));
+          if (active.length > 12)
+            dc.appendChild(el('div', { style: 'text-align:center;padding:8px;color:var(--text-2);font-size:11px' }, '+ ' + (active.length - 12) + ' more'));
+          f.appendChild(dc);
         }
 
         // Trend chart
         if (trends.length > 1) {
-          const chartCard = el('div', { class: 'card' });
-          chartCard.appendChild(el('div', { class: 'card-title' }, 'HEALTH TREND'));
-          const chartDiv = el('div', { class: 'chart-container' });
-          const canvas = el('canvas');
-          chartDiv.appendChild(canvas);
-          chartCard.appendChild(chartDiv);
-          frag.appendChild(chartCard);
-
-          MAIN.innerHTML = '';
-          MAIN.appendChild(frag);
-
+          const cc = el('div', { class: 'card' });
+          cc.appendChild(el('div', { class: 'card-title' }, 'Health Trend'));
+          const cd = el('div', { class: 'chart-container' });
+          const cv = el('canvas'); cd.appendChild(cv); cc.appendChild(cd);
+          f.appendChild(cc);
+          MAIN.innerHTML = ''; MAIN.appendChild(f);
           if (typeof Chart !== 'undefined') {
-            new Chart(canvas, {
+            new Chart(cv, {
               type: 'line',
               data: {
                 labels: trends.map(t => new Date(t.timestamp).toLocaleDateString()),
                 datasets: [{
-                  label: 'Overall Score',
-                  data: trends.map(t => t.overall),
-                  borderColor: '#E8734A',
-                  backgroundColor: 'rgba(232, 115, 74, 0.1)',
-                  fill: true,
-                  tension: 0.3,
+                  label: 'Overall', data: trends.map(t => t.overall),
+                  borderColor: '#E8734A', backgroundColor: 'rgba(232,115,74,0.06)',
+                  fill: true, tension: 0.3, pointRadius: 3, pointBackgroundColor: '#E8734A',
                 }],
               },
               options: {
-                responsive: true,
-                maintainAspectRatio: false,
+                responsive: true, maintainAspectRatio: false,
                 scales: {
-                  y: { min: 0, max: 100, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#9da3b4' } },
-                  x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#9da3b4' } },
+                  y: { min: 0, max: 100, grid: { color: 'rgba(255,255,255,0.03)' }, ticks: { color: '#5c6478', font: { family: 'Outfit' } } },
+                  x: { grid: { color: 'rgba(255,255,255,0.03)' }, ticks: { color: '#5c6478', font: { family: 'Outfit' } } },
                 },
-                plugins: { legend: { labels: { color: '#e8eaf0' } } },
+                plugins: { legend: { labels: { color: '#9ea4b4', font: { family: 'Outfit' } } } },
               },
             });
           }
         } else {
-          MAIN.innerHTML = '';
-          MAIN.appendChild(frag);
+          MAIN.innerHTML = ''; MAIN.appendChild(f);
         }
       } catch (err) {
-        MAIN.innerHTML = '<div class="empty">Failed to load overview: ' + err.message + '</div>';
+        MAIN.innerHTML = '<div class="empty">Failed to load: ' + err.message + '</div>';
       }
     }
+
+    // ─── Generic Department Page ───
 
     async function renderDeptPage(dept, title) {
       MAIN.innerHTML = '<div class="loading">Loading</div>';
       try {
-        const [metrics, diseases] = await Promise.all([
+        const [mr, diseases] = await Promise.all([
           api('/api/metrics/' + dept).catch(() => null),
           api('/api/diseases?dept=' + dept).catch(() => []),
         ]);
 
-        const frag = document.createDocumentFragment();
-        frag.appendChild(el('h2', { class: 'page-title' }, title));
+        const f = document.createDocumentFragment();
+        f.appendChild(el('div', { class: 'page-header' },
+          el('h2', { class: 'page-title' }, title),
+          el('div', { class: 'page-subtitle' }, diseases.length + ' diagnosis result' + (diseases.length !== 1 ? 's' : ''))
+        ));
 
-        // Metrics card
-        if (metrics && metrics.metrics) {
-          const metricsCard = el('div', { class: 'card' });
-          metricsCard.appendChild(el('div', { class: 'card-title' }, dept.toUpperCase() + ' METRICS'));
-          const metricGrid = el('div', { class: 'grid grid-3' });
-          Object.entries(metrics.metrics).forEach(([key, value]) => {
-            if (typeof value === 'number' || typeof value === 'string' || typeof value === 'boolean') {
-              const item = el('div', { style: 'padding:8px' });
-              const displayVal = typeof value === 'number' ?
-                (Number.isInteger(value) ? value : value.toFixed(2)) : String(value);
-              item.appendChild(el('div', { class: 'metric-value' }, String(displayVal)));
-              item.appendChild(el('div', { class: 'metric-label' }, key));
-              metricGrid.appendChild(item);
-            }
+        if (mr && mr.metrics) {
+          const mc = el('div', { class: 'card' });
+          mc.appendChild(el('div', { class: 'card-title' }, 'Key Metrics'));
+          const mg = el('div', { class: 'grid grid-3' });
+          Object.entries(mr.metrics).forEach(([k, v]) => {
+            if (v == null || typeof v === 'object') return;
+            const item = el('div', { class: 'metric' });
+            let dv;
+            if (typeof v === 'boolean') dv = v ? 'Yes' : 'No';
+            else if (typeof v === 'number') dv = (k.includes('Rate') || k.includes('ratio')) ? fmtPct(v) : fmtNum(v);
+            else dv = String(v);
+            item.appendChild(el('div', { class: 'metric-value' }, dv));
+            item.appendChild(el('div', { class: 'metric-label' }, fmtLabel(k)));
+            mg.appendChild(item);
           });
-          metricsCard.appendChild(metricGrid);
-          frag.appendChild(metricsCard);
+          mc.appendChild(mg); f.appendChild(mc);
         }
 
-        // Disease list
-        const diseaseCard = el('div', { class: 'card' });
-        diseaseCard.appendChild(el('div', { class: 'card-title' }, 'DIAGNOSES (' + diseases.length + ')'));
+        const dc = el('div', { class: 'card' });
+        dc.appendChild(el('div', { class: 'card-title' }, 'Diagnoses (' + diseases.length + ')'));
         if (diseases.length === 0) {
-          diseaseCard.appendChild(el('div', { class: 'empty' }, 'No diagnoses for this department'));
+          dc.appendChild(el('div', { class: 'empty' }, 'No issues detected'));
         } else {
-          const table = el('table', { class: 'table' });
-          table.appendChild(el('thead', {}, el('tr', {},
-            el('th', {}, 'ID'), el('th', {}, 'Disease'), el('th', {}, 'Severity'),
-            el('th', {}, 'Confidence'), el('th', {}, 'Status')
-          )));
-          const tbody = el('tbody');
-          diseases.forEach(d => {
-            tbody.appendChild(el('tr', {},
-              el('td', { style: 'font-family:monospace;font-size:12px' }, d.id.slice(0, 8)),
-              el('td', {}, d.definitionId),
-              el('td', {}, severityBadge(d.severity)),
-              el('td', {}, (d.confidence * 100).toFixed(0) + '%'),
-              el('td', {}, statusBadge(d.status))
-            ));
-          });
-          table.appendChild(tbody);
-          diseaseCard.appendChild(table);
+          dc.appendChild(buildDiseaseTable(diseases));
         }
-        frag.appendChild(diseaseCard);
-
-        MAIN.innerHTML = '';
-        MAIN.appendChild(frag);
+        f.appendChild(dc);
+        MAIN.innerHTML = ''; MAIN.appendChild(f);
       } catch (err) {
         MAIN.innerHTML = '<div class="empty">Failed to load ' + dept + ': ' + err.message + '</div>';
       }
     }
 
+    // ─── Skills Page ───
+
     async function renderSkills() {
       MAIN.innerHTML = '<div class="loading">Loading</div>';
       try {
-        const data = await api('/api/skills');
-        const frag = document.createDocumentFragment();
-        frag.appendChild(el('h2', { class: 'page-title' }, 'Skills & Plugins'));
+        const [data, mr, diseases] = await Promise.all([
+          api('/api/skills').catch(() => ({ plugins: [] })),
+          api('/api/metrics/skill').catch(() => null),
+          api('/api/diseases?dept=skill').catch(() => []),
+        ]);
 
-        const card = el('div', { class: 'card' });
-        card.appendChild(el('div', { class: 'card-title' }, 'PLUGINS'));
-
+        const f = document.createDocumentFragment();
         const plugins = data.plugins || [];
+        f.appendChild(el('div', { class: 'page-header' },
+          el('h2', { class: 'page-title' }, 'Skills & Tools'),
+          el('div', { class: 'page-subtitle' }, plugins.length + ' plugin' + (plugins.length !== 1 ? 's' : '') + ' registered')
+        ));
+
+        // Metrics
+        if (mr && mr.metrics) {
+          const m = mr.metrics;
+          const mc = el('div', { class: 'card' });
+          mc.appendChild(el('div', { class: 'card-title' }, 'Key Metrics'));
+          const mg = el('div', { class: 'grid grid-3' });
+          [
+            ['Tool Calls', fmtNum(m.toolCallCount)],
+            ['Success Rate', fmtPct(m.toolSuccessRate)],
+            ['Error Rate', fmtPct(m.toolErrorRate)],
+            ['Avg Duration', m.avgToolDurationMs != null ? Math.round(m.avgToolDurationMs) + 'ms' : '\u2014'],
+          ].forEach(([l, v]) => {
+            if (v === '\u2014') return;
+            const item = el('div', { class: 'metric' });
+            item.appendChild(el('div', { class: 'metric-value' }, v));
+            item.appendChild(el('div', { class: 'metric-label' }, l));
+            mg.appendChild(item);
+          });
+          mc.appendChild(mg); f.appendChild(mc);
+        }
+
+        // Plugins
+        const pc = el('div', { class: 'card' });
+        pc.appendChild(el('div', { class: 'card-title' }, 'Plugins'));
         if (plugins.length === 0) {
-          card.appendChild(el('div', { class: 'empty' }, 'No plugin data available'));
+          pc.appendChild(el('div', { class: 'empty' }, 'No plugin data'));
         } else {
-          const table = el('table', { class: 'table' });
-          table.appendChild(el('thead', {}, el('tr', {},
-            el('th', {}, 'Plugin'), el('th', {}, 'Source'), el('th', {}, 'Status'),
-            el('th', {}, 'Tools'), el('th', {}, 'Version')
+          const t = el('table', { class: 'table' });
+          t.appendChild(el('thead', {}, el('tr', {},
+            el('th', {}, 'Plugin'), el('th', {}, 'Source'), el('th', {}, 'Status'), el('th', {}, 'Tools'), el('th', {}, 'Version')
           )));
-          const tbody = el('tbody');
+          const tb = el('tbody');
           plugins.forEach(p => {
-            tbody.appendChild(el('tr', {},
-              el('td', {}, p.name || p.id),
+            tb.appendChild(el('tr', {},
+              el('td', { class: 'mono' }, p.name || p.id),
               el('td', {}, p.source),
-              el('td', {}, statusBadge(p.status)),
-              el('td', {}, (p.registeredTools || []).join(', ') || '-'),
-              el('td', {}, p.version || '-')
+              el('td', {}, el('span', { class: 'badge badge-' + p.status }, p.status)),
+              el('td', {}, String((p.registeredTools || []).length)),
+              el('td', { class: 'mono' }, p.version || '\u2014')
             ));
           });
-          table.appendChild(tbody);
-          card.appendChild(table);
+          t.appendChild(tb); pc.appendChild(t);
         }
-        frag.appendChild(card);
+        f.appendChild(pc);
 
-        MAIN.innerHTML = '';
-        MAIN.appendChild(frag);
+        // Diseases
+        if (diseases.length > 0) {
+          const dc = el('div', { class: 'card' });
+          dc.appendChild(el('div', { class: 'card-title' }, 'Diagnoses (' + diseases.length + ')'));
+          dc.appendChild(buildDiseaseTable(diseases, { showId: false }));
+          f.appendChild(dc);
+        }
+
+        MAIN.innerHTML = ''; MAIN.appendChild(f);
       } catch (err) {
         MAIN.innerHTML = '<div class="empty">Failed to load skills: ' + err.message + '</div>';
       }
     }
 
+    // ─── Memory Page ───
+
     async function renderMemory() {
       MAIN.innerHTML = '<div class="loading">Loading</div>';
       try {
-        const data = await api('/api/memory');
-        const frag = document.createDocumentFragment();
-        frag.appendChild(el('h2', { class: 'page-title' }, 'Memory'));
+        const [data, mr, diseases] = await Promise.all([
+          api('/api/memory').catch(() => ({ files: [], totalCount: 0, totalSizeBytes: 0 })),
+          api('/api/metrics/memory').catch(() => null),
+          api('/api/diseases?dept=memory').catch(() => []),
+        ]);
+
+        const f = document.createDocumentFragment();
+        f.appendChild(el('div', { class: 'page-header' },
+          el('h2', { class: 'page-title' }, 'Memory Cognition'),
+          el('div', { class: 'page-subtitle' }, (data.files || []).length + ' file' + ((data.files || []).length !== 1 ? 's' : '') + ' tracked')
+        ));
 
         // Summary
-        const summaryCard = el('div', { class: 'card' });
-        summaryCard.appendChild(el('div', { class: 'card-title' }, 'MEMORY SUMMARY'));
-        const sumGrid = el('div', { class: 'grid grid-3' });
-        sumGrid.appendChild(el('div', {},
-          el('div', { class: 'metric-value' }, String(data.totalCount || 0)),
-          el('div', { class: 'metric-label' }, 'Total Files')
-        ));
-        sumGrid.appendChild(el('div', {},
-          el('div', { class: 'metric-value' }, formatBytes(data.totalSizeBytes || 0)),
-          el('div', { class: 'metric-label' }, 'Total Size')
-        ));
-        sumGrid.appendChild(el('div', {},
-          el('div', { class: 'metric-value' }, String((data.files || []).length)),
-          el('div', { class: 'metric-label' }, 'Tracked Files')
-        ));
-        summaryCard.appendChild(sumGrid);
-        frag.appendChild(summaryCard);
+        const m = mr ? mr.metrics || {} : {};
+        const sc = el('div', { class: 'card' });
+        sc.appendChild(el('div', { class: 'card-title' }, 'Summary'));
+        const sg = el('div', { class: 'grid grid-3' });
+        [
+          ['Total Files', fmtNum(data.totalCount || m.fileCount || 0)],
+          ['Total Size', formatBytes(data.totalSizeBytes || m.totalSizeBytes || 0)],
+          ['Avg Age', m.avgAgeDays != null ? Math.round(m.avgAgeDays) + 'd' : '\u2014'],
+        ].forEach(([l, v]) => {
+          const item = el('div', { class: 'metric' });
+          item.appendChild(el('div', { class: 'metric-value' }, v));
+          item.appendChild(el('div', { class: 'metric-label' }, l));
+          sg.appendChild(item);
+        });
+        sc.appendChild(sg); f.appendChild(sc);
 
-        // File list
-        const fileCard = el('div', { class: 'card' });
-        fileCard.appendChild(el('div', { class: 'card-title' }, 'FILES'));
+        // Files
         const files = data.files || [];
-        if (files.length === 0) {
-          fileCard.appendChild(el('div', { class: 'empty' }, 'No memory files tracked'));
-        } else {
-          const fileList = el('div', { class: 'file-list' });
-          files.forEach(f => {
-            fileList.appendChild(el('div', { class: 'file-item' },
-              el('span', { class: 'file-path' }, f.path),
-              el('span', { class: 'file-size' }, formatBytes(f.sizeBytes))
+        if (files.length > 0) {
+          const fc = el('div', { class: 'card' });
+          fc.appendChild(el('div', { class: 'card-title' }, 'Files (' + files.length + ')'));
+          const fl = el('div', { class: 'file-list' });
+          files.forEach(file => {
+            fl.appendChild(el('div', { class: 'file-item' },
+              el('span', { class: 'file-path' }, file.path),
+              el('span', { class: 'file-size' }, formatBytes(file.sizeBytes))
             ));
           });
-          fileCard.appendChild(fileList);
+          fc.appendChild(fl); f.appendChild(fc);
         }
-        frag.appendChild(fileCard);
 
-        MAIN.innerHTML = '';
-        MAIN.appendChild(frag);
+        // Diseases
+        if (diseases.length > 0) {
+          const dc = el('div', { class: 'card' });
+          dc.appendChild(el('div', { class: 'card-title' }, 'Diagnoses (' + diseases.length + ')'));
+          dc.appendChild(buildDiseaseTable(diseases, { showId: false }));
+          f.appendChild(dc);
+        }
+
+        MAIN.innerHTML = ''; MAIN.appendChild(f);
       } catch (err) {
         MAIN.innerHTML = '<div class="empty">Failed to load memory: ' + err.message + '</div>';
       }
     }
 
+    // ─── Prescriptions Page ───
+
     async function renderRx() {
       MAIN.innerHTML = '<div class="loading">Loading</div>';
       try {
         const prescriptions = await api('/api/prescriptions');
-        const frag = document.createDocumentFragment();
-        frag.appendChild(el('h2', { class: 'page-title' }, 'Prescriptions'));
+        const f = document.createDocumentFragment();
+        f.appendChild(el('div', { class: 'page-header' },
+          el('h2', { class: 'page-title' }, 'Prescriptions'),
+          el('div', { class: 'page-subtitle' }, (prescriptions || []).length + ' prescription' + ((prescriptions || []).length !== 1 ? 's' : ''))
+        ));
 
-        const card = el('div', { class: 'card' });
-        card.appendChild(el('div', { class: 'card-title' }, 'PRESCRIPTION LIST'));
-
+        const pc = el('div', { class: 'card' });
+        pc.appendChild(el('div', { class: 'card-title' }, 'Prescription List'));
         if (!prescriptions || prescriptions.length === 0) {
-          card.appendChild(el('div', { class: 'empty' }, 'No prescriptions yet'));
+          pc.appendChild(el('div', { class: 'empty' }, 'No prescriptions generated yet'));
         } else {
-          const table = el('table', { class: 'table' });
-          table.appendChild(el('thead', {}, el('tr', {},
-            el('th', {}, 'ID'), el('th', {}, 'Diagnosis'), el('th', {}, 'Type'),
-            el('th', {}, 'Status'), el('th', {}, 'Actions')
+          const t = el('table', { class: 'table' });
+          t.appendChild(el('thead', {}, el('tr', {},
+            el('th', {}, 'ID'), el('th', {}, 'Diagnosis'), el('th', {}, 'Level'), el('th', {}, 'Status'), el('th', {}, 'Actions')
           )));
-          const tbody = el('tbody');
+          const tb = el('tbody');
           prescriptions.forEach(p => {
-            const row = el('tr', {},
-              el('td', { style: 'font-family:monospace;font-size:12px' }, String(p.id).slice(0, 8)),
+            tb.appendChild(el('tr', {},
+              el('td', { class: 'mono' }, String(p.id).slice(0, 8)),
               el('td', {}, String(p.diagnosis_id || '')),
-              el('td', {}, String(p.type || '')),
+              el('td', {}, String(p.type || p.level || '')),
               el('td', {}, statusBadge(p.status || 'pending')),
               el('td', {},
                 el('button', {
-                  style: 'padding:4px 10px;background:var(--brand);border:none;color:#fff;border-radius:4px;cursor:pointer;font-size:12px;margin-right:4px',
+                  class: 'btn btn-primary', style: 'margin-right:4px',
                   onClick: () => api('/api/prescriptions/' + p.id + '/apply', { method: 'POST' })
-                    .then(r => alert(r.message || 'Applied'))
-                    .catch(e => alert(e.message))
+                    .then(r => toast(r.message || 'Applied', 'success')).catch(e => toast(e.message, 'error'))
                 }, 'Apply'),
                 el('button', {
-                  style: 'padding:4px 10px;background:var(--bg-secondary);border:1px solid var(--border);color:var(--text-secondary);border-radius:4px;cursor:pointer;font-size:12px',
+                  class: 'btn btn-ghost',
                   onClick: () => api('/api/prescriptions/' + p.id + '/rollback', { method: 'POST' })
-                    .then(r => alert(r.message || 'Rolled back'))
-                    .catch(e => alert(e.message))
+                    .then(r => toast(r.message || 'Rolled back', 'success')).catch(e => toast(e.message, 'error'))
                 }, 'Rollback')
               )
-            );
-            tbody.appendChild(row);
+            ));
           });
-          table.appendChild(tbody);
-          card.appendChild(table);
+          t.appendChild(tb); pc.appendChild(t);
         }
-        frag.appendChild(card);
+        f.appendChild(pc);
 
         // Causal chains
         try {
           const chains = await api('/api/causal-chains');
           if (chains && chains.length > 0) {
-            const chainCard = el('div', { class: 'card' });
-            chainCard.appendChild(el('div', { class: 'card-title' }, 'CAUSAL CHAINS'));
+            const cc = el('div', { class: 'card' });
+            cc.appendChild(el('div', { class: 'card-title' }, 'Causal Chains (' + chains.length + ')'));
             chains.forEach(chain => {
-              const item = el('div', { style: 'padding:8px 0;border-bottom:1px solid var(--border)' });
-              item.appendChild(el('div', { style: 'font-weight:600' }, chain.name?.en || chain.id));
-              if (chain.impact?.en) {
-                item.appendChild(el('div', { style: 'color:var(--text-muted);font-size:13px;margin-top:4px' }, chain.impact.en));
-              }
-              chainCard.appendChild(item);
+              const item = el('div', { style: 'padding:10px 0;border-bottom:1px solid var(--border)' });
+              item.appendChild(el('div', { style: 'font-weight:600;font-size:13px' }, chain.name?.en || chain.id));
+              if (chain.impact?.en)
+                item.appendChild(el('div', { style: 'color:var(--text-2);font-size:12px;margin-top:3px' }, chain.impact.en));
+              cc.appendChild(item);
             });
-            frag.appendChild(chainCard);
+            f.appendChild(cc);
           }
-        } catch (e) { /* ignore */ }
+        } catch (_) {}
 
-        MAIN.innerHTML = '';
-        MAIN.appendChild(frag);
+        MAIN.innerHTML = ''; MAIN.appendChild(f);
       } catch (err) {
         MAIN.innerHTML = '<div class="empty">Failed to load prescriptions: ' + err.message + '</div>';
       }
     }
 
+    // ─── Timeline Page ───
+
     async function renderTimeline() {
       MAIN.innerHTML = '<div class="loading">Loading</div>';
       let page = 1;
-      const limit = 20;
+      const limit = 25;
 
       async function loadPage(p) {
         page = p;
         const data = await api('/api/events?page=' + page + '&limit=' + limit);
-        const frag = document.createDocumentFragment();
-        frag.appendChild(el('h2', { class: 'page-title' }, 'Timeline'));
+        const f = document.createDocumentFragment();
+        f.appendChild(el('div', { class: 'page-header' },
+          el('h2', { class: 'page-title' }, 'Event Timeline'),
+          el('div', { class: 'page-subtitle' }, data.total + ' events recorded')
+        ));
 
-        const card = el('div', { class: 'card' });
-        card.appendChild(el('div', { class: 'card-title' }, 'EVENTS (' + data.total + ' total)'));
-
+        const ec = el('div', { class: 'card' });
         if (!data.items || data.items.length === 0) {
-          card.appendChild(el('div', { class: 'empty' }, 'No events recorded'));
+          ec.appendChild(el('div', { class: 'empty' }, 'No events recorded'));
         } else {
-          const table = el('table', { class: 'table' });
-          table.appendChild(el('thead', {}, el('tr', {},
-            el('th', {}, 'Time'), el('th', {}, 'Type'), el('th', {}, 'Source'),
-            el('th', {}, 'Session'), el('th', {}, 'Details')
+          const t = el('table', { class: 'table' });
+          t.appendChild(el('thead', {}, el('tr', {},
+            el('th', {}, 'Time'), el('th', {}, 'Type'), el('th', {}, 'Source'), el('th', {}, 'Session'), el('th', {}, 'Details')
           )));
-          const tbody = el('tbody');
+          const tb = el('tbody');
           data.items.forEach(evt => {
-            tbody.appendChild(el('tr', {},
-              el('td', { style: 'font-size:12px;white-space:nowrap' },
-                new Date(evt.timestamp).toLocaleString()),
-              el('td', {}, el('span', { class: 'severity severity-info' }, evt.type)),
+            const typeClass = evt.type === 'tool_call' ? 'badge-info' :
+              evt.type === 'llm_call' ? 'badge-warning' :
+              evt.type.includes('lifecycle') ? 'badge-active' : 'badge-info';
+            tb.appendChild(el('tr', {},
+              el('td', { class: 'mono', style: 'font-size:11px;white-space:nowrap' }, new Date(evt.timestamp).toLocaleString()),
+              el('td', {}, el('span', { class: 'badge ' + typeClass }, evt.type.replace(/_/g, ' '))),
               el('td', {}, evt.source || ''),
-              el('td', { style: 'font-family:monospace;font-size:11px' },
-                (evt.sessionKey || '').slice(0, 16)),
-              el('td', { style: 'font-size:12px;color:var(--text-muted);max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap' },
+              el('td', { class: 'mono', style: 'font-size:11px' }, (evt.sessionKey || '').slice(0, 16) || '\u2014'),
+              el('td', { style: 'font-size:11px;color:var(--text-2);max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap' },
                 JSON.stringify(evt.data).slice(0, 80))
             ));
           });
-          table.appendChild(tbody);
-          card.appendChild(table);
+          t.appendChild(tb); ec.appendChild(t);
         }
-        frag.appendChild(card);
+        f.appendChild(ec);
 
-        // Pagination
         if (data.totalPages > 1) {
-          const pag = el('div', { class: 'pagination' });
-          const prevBtn = el('button', {
-            onClick: () => { if (page > 1) loadPage(page - 1); }
-          }, 'Prev');
-          if (page <= 1) prevBtn.disabled = true;
-          pag.appendChild(prevBtn);
-          pag.appendChild(el('span', { class: 'page-info' },
-            'Page ' + data.page + ' of ' + data.totalPages));
-          const nextBtn = el('button', {
-            onClick: () => { if (page < data.totalPages) loadPage(page + 1); }
-          }, 'Next');
-          if (page >= data.totalPages) nextBtn.disabled = true;
-          pag.appendChild(nextBtn);
-          frag.appendChild(pag);
+          const pg = el('div', { class: 'pagination' });
+          const prev = el('button', { onClick: () => { if (page > 1) loadPage(page - 1); } }, 'Prev');
+          if (page <= 1) prev.disabled = true;
+          pg.appendChild(prev);
+          pg.appendChild(el('span', { class: 'page-info' }, 'Page ' + data.page + ' / ' + data.totalPages));
+          const next = el('button', { onClick: () => { if (page < data.totalPages) loadPage(page + 1); } }, 'Next');
+          if (page >= data.totalPages) next.disabled = true;
+          pg.appendChild(next);
+          f.appendChild(pg);
         }
 
-        MAIN.innerHTML = '';
-        MAIN.appendChild(frag);
+        MAIN.innerHTML = ''; MAIN.appendChild(f);
       }
 
-      try {
-        await loadPage(1);
-      } catch (err) {
-        MAIN.innerHTML = '<div class="empty">Failed to load timeline: ' + err.message + '</div>';
-      }
+      try { await loadPage(1); }
+      catch (err) { MAIN.innerHTML = '<div class="empty">Failed to load timeline: ' + err.message + '</div>'; }
     }
+
+    // ─── Settings Page ───
 
     async function renderSettings() {
       MAIN.innerHTML = '<div class="loading">Loading</div>';
       try {
-        const config = await api('/api/config');
-        const frag = document.createDocumentFragment();
-        frag.appendChild(el('h2', { class: 'page-title' }, 'Settings'));
+        const [config, llmStatus] = await Promise.all([
+          api('/api/config'),
+          api('/api/llm/status').catch(() => null),
+        ]);
 
-        const card = el('div', { class: 'card' });
-        card.appendChild(el('div', { class: 'card-title' }, 'CONFIGURATION'));
-        const pre = el('div', { class: 'config-display' });
-        pre.textContent = JSON.stringify(config, null, 2);
-        card.appendChild(pre);
-        frag.appendChild(card);
+        const f = document.createDocumentFragment();
+        f.appendChild(el('div', { class: 'page-header' },
+          el('h2', { class: 'page-title' }, 'Settings'),
+          el('div', { class: 'page-subtitle' }, 'LLM provider and ClawDoctor configuration')
+        ));
 
-        MAIN.innerHTML = '';
-        MAIN.appendChild(frag);
+        // ── LLM Configuration Card ──
+        const llmCard = el('div', { class: 'card' });
+        llmCard.appendChild(el('div', { class: 'card-title' }, 'LLM Configuration'));
+
+        // Status indicator
+        if (llmStatus) {
+          const statusEl = el('div', { style: 'margin-bottom:16px;font-size:13px' });
+          var dotClass = llmStatus.available ? 'green' : (llmStatus.config.hasApiKey || llmStatus.envApiKey ? 'yellow' : 'red');
+          statusEl.appendChild(el('span', { class: 'status-dot ' + dotClass }));
+          statusEl.appendChild(document.createTextNode(
+            llmStatus.available ? 'LLM Available' :
+            llmStatus.reason === 'llm_disabled' ? 'LLM Disabled' :
+            'LLM Unavailable \u2014 API key required'
+          ));
+          if (llmStatus.envApiKey && !llmStatus.config.hasApiKey) {
+            statusEl.appendChild(el('span', { style: 'margin-left:8px;font-size:11px;color:var(--text-2)' }, '(using ANTHROPIC_API_KEY env)'));
+          }
+          llmCard.appendChild(statusEl);
+
+          // OpenClaw detected model
+          if (llmStatus.openclaw) {
+            var oc = llmStatus.openclaw;
+            var hint = el('div', { class: 'openclaw-hint' });
+            hint.appendChild(el('div', {}, el('strong', {}, 'OpenClaw detected: '), document.createTextNode(oc.provider + '/' + oc.model)));
+            hint.appendChild(el('div', { style: 'margin-top:2px;font-size:11px;color:var(--text-2)' },
+              'Base URL: ' + oc.baseUrl + ' \u00b7 API: ' + oc.apiFormat));
+            hint.appendChild(el('div', { style: 'margin-top:4px;font-size:11px' },
+              'You can use this model by selecting "OpenAI Compatible" below and entering your API key.'));
+            llmCard.appendChild(hint);
+          }
+        }
+
+        // Form
+        var currentProvider = (llmStatus && llmStatus.config.provider) || 'anthropic';
+        var currentModel = (config.llm && config.llm.model) || '';
+        var currentBaseUrl = (config.llm && config.llm.baseUrl) || '';
+        var hasKey = llmStatus && llmStatus.config.hasApiKey;
+
+        // Provider select
+        var providerGroup = el('div', { class: 'form-group' });
+        providerGroup.appendChild(el('label', { class: 'form-label' }, 'Provider'));
+        var providerSelect = el('select', { class: 'form-select', id: 'llm-provider' });
+        providerSelect.appendChild(el('option', { value: 'anthropic' }, 'Anthropic (Claude)'));
+        providerSelect.appendChild(el('option', { value: 'openai-compatible' }, 'OpenAI Compatible (Moonshot, DeepSeek, etc.)'));
+        providerSelect.value = currentProvider;
+        providerGroup.appendChild(providerSelect);
+        llmCard.appendChild(providerGroup);
+
+        // Base URL (show/hide based on provider)
+        var baseUrlGroup = el('div', { class: 'form-group', id: 'baseurl-group' });
+        baseUrlGroup.appendChild(el('label', { class: 'form-label' }, 'Base URL'));
+        var baseUrlPlaceholder = 'https://api.anthropic.com';
+        if (llmStatus && llmStatus.openclaw && currentProvider === 'openai-compatible') {
+          baseUrlPlaceholder = llmStatus.openclaw.baseUrl;
+        }
+        var baseUrlInput = el('input', { class: 'form-input', id: 'llm-baseurl', type: 'text', placeholder: baseUrlPlaceholder, value: currentBaseUrl });
+        baseUrlGroup.appendChild(baseUrlInput);
+        if (llmStatus && llmStatus.openclaw) {
+          var useOcBtn = el('button', { class: 'btn btn-ghost', style: 'margin-top:4px;font-size:11px', onClick: function() {
+            document.getElementById('llm-baseurl').value = llmStatus.openclaw.baseUrl;
+            document.getElementById('llm-model').value = llmStatus.openclaw.model;
+            document.getElementById('llm-provider').value = 'openai-compatible';
+            updateBaseUrlVisibility();
+          }}, 'Use OpenClaw Config');
+          baseUrlGroup.appendChild(useOcBtn);
+        }
+        baseUrlGroup.appendChild(el('div', { class: 'form-hint' }, 'Required for OpenAI-compatible providers. Leave empty for Anthropic default.'));
+        llmCard.appendChild(baseUrlGroup);
+
+        // Model
+        var modelGroup = el('div', { class: 'form-group' });
+        modelGroup.appendChild(el('label', { class: 'form-label' }, 'Model'));
+        var modelInput = el('input', { class: 'form-input', id: 'llm-model', type: 'text', placeholder: 'claude-sonnet-4-20250514', value: currentModel });
+        modelGroup.appendChild(modelInput);
+        modelGroup.appendChild(el('div', { class: 'form-hint' }, 'Leave empty for provider default'));
+        llmCard.appendChild(modelGroup);
+
+        // API Key
+        var keyGroup = el('div', { class: 'form-group' });
+        keyGroup.appendChild(el('label', { class: 'form-label' }, 'API Key'));
+        var keyInput = el('input', { class: 'form-input', id: 'llm-apikey', type: 'password', placeholder: hasKey ? '\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022 (saved)' : 'sk-...' });
+        keyGroup.appendChild(keyInput);
+        keyGroup.appendChild(el('div', { class: 'form-hint' }, 'Stored locally in ~/.clawdoctor/config.json. Overrides ANTHROPIC_API_KEY env var.'));
+        llmCard.appendChild(keyGroup);
+
+        // Action buttons
+        var actions = el('div', { style: 'display:flex;gap:8px;margin-top:16px' });
+        var saveBtn = el('button', { class: 'btn btn-primary', id: 'llm-save' }, 'Save');
+        var testBtn = el('button', { class: 'btn btn-ghost', id: 'llm-test' }, 'Test Connection');
+        var saveStatus = el('span', { style: 'font-size:12px;margin-left:8px;line-height:28px', id: 'llm-status' });
+
+        saveBtn.addEventListener('click', async function() {
+          saveBtn.disabled = true; saveBtn.textContent = 'Saving\u2026';
+          saveStatus.textContent = ''; saveStatus.style.color = '';
+          try {
+            var body = {
+              enabled: true,
+              provider: document.getElementById('llm-provider').value,
+              model: document.getElementById('llm-model').value,
+              baseUrl: document.getElementById('llm-baseurl').value,
+            };
+            var keyVal = document.getElementById('llm-apikey').value;
+            if (keyVal) body.apiKey = keyVal;
+            await api('/api/llm/config', { method: 'PUT', body: JSON.stringify(body) });
+            saveBtn.textContent = 'Save';
+            saveBtn.disabled = false;
+            saveStatus.textContent = 'Saved';
+            saveStatus.style.color = 'var(--grade-a)';
+            toast('LLM settings saved', 'success');
+            document.getElementById('llm-apikey').value = '';
+            document.getElementById('llm-apikey').placeholder = '\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022 (saved)';
+          } catch (err) {
+            saveBtn.textContent = 'Save'; saveBtn.disabled = false;
+            saveStatus.textContent = err.message; saveStatus.style.color = 'var(--sev-critical)';
+          }
+        });
+
+        testBtn.addEventListener('click', async function() {
+          testBtn.disabled = true; testBtn.textContent = 'Testing\u2026';
+          saveStatus.textContent = ''; saveStatus.style.color = '';
+          try {
+            var result = await api('/api/llm/test', { method: 'POST' });
+            testBtn.textContent = 'Test Connection'; testBtn.disabled = false;
+            if (result.success) {
+              saveStatus.textContent = 'Connected \u2014 model: ' + result.model;
+              saveStatus.style.color = 'var(--grade-a)';
+              toast('LLM connection successful', 'success');
+            } else {
+              saveStatus.textContent = result.error || 'Failed';
+              saveStatus.style.color = 'var(--sev-critical)';
+              toast('Connection failed: ' + (result.error || 'unknown'), 'error');
+            }
+          } catch (err) {
+            testBtn.textContent = 'Test Connection'; testBtn.disabled = false;
+            saveStatus.textContent = err.message; saveStatus.style.color = 'var(--sev-critical)';
+          }
+        });
+
+        actions.appendChild(saveBtn);
+        actions.appendChild(testBtn);
+        actions.appendChild(saveStatus);
+        llmCard.appendChild(actions);
+        f.appendChild(llmCard);
+
+        // Show/hide base URL based on provider
+        function updateBaseUrlVisibility() {
+          var p = document.getElementById('llm-provider').value;
+          document.getElementById('baseurl-group').style.display = p === 'openai-compatible' ? '' : 'none';
+        }
+        providerSelect.addEventListener('change', updateBaseUrlVisibility);
+
+        // ── Raw Config Card ──
+        var cc = el('div', { class: 'card' });
+        cc.appendChild(el('div', { class: 'card-title' }, 'Raw Configuration'));
+        var pre = el('div', { class: 'config-display' });
+        // Hide apiKey from display
+        var displayConfig = JSON.parse(JSON.stringify(config));
+        if (displayConfig.llm && displayConfig.llm.apiKey) displayConfig.llm.apiKey = '********';
+        pre.textContent = JSON.stringify(displayConfig, null, 2);
+        cc.appendChild(pre);
+        f.appendChild(cc);
+
+        MAIN.innerHTML = ''; MAIN.appendChild(f);
+        updateBaseUrlVisibility();
       } catch (err) {
         MAIN.innerHTML = '<div class="empty">Failed to load config: ' + err.message + '</div>';
       }
     }
 
-    // --- Router ---
+    // ═══════════════════════════════════════════════
+    //  Router
+    // ═══════════════════════════════════════════════
+
     const ROUTES = {
       '/overview': renderOverview,
-      '/skills': () => renderDeptPage('skill', 'Skills & Tools'),
-      '/memory': () => renderDeptPage('memory', 'Memory'),
-      '/behavior': () => renderDeptPage('behavior', 'Behavior'),
-      '/cost': () => renderDeptPage('cost', 'Cost'),
-      '/security': () => renderDeptPage('security', 'Security'),
+      '/vitals': () => renderDeptPage('vitals', 'System Vitals'),
+      '/skills': renderSkills,
+      '/memory': renderMemory,
+      '/behavior': () => renderDeptPage('behavior', 'Agent Behavior'),
+      '/cost': () => renderDeptPage('cost', 'Cost Metabolism'),
+      '/security': () => renderDeptPage('security', 'Security Immunity'),
       '/rx': renderRx,
       '/timeline': renderTimeline,
       '/settings': renderSettings,
     };
 
-    function navigate(path) {
-      window.location.hash = path;
-    }
+    function navigate(path) { window.location.hash = path; }
 
     function updateActiveNav(route) {
       document.querySelectorAll('.nav-item').forEach(item => {
-        const r = item.getAttribute('data-route');
-        item.classList.toggle('active', r === route);
+        item.classList.toggle('active', item.getAttribute('data-route') === route);
       });
     }
 

@@ -562,6 +562,40 @@ describe("Dashboard Server", () => {
     });
   });
 
+  // ─── POST /api/checkup ───
+
+  describe("POST /api/checkup", () => {
+    it("is rejected without auth", async () => {
+      const { status } = await request(app, "/api/checkup", { method: "POST" });
+      expect(status).toBe(401);
+    });
+
+    it("returns started status with auth", async () => {
+      const { status, json } = await request(app, "/api/checkup", {
+        method: "POST",
+        body: { noLlm: true },
+        token: AUTH_TOKEN,
+      });
+      expect(status).toBe(200);
+      expect(json).toHaveProperty("status", "started");
+    });
+  });
+
+  // ─── GET /api/checkup/status ───
+
+  describe("GET /api/checkup/status", () => {
+    it("is rejected without auth", async () => {
+      const { status } = await request(app, "/api/checkup/status");
+      expect(status).toBe(401);
+    });
+
+    it("returns checkup state with auth", async () => {
+      const { status, json } = await request(app, "/api/checkup/status", { token: AUTH_TOKEN });
+      expect(status).toBe(200);
+      expect(json).toHaveProperty("status");
+    });
+  });
+
   // ─── SPA shell ───
 
   describe("SPA shell", () => {

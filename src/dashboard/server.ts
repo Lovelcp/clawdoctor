@@ -7,7 +7,8 @@
 import { Hono } from "hono";
 import { serve } from "@hono/node-server";
 import { readFileSync } from "node:fs";
-import { resolve, dirname } from "node:path";
+import { resolve, dirname, join } from "node:path";
+import { homedir } from "node:os";
 import { fileURLToPath } from "node:url";
 import type Database from "better-sqlite3";
 import type { ClawDoctorConfig } from "../types/config.js";
@@ -17,9 +18,14 @@ import { createEventStore } from "../store/event-store.js";
 import { createDiagnosisStore } from "../store/diagnosis-store.js";
 import { createScoreStore } from "../store/score-store.js";
 import { aggregateMetrics } from "../analysis/metric-aggregator.js";
-import type { Department } from "../types/domain.js";
+import type { Department, DiseaseInstance } from "../types/domain.js";
 import { scoreToGrade } from "../types/scoring.js";
 import { generateBadge } from "../badge/badge-generator.js";
+import { runCheckup } from "../analysis/analysis-pipeline.js";
+import { getDiseaseRegistry } from "../diseases/registry.js";
+import { generatePrescription } from "../prescription/prescription-generator.js";
+import { resolveLLMProvider, readOpenClawModelConfig } from "../llm/provider.js";
+import { createPrescriptionStore } from "../store/prescription-store.js";
 
 // --- Types ---
 
@@ -27,6 +33,9 @@ export interface DashboardOptions {
   db: Database.Database;
   config: ClawDoctorConfig;
   authToken?: string;
+  stateDir?: string;
+  workspaceDir?: string;
+  dbPath?: string;
 }
 
 // --- SPA HTML loader ---
@@ -103,6 +112,32 @@ export function createDashboardApp(opts: DashboardOptions): Hono {
     return c.json(latest);
   });
 
+  // --- Disease enrichment helper ---
+  const registry = getDiseaseRegistry();
+
+  function enrichDiagnosis(d: DiseaseInstance) {
+    const def = registry.getById(d.definitionId);
+    return {
+      ...d,
+      definition: def ? {
+        name: def.name,
+        description: def.description,
+        department: def.department,
+        category: def.category,
+        rootCauses: def.rootCauses,
+        defaultSeverity: def.defaultSeverity,
+        tags: def.tags,
+        relatedDiseases: def.relatedDiseases,
+        prescriptionTemplate: {
+          level: def.prescriptionTemplate.level,
+          risk: def.prescriptionTemplate.risk,
+          actionTypes: def.prescriptionTemplate.actionTypes,
+          estimatedImprovementTemplate: def.prescriptionTemplate.estimatedImprovementTemplate,
+        },
+      } : null,
+    };
+  }
+
   // 2. GET /api/diseases — list diagnoses with optional filters
   app.get("/api/diseases", (c) => {
     const agentId = c.req.query("agentId") ?? "default";
@@ -136,7 +171,7 @@ export function createDashboardApp(opts: DashboardOptions): Hono {
       results = results.filter((d) => d.severity === severity);
     }
 
-    return c.json(results);
+    return c.json(results.map(enrichDiagnosis));
   });
 
   // 3. GET /api/diseases/:id — single diagnosis
@@ -148,7 +183,45 @@ export function createDashboardApp(opts: DashboardOptions): Hono {
     if (!found) {
       return c.json({ error: "Diagnosis not found" }, 404);
     }
-    return c.json(found);
+    return c.json(enrichDiagnosis(found));
+  });
+
+  // 3b. POST /api/diseases/:id/prescribe — generate prescription for a disease
+  app.post("/api/diseases/:id/prescribe", async (c) => {
+    const id = c.req.param("id");
+    const agentId = c.req.query("agentId") ?? "default";
+    const all = diagnosisStore.queryDiagnoses({ agentId });
+    const disease = all.find((d) => d.id === id);
+    if (!disease) {
+      return c.json({ error: "Diagnosis not found" }, 404);
+    }
+
+    const definition = registry.getById(disease.definitionId);
+    if (!definition) {
+      return c.json({ error: `No definition found for ${disease.definitionId}` }, 404);
+    }
+
+    const llmResult = resolveLLMProvider(config);
+    if (!llmResult.provider) {
+      return c.json({ error: "No LLM provider available. Set ANTHROPIC_API_KEY to generate prescriptions." }, 400);
+    }
+
+    try {
+      const now = Date.now();
+      const timeRange = { from: now - 7 * 24 * 60 * 60 * 1000, to: now };
+      const metrics = aggregateMetrics(db, agentId, timeRange);
+
+      const prescription = await generatePrescription(disease, definition, llmResult.provider, { metrics });
+
+      // Persist the prescription
+      const prescriptionStore = createPrescriptionStore(db);
+      prescriptionStore.insertPrescription(prescription);
+
+      return c.json(prescription);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      return c.json({ error: `Failed to generate prescription: ${msg}` }, 500);
+    }
   });
 
   // 4. GET /api/prescriptions — list prescriptions
@@ -317,6 +390,86 @@ export function createDashboardApp(opts: DashboardOptions): Hono {
     }
   });
 
+  // ─── LLM Settings endpoints ───
+
+  // GET /api/llm/status — current LLM configuration status
+  app.get("/api/llm/status", (c) => {
+    const stDir = opts.stateDir ?? process.env.CLAWDOCTOR_STATE_DIR ?? join(homedir(), ".openclaw");
+    const openclawModel = readOpenClawModelConfig(stDir);
+    const llmResult = resolveLLMProvider(config, stDir);
+    const hasEnvKey = !!process.env.ANTHROPIC_API_KEY;
+    const hasConfigKey = !!config.llm.apiKey;
+
+    return c.json({
+      enabled: config.llm.enabled,
+      available: !!llmResult.provider,
+      reason: llmResult.provider ? null : (llmResult as { reason: string }).reason,
+      config: {
+        provider: config.llm.provider ?? "anthropic",
+        model: config.llm.model ?? null,
+        baseUrl: config.llm.baseUrl ?? null,
+        hasApiKey: hasConfigKey,
+      },
+      envApiKey: hasEnvKey,
+      openclaw: openclawModel,
+    });
+  });
+
+  // PUT /api/llm/config — save LLM settings
+  app.put("/api/llm/config", async (c) => {
+    try {
+      const body = await c.req.json() as Record<string, unknown>;
+      const { writeFileSync, mkdirSync } = await import("node:fs");
+
+      // Update in-memory config
+      if (typeof body.enabled === "boolean") config.llm.enabled = body.enabled;
+      if (typeof body.provider === "string") config.llm.provider = body.provider;
+      if (typeof body.model === "string") config.llm.model = body.model || undefined;
+      if (typeof body.apiKey === "string") config.llm.apiKey = body.apiKey || undefined;
+      if (typeof body.baseUrl === "string") config.llm.baseUrl = body.baseUrl || undefined;
+
+      // Persist to config file
+      const configDir = join(homedir(), ".clawdoctor");
+      mkdirSync(configDir, { recursive: true });
+      const configPath = join(configDir, "config.json");
+      writeFileSync(configPath, JSON.stringify({ llm: config.llm }, null, 2), "utf-8");
+
+      return c.json({ status: "saved" });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      return c.json({ error: `Failed to save: ${msg}` }, 500);
+    }
+  });
+
+  // POST /api/llm/test — test LLM connection
+  app.post("/api/llm/test", async (c) => {
+    const stDir = opts.stateDir ?? process.env.CLAWDOCTOR_STATE_DIR ?? join(homedir(), ".openclaw");
+    const llmResult = resolveLLMProvider(config, stDir);
+    if (!llmResult.provider) {
+      return c.json({ success: false, error: "No LLM provider available: " + (llmResult as { reason: string }).reason });
+    }
+
+    try {
+      const response = await llmResult.provider.chat(
+        "You are a test assistant.",
+        "Reply with exactly: OK",
+        { maxTokens: 16 },
+      );
+      if (response.error) {
+        return c.json({ success: false, error: response.error });
+      }
+      return c.json({
+        success: true,
+        model: (llmResult as { model: string }).model,
+        response: response.text.slice(0, 50),
+        tokensUsed: response.tokensUsed,
+      });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      return c.json({ success: false, error: msg });
+    }
+  });
+
   // 14. POST /api/prescriptions/:id/apply — apply prescription (placeholder)
   app.post("/api/prescriptions/:id/apply", (c) => {
     const id = c.req.param("id");
@@ -353,6 +506,54 @@ export function createDashboardApp(opts: DashboardOptions): Hono {
         "Cache-Control": "no-cache, max-age=0",
       },
     });
+  });
+
+  // ─── Checkup endpoints ───
+
+  let checkupState: {
+    status: "idle" | "running" | "completed" | "error";
+    startedAt?: number;
+    completedAt?: number;
+    error?: string;
+  } = { status: "idle" };
+
+  // POST /api/checkup — trigger a health checkup
+  app.post("/api/checkup", async (c) => {
+    if (checkupState.status === "running") {
+      return c.json({ error: "Checkup already in progress" }, 409);
+    }
+
+    const body = await c.req.json().catch(() => ({} as Record<string, unknown>));
+    const stDir = opts.stateDir ?? process.env.CLAWDOCTOR_STATE_DIR ?? join(homedir(), ".openclaw");
+    const wsDir = opts.workspaceDir ?? process.cwd();
+    const agentId = typeof body.agentId === "string" ? body.agentId : "default";
+    const noLlm = body.noLlm !== false;
+
+    checkupState = { status: "running", startedAt: Date.now() };
+
+    runCheckup({
+      agentId,
+      stateDir: stDir,
+      workspaceDir: wsDir,
+      noLlm,
+      dbPath: opts.dbPath,
+    }).then(() => {
+      checkupState = { status: "completed", completedAt: Date.now() };
+      setTimeout(() => { checkupState = { status: "idle" }; }, 60_000);
+    }).catch((err) => {
+      checkupState = {
+        status: "error",
+        error: err instanceof Error ? err.message : String(err),
+      };
+      setTimeout(() => { checkupState = { status: "idle" }; }, 60_000);
+    });
+
+    return c.json({ status: "started" });
+  });
+
+  // GET /api/checkup/status — poll checkup state
+  app.get("/api/checkup/status", (c) => {
+    return c.json(checkupState);
   });
 
   // ─── SPA fallback ───

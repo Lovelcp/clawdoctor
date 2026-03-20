@@ -11,7 +11,7 @@
     "./plugin": "./dist/plugin.js"
   },
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && cp -r src/dashboard/public dist/dashboard/",
     "dev": "tsx src/bin.ts",
     "test": "vitest",
     "test:coverage": "vitest --coverage",

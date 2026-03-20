@@ -139,7 +139,7 @@ describe("SPA Structure", () => {
 
   describe("medical-monitor aesthetic", () => {
     it("has dark background", () => {
-      expect(html).toContain("#0f1117");
+      expect(html).toContain("--bg-0:");
     });
 
     it("has coral brand color", () => {
@@ -147,9 +147,9 @@ describe("SPA Structure", () => {
     });
 
     it("has severity color coding", () => {
-      expect(html).toContain("severity-critical");
-      expect(html).toContain("severity-warning");
-      expect(html).toContain("severity-info");
+      expect(html).toContain("sev-critical");
+      expect(html).toContain("sev-warning");
+      expect(html).toContain("sev-info");
     });
   });
 });

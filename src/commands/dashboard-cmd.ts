@@ -50,12 +50,14 @@ export function registerDashboardCommand(program: Command): void {
           const token = randomBytes(16).toString("hex");
           console.log(`\nDashboard: http://127.0.0.1:${opts.port}`);
           console.log(`Auth token: ${token}\n`);
-          await startDashboard({ db: freshDb, config, port: parseInt(opts.port, 10), authToken: token });
+          const stateDir = process.env.CLAWDOCTOR_STATE_DIR ?? join(homedir(), ".openclaw");
+          await startDashboard({ db: freshDb, config, port: parseInt(opts.port, 10), authToken: token, stateDir, workspaceDir: process.cwd(), dbPath });
         } else {
           const token = randomBytes(16).toString("hex");
           console.log(`\nDashboard: http://127.0.0.1:${opts.port}`);
           console.log(`Auth token: ${token}\n`);
-          await startDashboard({ db, config, port: parseInt(opts.port, 10), authToken: token });
+          const stateDir = process.env.CLAWDOCTOR_STATE_DIR ?? join(homedir(), ".openclaw");
+          await startDashboard({ db, config, port: parseInt(opts.port, 10), authToken: token, stateDir, workspaceDir: process.cwd(), dbPath });
         }
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);

@@ -88,8 +88,17 @@ function deepMerge(
     if (typeof userLlm["enabled"] === "boolean") {
       result.llm.enabled = userLlm["enabled"];
     }
+    if (typeof userLlm["provider"] === "string") {
+      result.llm.provider = userLlm["provider"];
+    }
     if (typeof userLlm["model"] === "string") {
       result.llm.model = userLlm["model"];
+    }
+    if (typeof userLlm["apiKey"] === "string") {
+      result.llm.apiKey = userLlm["apiKey"];
+    }
+    if (typeof userLlm["baseUrl"] === "string") {
+      result.llm.baseUrl = userLlm["baseUrl"];
     }
     if (typeof userLlm["maxTokensPerDiagnosis"] === "number") {
       result.llm.maxTokensPerDiagnosis = userLlm["maxTokensPerDiagnosis"];
