@@ -3,7 +3,7 @@
 //  Tests ALL 15 API endpoints against in-memory DB
 // ===================================================
 
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 import { createDashboardApp } from "./server.js";
 import { openDatabase } from "../store/database.js";
 import { createEventStore } from "../store/event-store.js";
@@ -14,6 +14,39 @@ import type Database from "better-sqlite3";
 import type { ClawDoctorEvent } from "../types/events.js";
 import type { DiseaseInstance } from "../types/domain.js";
 import type { Hono } from "hono";
+
+// --- Mock fs for config persistence (prevent writing to real ~/.clawdoctor/) ---
+
+let mockConfigFileContent: string | null = null;
+
+vi.mock("node:fs", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("node:fs")>();
+  return {
+    ...actual,
+    writeFileSync: vi.fn((path: string, data: string) => {
+      if (typeof path === "string" && path.includes("config.json")) {
+        mockConfigFileContent = data as string;
+        return;
+      }
+      return actual.writeFileSync(path, data);
+    }),
+    readFileSync: vi.fn((path: string, encoding?: string) => {
+      if (typeof path === "string" && path.includes("config.json")) {
+        if (mockConfigFileContent === null) {
+          throw new Error("ENOENT: no such file");
+        }
+        return mockConfigFileContent;
+      }
+      return actual.readFileSync(path, encoding as BufferEncoding);
+    }),
+    mkdirSync: vi.fn((path: string, opts?: unknown) => {
+      if (typeof path === "string" && path.includes(".clawdoctor")) {
+        return undefined;
+      }
+      return actual.mkdirSync(path, opts as Parameters<typeof actual.mkdirSync>[1]);
+    }),
+  };
+});
 
 // --- Test helpers ---
 
@@ -90,8 +123,9 @@ describe("Dashboard Server", () => {
 
   beforeEach(() => {
     db = openDatabase(":memory:");
-    app = createDashboardApp({ db, config: DEFAULT_CONFIG, authToken: AUTH_TOKEN });
-    appNoAuth = createDashboardApp({ db, config: DEFAULT_CONFIG });
+    app = createDashboardApp({ db, config: structuredClone(DEFAULT_CONFIG), authToken: AUTH_TOKEN });
+    appNoAuth = createDashboardApp({ db, config: structuredClone(DEFAULT_CONFIG) });
+    mockConfigFileContent = null;
   });
 
   // ─── Auth tests ───
@@ -522,7 +556,7 @@ describe("Dashboard Server", () => {
         token: AUTH_TOKEN,
       });
       expect(status).toBe(200);
-      expect(json).toHaveProperty("status", "accepted");
+      expect(json).toHaveProperty("status", "saved");
     });
   });
 
@@ -604,6 +638,89 @@ describe("Dashboard Server", () => {
       expect(res.status).toBe(200);
       const contentType = res.headers.get("content-type") ?? "";
       expect(contentType).toContain("text/html");
+    });
+
+    it("GET / returns HTML with __CLAWDOCTOR_LOCALE__ and correct lang when locale is zh", async () => {
+      const zhConfig = structuredClone(DEFAULT_CONFIG);
+      zhConfig.locale = "zh";
+      const zhApp = createDashboardApp({ db, config: zhConfig, authToken: AUTH_TOKEN });
+
+      const res = await zhApp.request("/");
+      expect(res.status).toBe(200);
+      const html = await res.text();
+      expect(html).toContain('window.__CLAWDOCTOR_LOCALE__="zh"');
+      expect(html).toContain('lang="zh"');
+    });
+
+    it("GET / defaults to lang=en and locale=en when no locale set", async () => {
+      const res = await app.request("/");
+      const html = await res.text();
+      expect(html).toContain('window.__CLAWDOCTOR_LOCALE__="en"');
+      expect(html).toContain('lang="en"');
+    });
+  });
+
+  // ─── Locale + config persistence ───
+
+  describe("PUT /api/config locale persistence", () => {
+    it("returns { status: 'saved' } when setting locale", async () => {
+      const { status, json } = await request(app, "/api/config", {
+        method: "PUT",
+        body: { locale: "zh" },
+        token: AUTH_TOKEN,
+      });
+      expect(status).toBe(200);
+      expect(json).toHaveProperty("status", "saved");
+    });
+
+    it("updates in-memory config after PUT /api/config", async () => {
+      const testConfig = structuredClone(DEFAULT_CONFIG);
+      const testApp = createDashboardApp({ db, config: testConfig, authToken: AUTH_TOKEN });
+
+      // Set locale to zh
+      await request(testApp, "/api/config", {
+        method: "PUT",
+        body: { locale: "zh" },
+        token: AUTH_TOKEN,
+      });
+
+      // Verify via GET /api/config
+      const { json } = await request(testApp, "/api/config", { token: AUTH_TOKEN });
+      expect(json).toHaveProperty("locale", "zh");
+    });
+  });
+
+  // ─── LLM config does not erase locale (race regression) ───
+
+  describe("Config write race regression", () => {
+    it("saving LLM config after locale does not erase locale", async () => {
+      const testConfig = structuredClone(DEFAULT_CONFIG);
+      const testApp = createDashboardApp({ db, config: testConfig, authToken: AUTH_TOKEN });
+
+      // Step 1: Save locale
+      const localeRes = await request(testApp, "/api/config", {
+        method: "PUT",
+        body: { locale: "zh" },
+        token: AUTH_TOKEN,
+      });
+      expect(localeRes.json).toHaveProperty("status", "saved");
+
+      // Step 2: Save LLM config (should NOT erase locale)
+      const llmRes = await request(testApp, "/api/llm/config", {
+        method: "PUT",
+        body: { enabled: true, provider: "anthropic" },
+        token: AUTH_TOKEN,
+      });
+      expect(llmRes.json).toHaveProperty("status", "saved");
+
+      // Step 3: Verify locale is still "zh" in-memory
+      const { json: configJson } = await request(testApp, "/api/config", { token: AUTH_TOKEN });
+      expect(configJson).toHaveProperty("locale", "zh");
+
+      // Step 4: Verify locale is still in the persisted file
+      expect(mockConfigFileContent).not.toBeNull();
+      const persisted = JSON.parse(mockConfigFileContent!);
+      expect(persisted).toHaveProperty("locale", "zh");
     });
   });
 });

@@ -6,7 +6,7 @@
 
 import { Hono } from "hono";
 import { serve } from "@hono/node-server";
-import { readFileSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { resolve, dirname, join } from "node:path";
 import { homedir } from "node:os";
 import { fileURLToPath } from "node:url";
@@ -43,20 +43,70 @@ export interface DashboardOptions {
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const SPA_PATH = resolve(__dirname, "public", "index.html");
 
-function loadSpaHtml(token?: string): string {
+function loadSpaHtml(token?: string, locale?: string): string {
+  const lang = locale ?? "en";
   let html: string;
   try {
     html = readFileSync(SPA_PATH, "utf-8");
   } catch {
-    html = "<!DOCTYPE html><html><body><h1>ClawDoctor Dashboard</h1><p>SPA not found.</p></body></html>";
+    html = `<!DOCTYPE html><html lang="${lang}"><body><h1>ClawDoctor Dashboard</h1><p>SPA not found.</p></body></html>`;
   }
+  // Set the lang attribute on the <html> tag
+  html = html.replace(/<html([^>]*)\slang="[^"]*"/, `<html$1 lang="${lang}"`);
+  if (!/<html[^>]*\slang=/.test(html)) {
+    html = html.replace(/<html/, `<html lang="${lang}"`);
+  }
+  // Inject locale and token scripts
+  const scripts: string[] = [];
+  scripts.push(`window.__CLAWDOCTOR_LOCALE__="${lang}";`);
   if (token) {
-    html = html.replace(
-      "</head>",
-      `<script>window.__CLAWDOCTOR_TOKEN__="${token}";</script></head>`,
-    );
+    scripts.push(`window.__CLAWDOCTOR_TOKEN__="${token}";`);
   }
+  html = html.replace(
+    "</head>",
+    `<script>${scripts.join("")}</script></head>`,
+  );
   return html;
+}
+
+// --- Config persistence utility ---
+
+function mergeAndPersistConfig(
+  config: ClawDoctorConfig,
+  partial: Record<string, unknown>,
+): void {
+  // Read existing persisted config (if any)
+  const configDir = join(homedir(), ".clawdoctor");
+  const configPath = join(configDir, "config.json");
+  let existing: Record<string, unknown> = {};
+  try {
+    existing = JSON.parse(readFileSync(configPath, "utf-8"));
+  } catch {
+    // No existing file or parse error — start fresh
+  }
+
+  // Deep merge: for object-valued keys, merge one level; scalars overwrite
+  for (const [key, value] of Object.entries(partial)) {
+    if (
+      value !== null &&
+      typeof value === "object" &&
+      !Array.isArray(value) &&
+      existing[key] !== null &&
+      typeof existing[key] === "object" &&
+      !Array.isArray(existing[key])
+    ) {
+      existing[key] = { ...(existing[key] as Record<string, unknown>), ...(value as Record<string, unknown>) };
+    } else {
+      existing[key] = value;
+    }
+  }
+
+  // Update in-memory config
+  Object.assign(config, partial);
+
+  // Write back
+  mkdirSync(configDir, { recursive: true });
+  writeFileSync(configPath, JSON.stringify(existing, null, 2), "utf-8");
 }
 
 // --- Valid departments for validation ---
@@ -382,11 +432,12 @@ export function createDashboardApp(opts: DashboardOptions): Hono {
   // 13. PUT /api/config — update config
   app.put("/api/config", async (c) => {
     try {
-      const body = await c.req.json();
-      // Return the merged config (actual file write deferred to executor)
-      return c.json({ status: "accepted", config: body });
-    } catch {
-      return c.json({ error: "Invalid JSON body" }, 400);
+      const body = await c.req.json() as Record<string, unknown>;
+      mergeAndPersistConfig(config, body);
+      return c.json({ status: "saved" });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      return c.json({ error: `Failed to save config: ${msg}` }, 500);
     }
   });
 
@@ -419,20 +470,16 @@ export function createDashboardApp(opts: DashboardOptions): Hono {
   app.put("/api/llm/config", async (c) => {
     try {
       const body = await c.req.json() as Record<string, unknown>;
-      const { writeFileSync, mkdirSync } = await import("node:fs");
 
-      // Update in-memory config
-      if (typeof body.enabled === "boolean") config.llm.enabled = body.enabled;
-      if (typeof body.provider === "string") config.llm.provider = body.provider;
-      if (typeof body.model === "string") config.llm.model = body.model || undefined;
-      if (typeof body.apiKey === "string") config.llm.apiKey = body.apiKey || undefined;
-      if (typeof body.baseUrl === "string") config.llm.baseUrl = body.baseUrl || undefined;
+      // Build the updated llm sub-config
+      const llmUpdate = { ...config.llm };
+      if (typeof body.enabled === "boolean") llmUpdate.enabled = body.enabled;
+      if (typeof body.provider === "string") llmUpdate.provider = body.provider;
+      if (typeof body.model === "string") llmUpdate.model = body.model || undefined;
+      if (typeof body.apiKey === "string") llmUpdate.apiKey = body.apiKey || undefined;
+      if (typeof body.baseUrl === "string") llmUpdate.baseUrl = body.baseUrl || undefined;
 
-      // Persist to config file
-      const configDir = join(homedir(), ".clawdoctor");
-      mkdirSync(configDir, { recursive: true });
-      const configPath = join(configDir, "config.json");
-      writeFileSync(configPath, JSON.stringify({ llm: config.llm }, null, 2), "utf-8");
+      mergeAndPersistConfig(config, { llm: llmUpdate });
 
       return c.json({ status: "saved" });
     } catch (err) {
@@ -559,12 +606,12 @@ export function createDashboardApp(opts: DashboardOptions): Hono {
   // ─── SPA fallback ───
 
   app.get("/", (c) => {
-    const html = loadSpaHtml(authToken);
+    const html = loadSpaHtml(authToken, config.locale);
     return c.html(html);
   });
 
   app.get("/*", (c) => {
-    const html = loadSpaHtml(authToken);
+    const html = loadSpaHtml(authToken, config.locale);
     return c.html(html);
   });
 
