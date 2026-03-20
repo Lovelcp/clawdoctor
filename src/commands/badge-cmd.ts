@@ -12,6 +12,9 @@ import { openDatabase } from "../store/database.js";
 import { createScoreStore } from "../store/score-store.js";
 import { scoreToGrade } from "../types/scoring.js";
 import { generateBadge } from "../badge/badge-generator.js";
+import { loadConfig } from "../config/loader.js";
+import { tf } from "../i18n/i18n.js";
+import { UI_STRINGS } from "../i18n/locales.js";
 
 // ─── registerBadgeCommand ─────────────────────────────────────────────────────
 
@@ -34,6 +37,9 @@ export function registerBadgeCommand(program: Command): void {
         const dbPath = join(dbDir, "clawdoctor.db");
         const db = openDatabase(dbPath);
         const scoreStore = createScoreStore(db);
+
+        const config = loadConfig(join(homedir(), ".clawdoctor", "config.json"));
+        const locale = config.locale ?? "en";
 
         const agentId: string = opts.agent ?? "default";
         const latest = scoreStore.queryLatestScore(agentId);
@@ -74,7 +80,7 @@ export function registerBadgeCommand(program: Command): void {
             mkdirSync(dir, { recursive: true });
           }
           writeFileSync(opts.output as string, svg, "utf-8");
-          process.stderr.write(`Badge saved to ${opts.output}\n`);
+          process.stderr.write(tf(UI_STRINGS["badge.saved"], locale, { path: opts.output }) + "\n");
         } else {
           process.stdout.write(svg + "\n");
         }

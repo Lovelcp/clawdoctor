@@ -9,6 +9,8 @@ import { join } from "node:path";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { DEFAULT_CONFIG } from "../types/config.js";
 import { loadConfig } from "../config/loader.js";
+import { tf } from "../i18n/i18n.js";
+import { UI_STRINGS } from "../i18n/locales.js";
 
 const CONFIG_DIR = join(homedir(), ".clawdoctor");
 const CONFIG_FILE = join(CONFIG_DIR, "config.json");
@@ -27,7 +29,7 @@ export function registerConfigCommand(program: Command): void {
     .action(() => {
       try {
         if (existsSync(CONFIG_FILE)) {
-          console.log(`[clawdoctor] Config already exists at ${CONFIG_FILE}`);
+          console.log("[clawdoctor] " + tf(UI_STRINGS["config.alreadyExists"], "en", { path: CONFIG_FILE }));
           return;
         }
 
@@ -36,7 +38,7 @@ export function registerConfigCommand(program: Command): void {
         }
 
         writeFileSync(CONFIG_FILE, JSON.stringify(DEFAULT_CONFIG, null, 2) + "\n", "utf-8");
-        console.log(`[clawdoctor] Config initialized at ${CONFIG_FILE}`);
+        console.log("[clawdoctor] " + tf(UI_STRINGS["config.initialized"], "en", { path: CONFIG_FILE }));
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         console.error(`[clawdoctor] config init failed: ${message}`);
@@ -79,7 +81,7 @@ export function registerConfigCommand(program: Command): void {
         setNestedKey(existing, key, parsedValue);
 
         writeFileSync(CONFIG_FILE, JSON.stringify(existing, null, 2) + "\n", "utf-8");
-        console.log(`[clawdoctor] Set ${key} = ${JSON.stringify(parsedValue)}`);
+        console.log("[clawdoctor] " + tf(UI_STRINGS["config.setValue"], "en", { key, value: JSON.stringify(parsedValue) }));
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         console.error(`[clawdoctor] config set failed: ${message}`);

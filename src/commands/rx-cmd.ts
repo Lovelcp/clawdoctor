@@ -11,6 +11,8 @@ import { openDatabase } from "../store/database.js";
 import { createPrescriptionStore } from "../store/prescription-store.js";
 import { createPrescriptionExecutor } from "../prescription/prescription-executor.js";
 import { loadConfig } from "../config/loader.js";
+import { t, tf } from "../i18n/i18n.js";
+import { UI_STRINGS } from "../i18n/locales.js";
 
 // ─── Helper: resolve default DB path ─────────────────────────────────────────
 
@@ -43,6 +45,8 @@ export function registerRxCommand(program: Command): void {
     .action(async (opts) => {
       const db = openDatabase(defaultDbPath());
       try {
+        const config = loadConfig(defaultConfigPath());
+        const locale = config.locale ?? "en";
         const store = createPrescriptionStore(db);
         const filter: { status?: string } = {};
         if (opts.status) {
@@ -54,20 +58,20 @@ export function registerRxCommand(program: Command): void {
           console.log(JSON.stringify(prescriptions, null, 2));
         } else {
           if (prescriptions.length === 0) {
-            console.log("No prescriptions found.");
+            console.log(t(UI_STRINGS["rx.noPrescriptions"], locale));
             return;
           }
-          console.log(`\nPrescriptions (${prescriptions.length}):`);
+          console.log(`\n${tf(UI_STRINGS["rx.prescriptionCount"], locale, { count: prescriptions.length })}`);
           console.log("─".repeat(72));
           for (const p of prescriptions) {
             const status = (p as unknown as { status: string }).status ?? "pending";
             const appliedAt = (p as unknown as { appliedAt?: number }).appliedAt;
             const rolledBackAt = (p as unknown as { rolledBackAt?: number }).rolledBackAt;
-            console.log(`  ID:      ${p.id}`);
-            console.log(`  Level:   ${p.level}  Risk: ${p.risk}  Status: ${status}`);
-            console.log(`  Actions: ${p.actions.length}`);
-            if (appliedAt) console.log(`  Applied: ${fmtTime(appliedAt)}`);
-            if (rolledBackAt) console.log(`  Rolled back: ${fmtTime(rolledBackAt)}`);
+            console.log(`  ${t(UI_STRINGS["rx.labelId"], locale)}      ${p.id}`);
+            console.log(`  ${t(UI_STRINGS["rx.labelLevel"], locale)}   ${p.level}  ${t(UI_STRINGS["rx.labelRisk"], locale)} ${p.risk}  ${t(UI_STRINGS["rx.labelStatus"], locale)} ${status}`);
+            console.log(`  ${t(UI_STRINGS["rx.labelActions"], locale)} ${p.actions.length}`);
+            if (appliedAt) console.log(`  ${t(UI_STRINGS["rx.labelApplied"], locale)} ${fmtTime(appliedAt)}`);
+            if (rolledBackAt) console.log(`  ${t(UI_STRINGS["rx.labelRolledBack"], locale)} ${fmtTime(rolledBackAt)}`);
             console.log("─".repeat(72));
           }
         }
@@ -88,23 +92,24 @@ export function registerRxCommand(program: Command): void {
       const db = openDatabase(defaultDbPath());
       try {
         const config = loadConfig(defaultConfigPath());
+        const locale = config.locale ?? "en";
         const executor = createPrescriptionExecutor(db, config);
         const preview = await executor.preview(id);
 
-        console.log(`\nPreview: ${id}`);
-        console.log(`Diagnosis: ${preview.diagnosisName.en}`);
-        console.log(`Estimated improvement: ${JSON.stringify(preview.estimatedImprovement)}`);
-        console.log(`Rollback available: ${preview.rollbackAvailable}`);
-        console.log(`\nActions (${preview.actions.length}):`);
+        console.log(`\n${tf(UI_STRINGS["rx.preview"], locale, { id })}`);
+        console.log(`${t(UI_STRINGS["rx.diagnosis"], locale)} ${t(preview.diagnosisName, locale)}`);
+        console.log(`${t(UI_STRINGS["rx.estimatedImprovement"], locale)} ${JSON.stringify(preview.estimatedImprovement)}`);
+        console.log(`${t(UI_STRINGS["rx.rollbackAvailable"], locale)} ${preview.rollbackAvailable}`);
+        console.log(`\n${tf(UI_STRINGS["rx.actionsCount"], locale, { count: preview.actions.length })}`);
         console.log("─".repeat(72));
         for (const action of preview.actions) {
-          console.log(`  Type: ${action.type}  Risk: ${action.risk}`);
-          console.log(`  ${action.description.en}`);
+          console.log(`  ${t(UI_STRINGS["rx.labelType"], locale)} ${action.type}  ${t(UI_STRINGS["rx.labelRisk"], locale)} ${action.risk}`);
+          console.log(`  ${t(action.description, locale)}`);
           if ("diff" in action && action.diff) {
-            console.log(`  Diff:\n${action.diff}`);
+            console.log(`  ${t(UI_STRINGS["rx.labelDiff"], locale)}\n${action.diff}`);
           }
           if ("command" in action && action.command) {
-            console.log(`  Command: ${action.command}`);
+            console.log(`  ${t(UI_STRINGS["rx.labelCommand"], locale)} ${action.command}`);
           }
           console.log("─".repeat(72));
         }
@@ -127,6 +132,7 @@ export function registerRxCommand(program: Command): void {
       const db = openDatabase(defaultDbPath());
       try {
         const config = loadConfig(defaultConfigPath());
+        const locale = config.locale ?? "en";
         const executor = createPrescriptionExecutor(db, config);
 
         if (opts.all) {
@@ -137,24 +143,24 @@ export function registerRxCommand(program: Command): void {
           );
 
           if (pending.length === 0) {
-            console.log("No pending guided prescriptions found.");
+            console.log(t(UI_STRINGS["rx.noPendingGuided"], locale));
             return;
           }
 
-          console.log(`Found ${pending.length} pending guided prescription(s).`);
+          console.log(tf(UI_STRINGS["rx.pendingGuidedCount"], locale, { count: pending.length }));
 
           for (const p of pending) {
             if (opts.dryRun) {
-              console.log(`\n[dry-run] Preview: ${p.id}`);
+              console.log(`\n${tf(UI_STRINGS["rx.previewDryRun"], locale, { id: p.id })}`);
               const preview = await executor.preview(p.id);
-              console.log(`  Diagnosis: ${preview.diagnosisName.en}`);
+              console.log(`  ${t(UI_STRINGS["rx.diagnosis"], locale)} ${t(preview.diagnosisName, locale)}`);
               for (const action of preview.actions) {
-                console.log(`  - ${action.type}: ${action.description.en}`);
+                console.log(`  - ${action.type}: ${t(action.description, locale)}`);
               }
             } else {
-              console.log(`\nApplying: ${p.id}`);
+              console.log(`\n${tf(UI_STRINGS["rx.applyingPrescription"], locale, { id: p.id })}`);
               const result = await executor.execute(p.id);
-              console.log(`  Success: ${result.success}`);
+              console.log(`  ${t(UI_STRINGS["rx.success"], locale)} ${result.success}`);
               for (const a of result.appliedActions) {
                 console.log(`  - ${a.action.type}: ${a.status}${a.error ? ` (${a.error})` : ""}`);
               }
@@ -163,27 +169,27 @@ export function registerRxCommand(program: Command): void {
         } else if (id) {
           if (opts.dryRun) {
             const preview = await executor.preview(id);
-            console.log(`\n[dry-run] Preview: ${id}`);
-            console.log(`  Diagnosis: ${preview.diagnosisName.en}`);
+            console.log(`\n${tf(UI_STRINGS["rx.previewDryRun"], locale, { id })}`);
+            console.log(`  ${t(UI_STRINGS["rx.diagnosis"], locale)} ${t(preview.diagnosisName, locale)}`);
             for (const action of preview.actions) {
-              console.log(`  - ${action.type}: ${action.description.en}`);
+              console.log(`  - ${action.type}: ${t(action.description, locale)}`);
             }
           } else {
-            console.log(`Applying prescription: ${id}`);
+            console.log(tf(UI_STRINGS["rx.applyingPrescription"], locale, { id }));
             const result = await executor.execute(id);
-            console.log(`Success: ${result.success}`);
+            console.log(`${t(UI_STRINGS["rx.success"], locale)} ${result.success}`);
             for (const a of result.appliedActions) {
               console.log(`  - ${a.action.type}: ${a.status}${a.error ? ` (${a.error})` : ""}`);
             }
             if (result.immediateVerification) {
-              console.log(`\nVerification: ${result.immediateVerification.currentStatus}`);
+              console.log(`\n${t(UI_STRINGS["rx.verification"], locale)} ${result.immediateVerification.currentStatus}`);
               if (result.immediateVerification.note) {
-                console.log(`  ${result.immediateVerification.note.en}`);
+                console.log(`  ${t(result.immediateVerification.note, locale)}`);
               }
             }
           }
         } else {
-          console.error("Provide a prescription <id> or use --all to apply all pending guided prescriptions.");
+          console.error(t(UI_STRINGS["rx.provideIdOrAll"], locale));
           process.exit(1);
         }
       } catch (err) {
@@ -203,31 +209,32 @@ export function registerRxCommand(program: Command): void {
       const db = openDatabase(defaultDbPath());
       try {
         const config = loadConfig(defaultConfigPath());
+        const locale = config.locale ?? "en";
         const executor = createPrescriptionExecutor(db, config);
 
-        console.log(`Rolling back prescription: ${id}`);
+        console.log(tf(UI_STRINGS["rx.rollingBack"], locale, { id }));
         const result = await executor.rollback(id);
-        console.log(`Success: ${result.success}`);
+        console.log(`${t(UI_STRINGS["rx.success"], locale)} ${result.success}`);
         if (result.restoredFiles.length > 0) {
-          console.log(`Restored files:`);
+          console.log(t(UI_STRINGS["rx.restoredFiles"], locale));
           for (const f of result.restoredFiles) {
             console.log(`  - ${f}`);
           }
         }
         if (result.skippedFiles.length > 0) {
-          console.log(`Skipped files:`);
+          console.log(t(UI_STRINGS["rx.skippedFiles"], locale));
           for (const f of result.skippedFiles) {
             console.log(`  - ${f}`);
           }
         }
         if (result.conflicts && result.conflicts.length > 0) {
-          console.log(`Conflicts:`);
+          console.log(t(UI_STRINGS["rx.conflicts"], locale));
           for (const c of result.conflicts) {
             console.log(`  - ${c}`);
           }
         }
         if (result.error) {
-          console.error(`Error: ${result.error}`);
+          console.error(tf(UI_STRINGS["rx.error"], locale, { message: result.error }));
         }
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
@@ -246,17 +253,18 @@ export function registerRxCommand(program: Command): void {
       const db = openDatabase(defaultDbPath());
       try {
         const config = loadConfig(defaultConfigPath());
+        const locale = config.locale ?? "en";
         const executor = createPrescriptionExecutor(db, config);
 
         if (id) {
-          console.log(`Running follow-up for prescription: ${id}`);
+          console.log(tf(UI_STRINGS["rx.runningFollowUp"], locale, { id }));
           const result = await executor.followUp(id);
-          console.log(`Verdict: ${result.verdict}`);
-          console.log(`Time since applied: ${Math.round(result.timeSinceApplied / 1000)}s`);
+          console.log(`${t(UI_STRINGS["rx.verdict"], locale)} ${result.verdict}`);
+          console.log(tf(UI_STRINGS["rx.timeSinceApplied"], locale, { seconds: Math.round(result.timeSinceApplied / 1000) }));
           const improvement = result.comparison.improvement;
           const keys = Object.keys(improvement);
           if (keys.length > 0) {
-            console.log(`Metric changes:`);
+            console.log(t(UI_STRINGS["rx.metricChanges"], locale));
             for (const key of keys) {
               const delta = improvement[key];
               console.log(`  ${key}: ${delta.from} → ${delta.to} (${delta.changePercent.toFixed(1)}%)`);
@@ -269,19 +277,19 @@ export function registerRxCommand(program: Command): void {
           const due = pending.filter((f) => f.scheduledAt <= Date.now());
 
           if (due.length === 0) {
-            console.log("No due follow-ups found.");
+            console.log(t(UI_STRINGS["rx.noDueFollowups"], locale));
             return;
           }
 
-          console.log(`Found ${due.length} due follow-up(s).`);
+          console.log(tf(UI_STRINGS["rx.dueFollowups"], locale, { count: due.length }));
           for (const f of due) {
-            console.log(`\nFollow-up for prescription: ${f.prescriptionId} (${f.checkpoint})`);
+            console.log(`\n${tf(UI_STRINGS["rx.followUpCheckpoint"], locale, { id: f.prescriptionId, checkpoint: f.checkpoint })}`);
             try {
               const result = await executor.followUp(f.prescriptionId);
-              console.log(`  Verdict: ${result.verdict}`);
+              console.log(`  ${t(UI_STRINGS["rx.verdict"], locale)} ${result.verdict}`);
             } catch (err) {
               const message = err instanceof Error ? err.message : String(err);
-              console.error(`  Failed: ${message}`);
+              console.error(`  ${tf(UI_STRINGS["rx.failed"], locale, { message })}`);
             }
           }
         }
@@ -302,6 +310,8 @@ export function registerRxCommand(program: Command): void {
     .action(async (opts) => {
       const db = openDatabase(defaultDbPath());
       try {
+        const config = loadConfig(defaultConfigPath());
+        const locale = config.locale ?? "en";
         const store = createPrescriptionStore(db);
         // Query applied and rolled_back prescriptions
         const applied = store.queryPrescriptions({ status: "applied" });
@@ -316,19 +326,19 @@ export function registerRxCommand(program: Command): void {
           console.log(JSON.stringify(history, null, 2));
         } else {
           if (history.length === 0) {
-            console.log("No prescription history found.");
+            console.log(t(UI_STRINGS["rx.noHistory"], locale));
             return;
           }
-          console.log(`\nPrescription History (${history.length}):`);
+          console.log(`\n${tf(UI_STRINGS["rx.historyCount"], locale, { count: history.length })}`);
           console.log("─".repeat(72));
           for (const p of history) {
             const status = (p as unknown as { status: string }).status ?? "applied";
             const appliedAt = (p as unknown as { appliedAt?: number }).appliedAt;
             const rolledBackAt = (p as unknown as { rolledBackAt?: number }).rolledBackAt;
-            console.log(`  ID:     ${p.id}`);
-            console.log(`  Level:  ${p.level}  Risk: ${p.risk}  Status: ${status}`);
-            if (appliedAt) console.log(`  Applied: ${fmtTime(appliedAt)}`);
-            if (rolledBackAt) console.log(`  Rolled back: ${fmtTime(rolledBackAt)}`);
+            console.log(`  ${t(UI_STRINGS["rx.labelId"], locale)}     ${p.id}`);
+            console.log(`  ${t(UI_STRINGS["rx.labelLevel"], locale)}  ${p.level}  ${t(UI_STRINGS["rx.labelRisk"], locale)} ${p.risk}  ${t(UI_STRINGS["rx.labelStatus"], locale)} ${status}`);
+            if (appliedAt) console.log(`  ${t(UI_STRINGS["rx.labelApplied"], locale)} ${fmtTime(appliedAt)}`);
+            if (rolledBackAt) console.log(`  ${t(UI_STRINGS["rx.labelRolledBack"], locale)} ${fmtTime(rolledBackAt)}`);
             console.log("─".repeat(72));
           }
         }

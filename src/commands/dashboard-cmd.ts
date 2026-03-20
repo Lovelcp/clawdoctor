@@ -14,6 +14,8 @@ import { createScoreStore } from "../store/score-store.js";
 import { loadConfig } from "../config/loader.js";
 import { startDashboard } from "../dashboard/server.js";
 import { runCheckup } from "../analysis/analysis-pipeline.js";
+import { t } from "../i18n/i18n.js";
+import { UI_STRINGS } from "../i18n/locales.js";
 
 // ─── registerDashboardCommand ─────────────────────────────────────────────────
 
@@ -30,13 +32,14 @@ export function registerDashboardCommand(program: Command): void {
         const db = openDatabase(dbPath);
 
         const config = loadConfig(join(dbDir, "config.json"));
+        const locale = config.locale ?? "en";
 
         // Check freshness — run checkup if stale (older than 1 hour)
         const scoreStore = createScoreStore(db);
         const latest = scoreStore.queryLatestScore("default");
 
         if (!latest || Date.now() - latest.timestamp > 3_600_000) {
-          console.log("Running fresh checkup to populate dashboard data...");
+          console.log(t(UI_STRINGS["dashboard.runningCheckup"], locale));
           db.close();
           await runCheckup({
             agentId: "default",
