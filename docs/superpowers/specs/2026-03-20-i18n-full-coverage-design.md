@@ -132,6 +132,12 @@ Add the following keys to `UI_STRINGS`:
 - `rx.pendingGuidedCount`: `"Found {count} pending guided prescription(s)."` / `"发现 {count} 个待处理引导处方。"`
 - `rx.error`: `"Error: {message}"` / `"错误: {message}"`
 - `rx.failed`: `"Failed: {message}"` / `"失败: {message}"`
+- `rx.labelType`: `"Type:"` / `"类型:"`
+- `rx.labelDiff`: `"Diff:"` / `"差异:"`
+- `rx.labelCommand`: `"Command:"` / `"命令:"`
+- `rx.actionsCount`: `"Actions ({count}):"` / `"操作（{count}）:"`
+- `rx.provideIdOrAll`: `"Provide a prescription <id> or use --all to apply all pending guided prescriptions."` / `"请提供处方 <id> 或使用 --all 应用所有待处理的引导处方。"`
+- `rx.actionStatus`: `"- {type}: {status}"` / `"- {type}: {status}"`
 
 **config-cmd.ts:**
 - `config.initialized`: `"Config initialized at {path}"` / `"配置已初始化: {path}"`
@@ -168,14 +174,37 @@ tf(UI_STRINGS["report.scoreSummary"], locale, { score: 85, count: 3, critical: 1
 
 ### 3.3 Locale Access Pattern
 
-Each command file already calls `loadConfig()`. Extract locale from config:
+**Not all command files load config today.** The following need `loadConfig()` added:
+
+| File | Current state | Change needed |
+|------|--------------|---------------|
+| `checkup.ts` | Already loads config (line 86) | Extract `config.locale` — already done |
+| `rx-cmd.ts` `preview/apply/rollback/followup` | Already loads config | Extract `config.locale` |
+| `rx-cmd.ts` `list` | Does NOT load config | Add `loadConfig()` call |
+| `rx-cmd.ts` `history` | Does NOT load config | Add `loadConfig()` call |
+| `dashboard-cmd.ts` | Already loads config (line 32) | Extract `config.locale` |
+| `config-cmd.ts` `show` | Already loads config (line 96) | Extract `config.locale` |
+| `config-cmd.ts` `init/set` | Does NOT load config | Use default `"en"` (config may not exist yet for `init`) |
+| `dept-runner.ts` | Does NOT load config | Add `import { loadConfig }` and `loadConfig()` call |
+| `badge-cmd.ts` | Does NOT load config | Add `import { loadConfig }` and `loadConfig()` call |
+
+**Pattern for commands that need config added:**
 
 ```typescript
+// In dept-runner.ts, badge-cmd.ts:
+import { loadConfig } from "../config/loader.js";
+
+const configFilePath = join(homedir(), ".clawdoctor", "config.json");
 const config = loadConfig(configFilePath);
 const locale = config.locale ?? "en";
 ```
 
-For `config init` (config doesn't exist yet), use default `"en"`.
+**Pattern for commands that already load config:**
+```typescript
+const locale = config.locale ?? "en";
+```
+
+**For `config init` and `config set`:** Use `"en"` directly since config file may not exist yet, and these are administrative commands where locale matters least.
 
 ## 4. Dashboard SPA i18n
 
@@ -284,6 +313,100 @@ const LOCALE_DICT = {
   "disease.rootCauses": { en: "Root Causes", zh: "根本原因" },
   "disease.evidence": { en: "Evidence", zh: "证据" },
 
+  // Page subtitles
+  "page.overview.subtitle": { en: "Agent diagnostics summary", zh: "Agent 诊断摘要" },
+  "page.vitals": { en: "System Vitals", zh: "基础体征" },
+  "page.skills": { en: "Skills & Tools", zh: "技能与工具" },
+  "page.skills.subtitle": { en: "{count} plugins registered", zh: "{count} 个插件已注册" },
+  "page.memory": { en: "Memory Cognition", zh: "记忆认知" },
+  "page.memory.subtitle": { en: "{count} files tracked", zh: "正在跟踪 {count} 个文件" },
+  "page.behavior": { en: "Agent Behavior", zh: "Agent 行为" },
+  "page.cost": { en: "Cost Metabolism", zh: "成本代谢" },
+  "page.security": { en: "Security Immunity", zh: "安全免疫" },
+  "page.prescriptions.subtitle": { en: "{count} prescriptions", zh: "{count} 个处方" },
+  "page.timeline.subtitle": { en: "{total} events recorded", zh: "已记录 {total} 个事件" },
+  "page.deptDiagnosis": { en: "{count} diagnosis results", zh: "{count} 个诊断结果" },
+
+  // Section cards
+  "card.activeIssues": { en: "Active Issues", zh: "活跃问题" },
+  "card.healthTrend": { en: "Health Trend", zh: "健康趋势" },
+  "card.keyMetrics": { en: "Key Metrics", zh: "关键指标" },
+  "card.diagnoses": { en: "Diagnoses", zh: "诊断结果" },
+  "card.plugins": { en: "Plugins", zh: "插件" },
+  "card.summary": { en: "Summary", zh: "摘要" },
+  "card.files": { en: "Files", zh: "文件" },
+  "card.prescriptionList": { en: "Prescription List", zh: "处方列表" },
+  "card.causalChains": { en: "Causal Chains", zh: "因果链" },
+  "card.rawConfig": { en: "Raw Configuration", zh: "原始配置" },
+
+  // Empty states
+  "empty.noHealth": { en: "No health data yet. Run a checkup to get started.", zh: "暂无健康数据。运行体检开始。" },
+  "empty.noIssues": { en: "No issues detected", zh: "未检测到问题" },
+  "empty.noPlugins": { en: "No plugin data", zh: "没有插件数据" },
+  "empty.noPrescriptions": { en: "No prescriptions generated yet", zh: "尚未生成处方" },
+  "empty.noEvents": { en: "No events recorded", zh: "未记录事件" },
+
+  // Additional table headers
+  "table.id": { en: "ID", zh: "编号" },
+  "table.diagnosis": { en: "Diagnosis", zh: "诊断" },
+  "table.period": { en: "Period", zh: "周期" },
+  "table.level": { en: "Level", zh: "级别" },
+  "table.plugin": { en: "Plugin", zh: "插件" },
+  "table.source": { en: "Source", zh: "来源" },
+  "table.tools": { en: "Tools", zh: "工具" },
+  "table.version": { en: "Version", zh: "版本" },
+  "table.time": { en: "Time", zh: "时间" },
+  "table.session": { en: "Session", zh: "会话" },
+  "table.details": { en: "Details", zh: "详情" },
+
+  // Metric labels
+  "metric.toolCalls": { en: "Tool Calls", zh: "工具调用" },
+  "metric.successRate": { en: "Success Rate", zh: "成功率" },
+  "metric.errorRate": { en: "Error Rate", zh: "错误率" },
+  "metric.avgDuration": { en: "Avg Duration", zh: "平均耗时" },
+  "metric.totalFiles": { en: "Total Files", zh: "总文件数" },
+  "metric.totalSize": { en: "Total Size", zh: "总大小" },
+  "metric.avgAge": { en: "Avg Age", zh: "平均年龄" },
+
+  // Disease detail panel
+  "disease.description": { en: "Description", zh: "描述" },
+  "disease.possibleRootCauses": { en: "Possible Root Causes", zh: "可能的根本原因" },
+  "disease.metadata": { en: "Metadata", zh: "元数据" },
+  "disease.dataPeriod": { en: "Data period", zh: "数据周期" },
+  "disease.detected": { en: "Detected", zh: "检测于" },
+  "disease.lastSeen": { en: "Last seen", zh: "最后看到" },
+
+  // Button states
+  "button.generating": { en: "Generating…", zh: "生成中…" },
+  "button.generated": { en: "Generated", zh: "已生成" },
+  "button.saving": { en: "Saving…", zh: "保存中…" },
+  "button.testing": { en: "Testing…", zh: "测试中…" },
+  "button.running": { en: "Running…", zh: "运行中…" },
+  "button.apply": { en: "Apply", zh: "应用" },
+  "button.rollback": { en: "Rollback", zh: "回滚" },
+  "button.useOpenclawConfig": { en: "Use OpenClaw Config", zh: "使用 OpenClaw 配置" },
+
+  // LLM settings detail
+  "llm.configuration": { en: "LLM Configuration", zh: "LLM 配置" },
+  "llm.saved": { en: "LLM settings saved", zh: "LLM 设置已保存" },
+  "llm.testSuccess": { en: "LLM connection successful", zh: "LLM 连接成功" },
+  "llm.testFailed": { en: "Connection failed: {error}", zh: "连接失败: {error}" },
+  "llm.usingEnv": { en: "(using ANTHROPIC_API_KEY env)", zh: "（使用 ANTHROPIC_API_KEY 环境变量）" },
+  "llm.baseUrl.hint": { en: "Required for OpenAI-compatible providers.", zh: "OpenAI 兼容提供商需要。" },
+  "llm.model.hint": { en: "Leave empty for provider default", zh: "留空使用提供商默认值" },
+  "llm.apiKey.hint": { en: "Stored locally in ~/.clawdoctor/config.json", zh: "本地存储在 ~/.clawdoctor/config.json" },
+
+  // Department card labels
+  "dept.activeIssue": { en: "active issue", zh: "个活跃问题" },
+  "dept.checked": { en: "checked", zh: "已检查" },
+
+  // Error messages (client-side)
+  "error.checkupInProgress": { en: "Checkup already in progress", zh: "体检已在进行中" },
+  "error.failedLoad": { en: "Failed to load: {error}", zh: "加载失败: {error}" },
+
+  // Chart
+  "chart.overall": { en: "Overall", zh: "总体" },
+
   // Common
   "common.loading": { en: "Loading", zh: "加载中" },
   "common.error": { en: "Error", zh: "错误" },
@@ -292,11 +415,19 @@ const LOCALE_DICT = {
 };
 ```
 
-### 4.2 SPA t() Function
+### 4.2 SPA Translation Functions
+
+The SPA needs **two** translation functions:
+
+1. **`t(key, vars)`** — for static dictionary lookups (LOCALE_DICT keys)
+2. **`tObj(i18nObj)`** — for server-returned `I18nString` objects (disease names, descriptions, root causes, evidence, etc.)
+
+The API returns `I18nString` objects like `{ en: "Token Obesity", zh: "Token 肥胖症" }`. These cannot go through the dictionary — they need locale-aware property access.
 
 ```javascript
 let currentLocale = window.__CLAWDOCTOR_LOCALE__ || 'en';
 
+// Static dictionary lookup
 function t(key, vars) {
   const entry = LOCALE_DICT[key];
   if (!entry) return key;
@@ -307,6 +438,26 @@ function t(key, vars) {
     }
   }
   return result;
+}
+
+// Server-returned I18nString object resolution
+function tObj(obj) {
+  if (!obj) return '';
+  if (typeof obj === 'string') return obj;
+  return obj[currentLocale] || obj.en || '';
+}
+```
+
+**Usage in rendering:**
+```javascript
+// Static labels from LOCALE_DICT:
+html += `<th>${t('table.disease')}</th>`;
+
+// Server-returned I18nString objects from API:
+html += `<td>${tObj(disease.definition?.name)}</td>`;
+html += `<td>${tObj(disease.definition?.description)}</td>`;
+for (const cause of disease.definition?.rootCauses || []) {
+  html += `<li>${tObj(cause)}</li>`;
 }
 ```
 
@@ -379,35 +530,84 @@ app.get("/", (c) => c.html(loadSpaHtml(authToken, config.locale)));
 app.get("/*", (c) => c.html(loadSpaHtml(authToken, config.locale)));
 ```
 
-### 4.5 PUT /api/config Locale Persistence
+### 4.5 Unified Config Persistence
 
-The current `PUT /api/config` handler (line 383 of `server.ts`) is a stub that returns `{ status: "accepted" }` without writing to disk. It must be upgraded to persist at least the `locale` field:
+**Problem:** There are currently two independent config writers in `server.ts`:
+- `PUT /api/config` (stub, doesn't persist)
+- `PUT /api/llm/config` (writes only `{ llm: config.llm }`, erasing any other fields)
 
+If a user saves locale then saves LLM settings, the locale is lost. Both endpoints must use one shared read-merge-write utility.
+
+**Solution:** Extract a `mergeAndPersistConfig()` helper:
+
+```typescript
+// Shared config persistence utility — used by all config-writing endpoints
+function mergeAndPersistConfig(
+  partial: Record<string, unknown>,
+  inMemoryConfig: ClawDoctorConfig,
+): Record<string, unknown> {
+  const { writeFileSync, readFileSync, mkdirSync } = require("node:fs") as typeof import("node:fs");
+  const configDir = join(homedir(), ".clawdoctor");
+  mkdirSync(configDir, { recursive: true });
+  const configPath = join(configDir, "config.json");
+
+  // Read existing config from disk
+  let existing: Record<string, unknown> = {};
+  try {
+    existing = JSON.parse(readFileSync(configPath, "utf-8"));
+  } catch { /* first write */ }
+
+  // Deep merge the partial update
+  for (const [key, value] of Object.entries(partial)) {
+    if (typeof value === "object" && value !== null && !Array.isArray(value)) {
+      existing[key] = { ...(existing[key] as Record<string, unknown> ?? {}), ...value };
+    } else {
+      existing[key] = value;
+    }
+  }
+
+  writeFileSync(configPath, JSON.stringify(existing, null, 2), "utf-8");
+
+  // Update in-memory config
+  if (typeof partial.locale === "string") inMemoryConfig.locale = partial.locale;
+  if (partial.llm && typeof partial.llm === "object") {
+    Object.assign(inMemoryConfig.llm, partial.llm);
+  }
+
+  return existing;
+}
+```
+
+**Updated `PUT /api/config`:**
 ```typescript
 app.put("/api/config", async (c) => {
   try {
     const body = await c.req.json() as Record<string, unknown>;
-    const { writeFileSync, readFileSync, mkdirSync } = await import("node:fs");
-
-    // Read existing config
-    const configDir = join(homedir(), ".clawdoctor");
-    mkdirSync(configDir, { recursive: true });
-    const configPath = join(configDir, "config.json");
-    let existing: Record<string, unknown> = {};
-    try {
-      existing = JSON.parse(readFileSync(configPath, "utf-8"));
-    } catch { /* first write */ }
-
-    // Merge locale if provided
-    if (typeof body.locale === "string") {
-      existing.locale = body.locale;
-      config.locale = body.locale;  // Update in-memory config too
-    }
-
-    writeFileSync(configPath, JSON.stringify(existing, null, 2), "utf-8");
-    return c.json({ status: "saved", config: existing });
+    const saved = mergeAndPersistConfig(body, config);
+    return c.json({ status: "saved", config: saved });
   } catch {
     return c.json({ error: "Invalid JSON body" }, 400);
+  }
+});
+```
+
+**Updated `PUT /api/llm/config`:** Refactor to use the same utility:
+```typescript
+app.put("/api/llm/config", async (c) => {
+  try {
+    const body = await c.req.json() as Record<string, unknown>;
+    const llmUpdate: Record<string, unknown> = {};
+    if (typeof body.enabled === "boolean") llmUpdate.enabled = body.enabled;
+    if (typeof body.provider === "string") llmUpdate.provider = body.provider;
+    if (typeof body.model === "string") llmUpdate.model = body.model || undefined;
+    if (typeof body.apiKey === "string") llmUpdate.apiKey = body.apiKey || undefined;
+    if (typeof body.baseUrl === "string") llmUpdate.baseUrl = body.baseUrl || undefined;
+
+    const saved = mergeAndPersistConfig({ llm: llmUpdate }, config);
+    return c.json({ status: "saved" });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return c.json({ error: `Failed to save: ${msg}` }, 500);
   }
 });
 ```
@@ -460,10 +660,10 @@ console.log(`  ${t(action.description, locale)}`);
 
 ### 6.1 Unit Tests
 
-**`src/i18n/locales.test.ts`** (extend existing):
+**`src/i18n/locales.test.ts`** (NEW FILE — does not exist yet, must be created):
 - All `UI_STRINGS` keys have both `en` and `zh` values
 - No empty string values
-- Template variables (`{xxx}`) are consistent between en and zh translations (same set of placeholders)
+- Template variables (`{xxx}`) are consistent between en and zh translations (same set of placeholders in both languages)
 
 **`src/i18n/i18n.test.ts`** (extend existing):
 - `tf()` interpolation works correctly
@@ -472,15 +672,18 @@ console.log(`  ${t(action.description, locale)}`);
 
 ### 6.2 Dashboard Tests
 
-**`src/dashboard/server.test.ts`**:
+**`src/dashboard/server.test.ts`** (extend existing):
 - `loadSpaHtml()` injects `__CLAWDOCTOR_LOCALE__` with correct locale value
 - `loadSpaHtml()` updates `<html lang="...">` attribute
-- `PUT /api/config` with `{ locale: "zh" }` persists to config file and updates in-memory config
+- `PUT /api/config` with `{ locale: "zh" }` persists locale to config file AND updates in-memory config
+- `PUT /api/llm/config` after `PUT /api/config { locale: "zh" }` does NOT erase the locale (config write race regression test)
+- Config persistence round-trip: write locale → write LLM → read config → both fields present
 
-**`src/dashboard/spa.test.ts`**:
+**`src/dashboard/spa.test.ts`** (extend existing):
 - SPA HTML contains `LOCALE_DICT` object
 - All `LOCALE_DICT` entries have both `en` and `zh` keys
 - No empty values in either language
+- SPA HTML contains `tObj` function definition (for server-returned I18nString objects)
 
 ### 6.3 CLI i18n Tests
 
@@ -488,29 +691,31 @@ console.log(`  ${t(action.description, locale)}`);
 - `locale=en` produces English output
 - `locale=zh` produces Chinese output
 - Verify key output strings contain expected language text
+- Verify no raw `.en` property access remains in rx-cmd output (domain objects like disease names, action descriptions use `t()`)
 
 ### 6.4 E2E
 
 - Extend existing E2E test to verify both locale=en and locale=zh checkup output
 - E2E test should use isolated config (not system `~/.clawdoctor/config.json`) to avoid the fragility issue found in QA
+- Dashboard E2E: verify that switching locale in Settings re-renders nav labels and current page content
 
 ## 7. File Change Summary
 
 | File | Change |
 |------|--------|
-| `src/i18n/locales.ts` | Add ~45 new UI_STRINGS keys with en/zh |
+| `src/i18n/locales.ts` | Add ~50 new UI_STRINGS keys with en/zh |
 | `src/i18n/i18n.ts` | Add `tf()` template interpolation function (using `replaceAll`) |
 | `src/i18n/i18n.test.ts` | Add tests for `tf()` including multi-occurrence placeholders |
-| `src/i18n/locales.test.ts` | Add completeness + placeholder consistency check for all keys |
-| `src/dashboard/public/index.html` | Add LOCALE_DICT (~80 keys) + t() + language switcher + replace all hardcoded strings |
-| `src/dashboard/server.ts` | Update `loadSpaHtml()` to inject locale + HTML lang attr; upgrade `PUT /api/config` to persist locale |
-| `src/dashboard/server.test.ts` | Add locale injection + config persistence tests |
-| `src/dashboard/spa.test.ts` | Add LOCALE_DICT validation tests |
+| `src/i18n/locales.test.ts` | **NEW FILE** — completeness + placeholder consistency check for all keys |
+| `src/dashboard/public/index.html` | Add LOCALE_DICT (~150 keys) + `t()` + `tObj()` + language switcher + replace all hardcoded strings |
+| `src/dashboard/server.ts` | Update `loadSpaHtml()` to inject locale + HTML lang attr; extract `mergeAndPersistConfig()` utility; upgrade `PUT /api/config` to persist locale; refactor `PUT /api/llm/config` to use shared utility |
+| `src/dashboard/server.test.ts` | Add locale injection tests + config persistence race condition regression test |
+| `src/dashboard/spa.test.ts` | Add LOCALE_DICT + `tObj` validation tests |
 | `src/commands/checkup.ts` | Replace hardcoded strings with `tf()` calls |
 | `src/commands/report-builder.ts` | Replace 3 summary format strings with `tf()` calls |
 | `src/report/terminal-report.ts` | Replace "Agent:" label and quick action labels with `t()` calls |
-| `src/commands/rx-cmd.ts` | Replace ~30 hardcoded strings with `t()`/`tf()` calls; replace all `.en` accesses with `t()` |
+| `src/commands/rx-cmd.ts` | Replace ~36 hardcoded strings with `t()`/`tf()` calls; replace all `.en` accesses with `t()`; add `loadConfig()` to `list` and `history` subcommands |
 | `src/commands/config-cmd.ts` | Replace 3 hardcoded strings with `tf()` calls |
 | `src/commands/dashboard-cmd.ts` | Replace 1 hardcoded string with `t()` call |
-| `src/commands/badge-cmd.ts` | Replace 1 hardcoded string with `tf()` call |
-| `src/commands/dept-runner.ts` | Pass `config.locale` to `buildReportViewModel()` and `renderReport()` instead of hardcoded `"en"` |
+| `src/commands/badge-cmd.ts` | Add `loadConfig()` import + call; replace 1 hardcoded string with `tf()` call |
+| `src/commands/dept-runner.ts` | Add `loadConfig()` import + call; pass `config.locale` to `buildReportViewModel()` and `renderReport()` instead of hardcoded `"en"` |
