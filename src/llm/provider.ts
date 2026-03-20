@@ -3,6 +3,9 @@
 //  Provider-agnostic interface + Anthropic implementation
 // ═══════════════════════════════════════════════
 
+import { readFileSync, existsSync } from "node:fs";
+import { join, dirname } from "node:path";
+import { homedir } from "node:os";
 import type { ClawDoctorConfig } from "../types/config.js";
 
 // ─── Interfaces ───────────────────────────────────────────────────────────────
@@ -169,11 +172,6 @@ export interface OpenClawModelInfo {
  * Returns null if no usable model config found.
  */
 export function readOpenClawModelConfig(stateDir?: string): OpenClawModelInfo | null {
-  // Lazy import to avoid circular deps
-  const { readFileSync, existsSync } = require("node:fs") as typeof import("node:fs");
-  const { join, dirname } = require("node:path") as typeof import("node:path");
-  const { homedir } = require("node:os") as typeof import("node:os");
-
   const dir = stateDir ?? join(homedir(), ".openclaw");
   const candidates = [
     join(dir, "openclaw.json"),
