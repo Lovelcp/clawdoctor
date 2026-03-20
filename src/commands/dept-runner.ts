@@ -9,6 +9,7 @@ import { runCheckup } from "../analysis/analysis-pipeline.js";
 import { renderReport } from "../report/terminal-report.js";
 import { buildReportViewModel } from "./report-builder.js";
 import { parseSince } from "./checkup.js";
+import { loadConfig } from "../config/loader.js";
 import type { Department } from "../types/domain.js";
 import type { CheckupOptions } from "../analysis/analysis-pipeline.js";
 
@@ -28,6 +29,9 @@ export async function runDeptCheckup(
     const stateDir = join(homedir(), ".openclaw");
     const workspaceDir = process.cwd();
     const since = parseSince(opts.since ?? "7d");
+    const configFilePath = join(homedir(), ".clawdoctor", "config.json");
+    const config = loadConfig(configFilePath);
+    const locale = config.locale ?? "en";
     const agentId = opts.agent ?? "default";
 
     const checkupOpts: CheckupOptions = {
@@ -55,9 +59,10 @@ export async function runDeptCheckup(
       agentId,
       dateRange,
       [department],
+      locale,
     );
 
-    const report = renderReport(viewModel, "en");
+    const report = renderReport(viewModel, locale);
     console.log(report);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);

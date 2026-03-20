@@ -15,6 +15,8 @@ import { openDatabase } from "../store/database.js";
 import { createPrescriptionExecutor } from "../prescription/prescription-executor.js";
 import { filterAutoApplicable } from "../prescription/auto-apply.js";
 import { loadConfig } from "../config/loader.js";
+import { tf } from "../i18n/i18n.js";
+import { UI_STRINGS } from "../i18n/locales.js";
 import type { Department } from "../types/domain.js";
 import type { CheckupOptions } from "../analysis/analysis-pipeline.js";
 
@@ -103,6 +105,8 @@ export function registerCheckupCommand(program: Command): void {
 
         const result = await runCheckup(checkupOpts);
 
+        const locale = config.locale ?? "en";
+
         if (opts.json) {
           console.log(JSON.stringify(result, null, 2));
         } else {
@@ -110,7 +114,6 @@ export function registerCheckupCommand(program: Command): void {
           const nowDate = new Date();
           const dateRange = `${sinceDate.toISOString().slice(0, 10)} ~ ${nowDate.toISOString().slice(0, 10)}`;
 
-          const locale = config.locale ?? "en";
           const viewModel = buildReportViewModel(
             result,
             opts.agent ?? "default",
@@ -128,7 +131,7 @@ export function registerCheckupCommand(program: Command): void {
           const { autoApplyPrescriptions } = await import("../prescription/auto-apply.js");
           const applicable = filterAutoApplicable(result.prescriptions);
           if (applicable.length > 0) {
-            console.log(`\nAuto-applying ${applicable.length} low-risk prescription(s)...`);
+            console.log("\n" + tf(UI_STRINGS["cli.autoApplying"], locale, { count: applicable.length }));
             const dbPath = join(homedir(), ".clawdoctor", "clawdoctor.db");
             const db = openDatabase(dbPath);
             const executor = createPrescriptionExecutor(db, config);
@@ -136,7 +139,7 @@ export function registerCheckupCommand(program: Command): void {
             for (const r of autoResult.results) {
               console.log(r.success ? `  ✓ ${r.prescriptionId}: applied` : `  ✗ ${r.prescriptionId}: ${r.error}`);
             }
-            console.log(`\nAuto-fix summary: ${autoResult.applied} applied, ${autoResult.failed} failed`);
+            console.log("\n" + tf(UI_STRINGS["cli.autoFixSummary"], locale, { applied: autoResult.applied, failed: autoResult.failed }));
             db.close();
           }
         }

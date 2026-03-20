@@ -6,7 +6,7 @@
 
 import { getDiseaseRegistry } from "../diseases/registry.js";
 import { progressBar } from "../report/progress-bar.js";
-import { t } from "../i18n/i18n.js";
+import { t, tf } from "../i18n/i18n.js";
 import { UI_STRINGS } from "../i18n/locales.js";
 import type { CheckupResult } from "../analysis/analysis-pipeline.js";
 import type { Department } from "../types/domain.js";
@@ -87,19 +87,19 @@ export function buildReportViewModel(
     let summary: string;
     if (score === null) {
       const coveragePct = deptScore ? Math.round(deptScore.coverage * 100) : 0;
-      summary = `Insufficient data for scoring (${coveragePct}% coverage)`;
+      summary = tf(UI_STRINGS["report.insufficientData"], locale, { coverage: coveragePct });
     } else {
       const activeDiseases = deptScore?.activeDiseases ?? 0;
       const criticals = deptScore?.criticalCount ?? 0;
       const warnings = deptScore?.warningCount ?? 0;
       const scoreRounded = Math.round(score);
-      summary = `Score: ${scoreRounded} | ${activeDiseases} active issue(s) [${criticals} critical, ${warnings} warning]`;
+      summary = tf(UI_STRINGS["report.scoreSummary"], locale, { score: scoreRounded, count: activeDiseases, critical: criticals, warning: warnings });
     }
 
     // Skipped note if any checks were skipped
     let skippedNote: string | undefined;
     if (skippedDiseases > 0) {
-      skippedNote = `${skippedDiseases} checks skipped (need plugin for full ${name} analysis)`;
+      skippedNote = tf(UI_STRINGS["report.deptChecksSkipped"], locale, { count: skippedDiseases, dept: name });
     }
 
     return {

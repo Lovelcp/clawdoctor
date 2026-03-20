@@ -51,7 +51,7 @@ function renderHeader(vm: ReportViewModel, locale: string): string[] {
     `  ${color.lobster("🦞")} ${style.bold(color.lobster(t(UI_STRINGS.reportTitle, locale)))}`,
   );
   lines.push(
-    `  ${color.muted("Agent:")} ${color.white(vm.agentId)}  ${color.muted("│")}  ${color.muted(vm.dateRange)}`,
+    `  ${color.muted(t(UI_STRINGS["report.agentLabel"], locale))} ${color.white(vm.agentId)}  ${color.muted("│")}  ${color.muted(vm.dateRange)}`,
   );
   lines.push(
     `  ${color.muted(t(UI_STRINGS.mode, locale) + ":")} ${color.accent(vm.dataMode)}  ${color.muted("│")}  ${color.muted(t(UI_STRINGS.coverage, locale) + ":")} ${coverageColor(vm.coveragePercent)(`${vm.coveragePercent}%`)} ${color.subtle(`(${vm.coverageChecks})`)}`,
@@ -160,13 +160,13 @@ function renderFooter(vm: ReportViewModel, locale: string): string[] {
     );
     lines.push("");
     lines.push(
-      `  ${color.accent("clawdoctor rx apply --all")}          ${color.muted("Apply all guided Rx")}`,
+      `  ${color.accent("clawdoctor rx apply --all")}          ${color.muted(t(UI_STRINGS["report.quickAction.applyRx"], locale))}`,
     );
     lines.push(
-      `  ${color.accent("clawdoctor rx followup")}             ${color.muted("Check previous Rx results")}`,
+      `  ${color.accent("clawdoctor rx followup")}             ${color.muted(t(UI_STRINGS["report.quickAction.checkRx"], locale))}`,
     );
     lines.push(
-      `  ${color.accent("clawdoctor dashboard")}               ${color.muted("Open detailed dashboard")}`,
+      `  ${color.accent("clawdoctor dashboard")}               ${color.muted(t(UI_STRINGS["report.quickAction.openDashboard"], locale))}`,
     );
   }
 
