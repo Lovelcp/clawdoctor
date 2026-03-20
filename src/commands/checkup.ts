@@ -110,13 +110,15 @@ export function registerCheckupCommand(program: Command): void {
           const nowDate = new Date();
           const dateRange = `${sinceDate.toISOString().slice(0, 10)} ~ ${nowDate.toISOString().slice(0, 10)}`;
 
+          const locale = config.locale ?? "en";
           const viewModel = buildReportViewModel(
             result,
             opts.agent ?? "default",
             dateRange,
             departments,
+            locale,
           );
-          const report = renderReport(viewModel, "en");
+          const report = renderReport(viewModel, locale);
           console.log(report);
         }
 
