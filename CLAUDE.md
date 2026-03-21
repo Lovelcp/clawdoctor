@@ -75,7 +75,7 @@ Disease detection types: `"rule"` (threshold-based, Phase 1), `"llm"` (LLM-only 
 
 ### Dashboard
 
-`src/dashboard/server.ts` is a Hono app with 15 API routes + single-file SPA at `src/dashboard/public/index.html`. All `/api/*` endpoints require bearer token auth (except `/api/badge`). Server binds to `127.0.0.1` only.
+`src/dashboard/server.ts` is a Hono app with 18 API routes + single-file SPA at `src/dashboard/public/index.html`. All `/api/*` endpoints require bearer token auth (except `/api/badge`). Server binds to `127.0.0.1` only. The SPA supports en/zh with a language switcher in Settings. `loadSpaHtml()` injects auth token + locale into the HTML at serve time. LLM settings page (`GET/PUT /api/llm/status`, `/api/llm/config`, `POST /api/llm/test`) supports OpenAI-compatible providers.
 
 ### Community Plugins
 
@@ -85,14 +85,30 @@ Disease detection types: `"rule"` (threshold-based, Phase 1), `"llm"` (LLM-only 
 
 `src/prescription/` handles: generate (LLM-based) → preview (diff) → apply (2-phase backup: pre+post hash) → rollback (3-way conflict detection) → follow-up (T+1h/24h/7d checkpoints).
 
+### i18n System
+
+Full en/zh coverage across CLI and Dashboard:
+
+- **CLI side:** `src/i18n/locales.ts` contains `UI_STRINGS` (~77 keys) with `as const`. Use `t(UI_STRINGS["key"], locale)` for simple strings, `tf(UI_STRINGS["key"], locale, { var: value })` for template interpolation. Both functions in `src/i18n/i18n.ts`.
+- **Dashboard SPA:** `src/dashboard/public/index.html` has `LOCALE_DICT` (~149 keys) + `t(key, vars)` for static strings + `tObj(i18nObj)` for server-returned `I18nString` objects (disease names, descriptions, root causes).
+- **Language switcher:** Settings page dropdown persists locale via `PUT /api/config`, re-renders nav + current page via `switchLocale()`.
+- **Locale access:** Most CLI commands load config and extract `config.locale ?? "en"`. `config init`/`set` use `"en"` since config may not exist yet.
+- **Config persistence:** `mergeAndPersistConfig()` in `server.ts` is the unified read-merge-write utility. Both `PUT /api/config` and `PUT /api/llm/config` use it to prevent write races.
+
+### LLM Provider
+
+`src/llm/provider.ts` supports Anthropic (default) and OpenAI-compatible APIs (Moonshot, DeepSeek). `resolveLLMProvider()` has 3-tier priority: config API key → `ANTHROPIC_API_KEY` env var → no provider. `readOpenClawModelConfig()` detects model from `~/.openclaw/openclaw.json`.
+
 ## Key Conventions
 
-- **ESM-only** — all imports use `.js` extension (`import { foo } from "./bar.js"`)
-- **i18n** — user-facing strings use `I18nString` type (`{ en: "...", zh: "..." }`). Resolve with `t(str, locale)` from `src/i18n/i18n.ts`
+- **ESM-only** — all imports use `.js` extension (`import { foo } from "./bar.js"`). Never use `require()` — the project is pure ESM.
+- **i18n** — user-facing strings use `I18nString` type (`{ en: "...", zh: "..." }`). Resolve with `t(str, locale)` for simple lookups, `tf(str, locale, vars)` for template interpolation. Never access `.en` directly on I18nString objects — always use `t()`.
 - **Scoring** — `null` means "no data / unknown" (NOT "healthy"). Departments with <50% coverage get grade `"N/A"`
 - **Privacy** — raw tool params/results never stored in SQLite. Only type summaries persisted. Raw data accessed on-demand via `RawSampleProvider`
 - **Dedup** — "latest checkup wins": each run resolves stale diagnoses, deletes pending prescriptions and old causal chains before inserting new results
 
-## Design Spec
+## Design Specs
 
-The authoritative design document is `docs/2026-03-17-clawdoctor-design.md`. It defines all types, disease definitions, scoring algorithms (Apdex, AHP, CVSS), and architectural decisions. Reference it when making changes to core logic.
+- Main design: `docs/2026-03-17-clawdoctor-design.md` — types, diseases, scoring algorithms (Apdex, AHP, CVSS), architectural decisions
+- i18n design: `docs/superpowers/specs/2026-03-20-i18n-full-coverage-design.md` — full i18n coverage spec
+- i18n plan: `docs/superpowers/plans/2026-03-20-i18n-full-coverage.md` — implementation plan

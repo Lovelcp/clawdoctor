@@ -44,6 +44,8 @@ One command. Zero config. Full health report.
 | **Web Dashboard** | 9-page SPA with health score trends, department details, prescription management, event timeline |
 | **Quality Badge** | Generate shields.io-style SVG badges showing your agent's health grade |
 | **Plugin System** | Write custom disease rules as npm packages, share with the community |
+| **Multi-Language** | Full Chinese/English support — CLI, Dashboard, and reports all respect `config.locale`. Switch languages in Dashboard Settings |
+| **LLM Settings** | Configure LLM provider in Dashboard — supports Anthropic, Moonshot, DeepSeek, and any OpenAI-compatible API. Auto-detects OpenClaw model config |
 | **Privacy-First** | Raw data never persisted — only redacted summaries stored in SQLite |
 
 ## Installation
@@ -250,6 +252,8 @@ Config file location: `~/.clawdoctor/config.json`
 ```
 
 All thresholds are configurable. Department weights use AHP (Analytic Hierarchy Process) defaults.
+
+Set `"locale": "zh"` for Chinese output across CLI and Dashboard. Switch languages in the Dashboard Settings page.
 
 ## Contributing
 
