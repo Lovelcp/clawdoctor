@@ -141,7 +141,7 @@ describe("renderReport — stream mode", () => {
   it("shows Quick Actions footer in stream mode", () => {
     const text = plain(streamViewModel);
     expect(text).toContain("Quick Actions");
-    expect(text).toContain("clawdoctor rx apply");
+    expect(text).toContain("clawdoc rx apply");
   });
 
   it("does NOT show plugin install CTA in stream mode", () => {

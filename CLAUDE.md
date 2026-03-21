@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-ClawDoctor is a health diagnostics tool for OpenClaw agents. It analyzes an agent's sessions, config, memory, and plugins to detect issues across 6 departments (vitals, skill, memory, behavior, cost, security), score health, generate prescriptions, and track recovery. It has two modes: standalone CLI (`npx clawdoctor checkup`) and OpenClaw plugin (real-time event streaming via hooks).
+ClawDoctor is a health diagnostics tool for OpenClaw agents. It analyzes an agent's sessions, config, memory, and plugins to detect issues across 6 departments (vitals, skill, memory, behavior, cost, security), score health, generate prescriptions, and track recovery. It has two modes: standalone CLI (`npx clawdoc checkup`) and OpenClaw plugin (real-time event streaming via hooks).
 
 ## Commands
 

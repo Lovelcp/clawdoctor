@@ -11,7 +11,7 @@
 ClawDoctor diagnoses your OpenClaw agent like a doctor examines a patient — checking vitals, analyzing behavior, finding root causes, prescribing fixes, and tracking recovery.
 
 ```bash
-npx clawdoctor checkup
+npx clawdoc checkup
 ```
 
 One command. Zero config. Full health report.
@@ -52,13 +52,13 @@ One command. Zero config. Full health report.
 
 ```bash
 # Run directly (no install needed)
-npx clawdoctor checkup
+npx clawdoc checkup
 
 # Or install globally
-npm install -g clawdoctor
+npm install -g clawdoc
 
 # Or as a project dependency
-npm install clawdoctor
+npm install clawdoc
 ```
 
 **Requirements:** Node.js 22+
@@ -68,54 +68,54 @@ npm install clawdoctor
 ### Core
 
 ```bash
-clawdoctor checkup                        # Full health checkup (all 6 departments)
-clawdoctor checkup --agent <id>           # Check a specific agent
-clawdoctor checkup --dept skill,memory    # Focus on specific departments
-clawdoctor checkup --since 30d            # Custom time range
-clawdoctor checkup --no-llm              # Rules only (fast, no API key needed)
-clawdoctor checkup --json                 # Structured JSON output
-clawdoctor checkup --fail-on critical     # CI mode: exit 1 on critical issues
-clawdoctor checkup --auto-fix             # Auto-apply low-risk prescriptions
+clawdoc checkup                        # Full health checkup (all 6 departments)
+clawdoc checkup --agent <id>           # Check a specific agent
+clawdoc checkup --dept skill,memory    # Focus on specific departments
+clawdoc checkup --since 30d            # Custom time range
+clawdoc checkup --no-llm              # Rules only (fast, no API key needed)
+clawdoc checkup --json                 # Structured JSON output
+clawdoc checkup --fail-on critical     # CI mode: exit 1 on critical issues
+clawdoc checkup --auto-fix             # Auto-apply low-risk prescriptions
 ```
 
 ### Prescriptions
 
 ```bash
-clawdoctor rx list                         # View all prescriptions
-clawdoctor rx preview <id>                 # Preview changes before applying
-clawdoctor rx apply <id>                   # Apply a prescription
-clawdoctor rx apply --all                  # Apply all guided prescriptions
-clawdoctor rx rollback <id>                # Undo an applied prescription
-clawdoctor rx followup [id]                # Check if the fix worked
-clawdoctor rx history                      # View prescription history
+clawdoc rx list                         # View all prescriptions
+clawdoc rx preview <id>                 # Preview changes before applying
+clawdoc rx apply <id>                   # Apply a prescription
+clawdoc rx apply --all                  # Apply all guided prescriptions
+clawdoc rx rollback <id>                # Undo an applied prescription
+clawdoc rx followup [id]                # Check if the fix worked
+clawdoc rx history                      # View prescription history
 ```
 
 ### Explore
 
 ```bash
-clawdoctor skill list                      # Skill & Tool health overview
-clawdoctor memory scan                     # Memory file health scan
-clawdoctor cost report                     # Token cost analysis
-clawdoctor behavior report                 # Agent behavior analysis
-clawdoctor security audit                  # Security posture check
+clawdoc skill list                      # Skill & Tool health overview
+clawdoc memory scan                     # Memory file health scan
+clawdoc cost report                     # Token cost analysis
+clawdoc behavior report                 # Agent behavior analysis
+clawdoc security audit                  # Security posture check
 ```
 
 ### Dashboard & Badge
 
 ```bash
-clawdoctor dashboard                       # Start web dashboard (http://127.0.0.1:9800)
-clawdoctor dashboard --port 3000           # Custom port
-clawdoctor badge                           # Output SVG badge to stdout
-clawdoctor badge --output badge.svg        # Save badge to file
-clawdoctor badge --format markdown         # Output markdown image link
+clawdoc dashboard                       # Start web dashboard (http://127.0.0.1:9800)
+clawdoc dashboard --port 3000           # Custom port
+clawdoc badge                           # Output SVG badge to stdout
+clawdoc badge --output badge.svg        # Save badge to file
+clawdoc badge --format markdown         # Output markdown image link
 ```
 
 ### Configuration
 
 ```bash
-clawdoctor config init                     # Create config with defaults
-clawdoctor config show                     # View current configuration
-clawdoctor config set <key> <value>        # Update a config value
+clawdoc config init                     # Create config with defaults
+clawdoc config show                     # View current configuration
+clawdoc config set <key> <value>        # Update a config value
 ```
 
 ## Health Score Badge
@@ -123,7 +123,7 @@ clawdoctor config set <key> <value>        # Update a config value
 Show your agent's health score in your README:
 
 ```bash
-clawdoctor badge --output badge.svg
+clawdoc badge --output badge.svg
 ```
 
 ```markdown
@@ -158,7 +158,7 @@ jobs:
         with:
           node-version: '22'
       - name: Run ClawDoctor
-        run: npx clawdoctor checkup --fail-on critical --no-llm
+        run: npx clawdoc checkup --fail-on critical --no-llm
 ```
 
 See [CI Setup Guide](docs/ci-setup.md) for GitLab CI, CircleCI, and Jenkins examples.
@@ -172,7 +172,7 @@ Extend ClawDoctor with custom disease rules:
 npm install clawdoctor-plugin-security-extra
 
 # Use it
-clawdoctor checkup --plugins clawdoctor-plugin-security-extra
+clawdoc checkup --plugins clawdoctor-plugin-security-extra
 ```
 
 Or add to your config:
@@ -213,7 +213,7 @@ See the [Plugin Authoring Guide](docs/plugin-authoring.md) for the complete sche
 
 ClawDoctor uses a **dual-mode architecture**:
 
-- **CLI Mode** (`npx clawdoctor checkup`): Reads OpenClaw files on disk (sessions, config, memory). Zero setup.
+- **CLI Mode** (`npx clawdoc checkup`): Reads OpenClaw files on disk (sessions, config, memory). Zero setup.
 - **Plugin Mode**: Runs inside OpenClaw gateway, collecting real-time events via hooks for richer analysis.
 
 ```

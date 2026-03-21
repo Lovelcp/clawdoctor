@@ -152,7 +152,7 @@ function renderFooter(vm: ReportViewModel, locale: string): string[] {
       `  ${color.muted(t(UI_STRINGS.installPlugin, locale) + ":")}`,
     );
     lines.push(
-      `  ${color.accent("npm install clawdoctor")} ${color.muted("&&")} ${color.accent("openclaw config set plugins.clawdoctor enabled")}`,
+      `  ${color.accent("npm install clawdoc")} ${color.muted("&&")} ${color.accent("openclaw config set plugins.clawdoc enabled")}`,
     );
   } else {
     lines.push(
@@ -160,13 +160,13 @@ function renderFooter(vm: ReportViewModel, locale: string): string[] {
     );
     lines.push("");
     lines.push(
-      `  ${color.accent("clawdoctor rx apply --all")}          ${color.muted(t(UI_STRINGS["report.quickAction.applyRx"], locale))}`,
+      `  ${color.accent("clawdoc rx apply --all")}          ${color.muted(t(UI_STRINGS["report.quickAction.applyRx"], locale))}`,
     );
     lines.push(
-      `  ${color.accent("clawdoctor rx followup")}             ${color.muted(t(UI_STRINGS["report.quickAction.checkRx"], locale))}`,
+      `  ${color.accent("clawdoc rx followup")}             ${color.muted(t(UI_STRINGS["report.quickAction.checkRx"], locale))}`,
     );
     lines.push(
-      `  ${color.accent("clawdoctor dashboard")}               ${color.muted(t(UI_STRINGS["report.quickAction.openDashboard"], locale))}`,
+      `  ${color.accent("clawdoc dashboard")}               ${color.muted(t(UI_STRINGS["report.quickAction.openDashboard"], locale))}`,
     );
   }
 

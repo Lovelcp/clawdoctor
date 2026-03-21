@@ -1,10 +1,10 @@
 {
-  "name": "clawdoctor",
+  "name": "clawdoc",
   "version": "0.1.0",
   "description": "Health diagnostics for OpenClaw agents",
   "type": "module",
   "bin": {
-    "clawdoctor": "./dist/bin.js"
+    "clawdoc": "./dist/bin.js"
   },
   "exports": {
     ".": "./dist/index.js",
