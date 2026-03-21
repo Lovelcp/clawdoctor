@@ -15,7 +15,8 @@
     "dev": "tsx src/bin.ts",
     "test": "vitest",
     "test:coverage": "vitest --coverage",
-    "check": "tsc --noEmit"
+    "check": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
   },
   "engines": {
     "node": ">=22"
