@@ -1401,7 +1401,7 @@
 
         if (mr && mr.metrics) {
           const mc = el('div', { class: 'card' });
-          mc.appendChild(el('div', { class: 'card-title' }, t('card.keyMetrics'));
+          mc.appendChild(el('div', { class: 'card-title' }, t('card.keyMetrics')));
           const mg = el('div', { class: 'grid grid-3' });
           Object.entries(mr.metrics).forEach(([k, v]) => {
             if (v == null || typeof v === 'object') return;
