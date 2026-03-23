@@ -9,7 +9,8 @@ export type Department =
   | "memory"     // Memory Cognition
   | "behavior"   // Agent Behavior
   | "cost"       // Cost Metabolism
-  | "security";  // Security Immunity
+  | "security"   // Security Immunity
+  | "infra";     // Infrastructure
 
 export type Severity = "critical" | "warning" | "info";
 

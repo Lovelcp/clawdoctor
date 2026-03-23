@@ -112,7 +112,7 @@ function mergeAndPersistConfig(
 // --- Valid departments for validation ---
 
 const VALID_DEPARTMENTS = new Set<string>([
-  "vitals", "skill", "memory", "behavior", "cost", "security",
+  "vitals", "skill", "memory", "behavior", "cost", "security", "infra",
 ]);
 
 // --- Factory ---

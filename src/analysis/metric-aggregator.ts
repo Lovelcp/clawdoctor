@@ -79,6 +79,11 @@ export interface MetricSet {
     openclawVersion: string;
     diskUsageBytes: number;
   };
+
+  infra: {
+    // Placeholder — populated by monitor probes, not snapshot collector.
+    // Empty until continuous monitoring probe data is available.
+  } | null;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -444,5 +449,7 @@ export function aggregateMetrics(
       openclawVersion: vitalsOpenclawVersion,
       diskUsageBytes: vitalsDiskUsageBytes,
     },
+
+    infra: null,  // populated by monitor probes, not snapshot collector
   };
 }

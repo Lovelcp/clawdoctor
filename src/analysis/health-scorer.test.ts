@@ -186,20 +186,22 @@ describe("computeOverallScore", () => {
       behavior: makeDepScore(null), // skipped
       cost: makeDepScore(null),     // skipped
       security: makeDepScore(null), // skipped
+      infra: makeDepScore(null),    // skipped
     };
     const weights: Record<Department, number> = {
-      vitals: 0.08,
-      skill: 0.26,
-      memory: 0.14,
-      behavior: 0.26,
-      cost: 0.11,
-      security: 0.15,
+      vitals: 0.06,
+      skill: 0.22,
+      memory: 0.12,
+      behavior: 0.22,
+      cost: 0.10,
+      security: 0.13,
+      infra: 0.15,
     };
     const result = computeOverallScore(departments, weights);
-    // Only vitals(80, w=0.08) and memory(60, w=0.14) are evaluable
-    // Re-normalized: vitals=0.08/(0.08+0.14), memory=0.14/(0.08+0.14)
-    // overall = (80*0.08 + 60*0.14) / (0.08+0.14) = (6.4+8.4)/0.22 = 14.8/0.22 ≈ 67.27
-    expect(result.overall).toBeCloseTo(67.27, 1);
+    // Only vitals(80, w=0.06) and memory(60, w=0.12) are evaluable
+    // Re-normalized: vitals=0.06/(0.06+0.12), memory=0.12/(0.06+0.12)
+    // overall = (80*0.06 + 60*0.12) / (0.06+0.12) = (4.8+7.2)/0.18 = 12.0/0.18 ≈ 66.67
+    expect(result.overall).toBeCloseTo(66.67, 1);
     expect(result.grade).toBe("C"); // 50-69 = C
   });
 
@@ -211,14 +213,16 @@ describe("computeOverallScore", () => {
       behavior: makeDepScore(null),
       cost: makeDepScore(null),
       security: makeDepScore(null),
+      infra: makeDepScore(null),
     };
     const weights: Record<Department, number> = {
-      vitals: 0.08,
-      skill: 0.26,
-      memory: 0.14,
-      behavior: 0.26,
-      cost: 0.11,
-      security: 0.15,
+      vitals: 0.06,
+      skill: 0.22,
+      memory: 0.12,
+      behavior: 0.22,
+      cost: 0.10,
+      security: 0.13,
+      infra: 0.15,
     };
     const result = computeOverallScore(departments, weights);
     expect(result.overall).toBe(0);

@@ -13,7 +13,8 @@ export type EventType =
   | "compaction_event"
   | "config_snapshot"
   | "memory_snapshot"
-  | "plugin_snapshot";
+  | "plugin_snapshot"
+  | "probe_result";
 
 // ─── Event data interfaces ───
 
@@ -116,6 +117,18 @@ export interface PluginSnapshotData {
   }>;
 }
 
+export interface ProbeResultData {
+  readonly probeId: string;
+  readonly status: string;
+  readonly findings: ReadonlyArray<{
+    readonly code: string;
+    readonly message: { en: string; [locale: string]: string };
+    readonly severity: "critical" | "warning" | "info";
+    readonly context: Readonly<Record<string, unknown>>;
+  }>;
+  readonly metrics: Readonly<Record<string, number>>;
+}
+
 // ─── EventType → data type mapping ───
 
 export type EventDataMap = {
@@ -129,6 +142,7 @@ export type EventDataMap = {
   config_snapshot: ConfigSnapshotData;
   memory_snapshot: MemorySnapshotData;
   plugin_snapshot: PluginSnapshotData;
+  probe_result: ProbeResultData;
 };
 
 // ─── Base event ───

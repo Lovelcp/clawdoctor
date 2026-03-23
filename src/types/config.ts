@@ -125,12 +125,13 @@ export const DEFAULT_CONFIG: ClawDoctorConfig = {
   },
 
   weights: {
-    vitals:   0.08,
-    skill:    0.26,
-    memory:   0.14,
-    behavior: 0.26,
-    cost:     0.11,
-    security: 0.15,
+    vitals:   0.06,
+    skill:    0.22,
+    memory:   0.12,
+    behavior: 0.22,
+    cost:     0.10,
+    security: 0.13,
+    infra:    0.15,
   },
 
   llm: {

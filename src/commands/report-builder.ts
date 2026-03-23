@@ -27,7 +27,7 @@ function gradeLabelKey(grade: string): keyof typeof UI_STRINGS {
 
 // ─── All departments in display order ────────────────────────────────────────
 
-const ALL_DEPARTMENTS: Department[] = ["vitals", "skill", "memory", "behavior", "cost", "security"];
+const ALL_DEPARTMENTS: Department[] = ["vitals", "skill", "memory", "behavior", "cost", "security", "infra"];
 
 // ─── buildReportViewModel ─────────────────────────────────────────────────────
 

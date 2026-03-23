@@ -80,6 +80,8 @@ function makeMetrics(overrides: DeepPartial<MetricSet> = {}): MetricSet {
       openclawVersion: "1.0.0",
       diskUsageBytes: 100 * 1024 * 1024, // 100 MB
     },
+
+    infra: null,
   };
 
   return deepMerge(base, overrides) as MetricSet;

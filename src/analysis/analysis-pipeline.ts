@@ -99,6 +99,7 @@ const DEPARTMENT_METRICS: Record<Department, MetricSpec[]> = {
     { metric: "security.exposedCredentials", direction: "higher_is_worse" },
     { metric: "security.unsandboxedPlugins", direction: "higher_is_worse" },
   ],
+  infra: [],  // populated by monitor probes, not snapshot-based checkup
 };
 
 // ─── runCheckup ───────────────────────────────────────────────────────────────
@@ -421,7 +422,7 @@ export async function runCheckup(opts: CheckupOptions): Promise<CheckupResult> {
 
     const departmentScores: Partial<Record<Department, ReturnType<typeof computeDepartmentScore>>> = {};
 
-    const allDepartments: Department[] = ["vitals", "skill", "memory", "behavior", "cost", "security"];
+    const allDepartments: Department[] = ["vitals", "skill", "memory", "behavior", "cost", "security", "infra"];
 
     for (const dept of allDepartments) {
       const specs = DEPARTMENT_METRICS[dept];

@@ -124,6 +124,7 @@ function makeMockMetrics(): MetricSet {
       openclawVersion: "1.0.0",
       diskUsageBytes: 1024,
     },
+    infra: null,
   };
 }
 
