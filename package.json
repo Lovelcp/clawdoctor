@@ -1,6 +1,6 @@
 {
   "name": "clawdoc",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Health diagnostics for OpenClaw agents",
   "type": "module",
   "bin": {
@@ -21,11 +21,29 @@
   "engines": {
     "node": ">=22"
   },
-  "keywords": ["openclaw", "diagnostics", "health", "agent", "ai", "lobster", "clawdoctor", "llm"],
+  "keywords": [
+    "openclaw",
+    "diagnostics",
+    "health",
+    "agent",
+    "ai",
+    "lobster",
+    "clawdoctor",
+    "llm"
+  ],
   "homepage": "https://github.com/Lovelcp/clawdoctor",
-  "repository": { "type": "git", "url": "https://github.com/Lovelcp/clawdoctor.git" },
-  "bugs": { "url": "https://github.com/Lovelcp/clawdoctor/issues" },
-  "files": ["dist/", "README.md", "LICENSE"],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Lovelcp/clawdoctor.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Lovelcp/clawdoctor/issues"
+  },
+  "files": [
+    "dist/",
+    "README.md",
+    "LICENSE"
+  ],
   "license": "Apache-2.0",
   "dependencies": {
     "@hono/node-server": "^1.19.11",
