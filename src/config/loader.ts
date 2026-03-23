@@ -129,6 +129,135 @@ function deepMerge(
     }
   }
 
+  // monitor — deep merge probes + triage
+  if (isRecord(user["monitor"])) {
+    const userMonitor = user["monitor"];
+
+    if (isRecord(userMonitor["probes"])) {
+      const userProbes = userMonitor["probes"];
+      for (const probeKey of Object.keys(result.monitor.probes)) {
+        if (isRecord(userProbes[probeKey])) {
+          const userProbe = userProbes[probeKey];
+          const target = result.monitor.probes as Record<string, Record<string, unknown>>;
+          const existing = target[probeKey];
+          target[probeKey] = { ...existing };
+          if (typeof userProbe["enabled"] === "boolean") {
+            target[probeKey]["enabled"] = userProbe["enabled"];
+          }
+          if (typeof userProbe["intervalMs"] === "number") {
+            target[probeKey]["intervalMs"] = userProbe["intervalMs"];
+          }
+          if (isRecord(userProbe["params"])) {
+            target[probeKey]["params"] = { ...userProbe["params"] };
+          }
+          // budget-specific
+          if (typeof userProbe["dailyLimitUsd"] === "number") {
+            target[probeKey]["dailyLimitUsd"] = userProbe["dailyLimitUsd"];
+          }
+          if (typeof userProbe["timezone"] === "string") {
+            target[probeKey]["timezone"] = userProbe["timezone"];
+          }
+          // cost-specific
+          if (typeof userProbe["spikeMultiplier"] === "number") {
+            target[probeKey]["spikeMultiplier"] = userProbe["spikeMultiplier"];
+          }
+          if (typeof userProbe["minSessionsForBaseline"] === "number") {
+            target[probeKey]["minSessionsForBaseline"] = userProbe["minSessionsForBaseline"];
+          }
+        }
+      }
+    }
+
+    if (isRecord(userMonitor["triage"])) {
+      const userTriage = userMonitor["triage"];
+      if (typeof userTriage["autoGreen"] === "boolean") {
+        result.monitor.triage.autoGreen = userTriage["autoGreen"];
+      }
+      // defaultOnTimeout is always "reject" — not user-configurable
+    }
+  }
+
+  // page — deep merge telegram, webhook, rateLimit, dedup
+  if (isRecord(user["page"])) {
+    const userPage = user["page"];
+
+    if (isRecord(userPage["telegram"])) {
+      const ut = userPage["telegram"];
+      if (typeof ut["enabled"] === "boolean") {
+        result.page.telegram.enabled = ut["enabled"];
+      }
+      if (typeof ut["botToken"] === "string") {
+        result.page.telegram.botToken = ut["botToken"];
+      }
+      if (typeof ut["chatId"] === "string") {
+        result.page.telegram.chatId = ut["chatId"];
+      }
+    }
+
+    if (isRecord(userPage["webhook"])) {
+      const uw = userPage["webhook"];
+      if (typeof uw["enabled"] === "boolean") {
+        result.page.webhook.enabled = uw["enabled"];
+      }
+      if (typeof uw["url"] === "string") {
+        result.page.webhook.url = uw["url"];
+      }
+      if (typeof uw["secret"] === "string") {
+        result.page.webhook.secret = uw["secret"];
+      }
+    }
+
+    if (isRecord(userPage["rateLimit"])) {
+      const ur = userPage["rateLimit"];
+      if (typeof ur["perProbeMs"] === "number") {
+        result.page.rateLimit.perProbeMs = ur["perProbeMs"];
+      }
+      if (typeof ur["globalMaxPerHour"] === "number") {
+        result.page.rateLimit.globalMaxPerHour = ur["globalMaxPerHour"];
+      }
+    }
+
+    if (isRecord(userPage["dedup"])) {
+      const ud = userPage["dedup"];
+      if (typeof ud["info"] === "number") {
+        result.page.dedup.info = ud["info"];
+      }
+      if (typeof ud["warning"] === "number") {
+        result.page.dedup.warning = ud["warning"];
+      }
+      if (typeof ud["critical"] === "number") {
+        result.page.dedup.critical = ud["critical"];
+      }
+      if (typeof ud["emergency"] === "number") {
+        result.page.dedup.emergency = ud["emergency"];
+      }
+    }
+  }
+
+  // consent — merge channels, timeoutMs, telegram settings
+  if (isRecord(user["consent"])) {
+    const userConsent = user["consent"];
+
+    if (Array.isArray(userConsent["channels"])) {
+      result.consent.channels = (userConsent["channels"] as unknown[]).filter(
+        (c): c is string => typeof c === "string",
+      ) as typeof result.consent.channels;
+    }
+    if (typeof userConsent["timeoutMs"] === "number") {
+      result.consent.timeoutMs = userConsent["timeoutMs"];
+    }
+    if (isRecord(userConsent["telegram"])) {
+      const ut = userConsent["telegram"];
+      if (Array.isArray(ut["allowedUserIds"])) {
+        result.consent.telegram = {
+          allowedUserIds: (ut["allowedUserIds"] as unknown[]).filter(
+            (u): u is string => typeof u === "string",
+          ),
+        };
+      }
+    }
+  }
+
   return result;
 }
 

@@ -78,9 +78,60 @@ export interface ClawDoctorConfig {
     healthScoreMaxAgeDays: number;   // default 365
   };
 
+  // ─── Continuous Monitoring ───
+  monitor: {
+    probes: {
+      gateway:  { enabled: boolean; intervalMs: number; params: Record<string, unknown> };
+      cron:     { enabled: boolean; intervalMs: number; params: Record<string, unknown> };
+      auth:     { enabled: boolean; intervalMs: number; params: Record<string, unknown> };
+      session:  { enabled: boolean; intervalMs: number; params: Record<string, unknown> };
+      budget:   { enabled: boolean; intervalMs: number; dailyLimitUsd: number; timezone?: string };
+      cost:     { enabled: boolean; intervalMs: number; spikeMultiplier: number; minSessionsForBaseline?: number };
+    };
+    triage: {
+      autoGreen: boolean;
+      defaultOnTimeout: "reject";
+    };
+  };
+
+  // ─── Page (alerting) ───
+  page: {
+    telegram: {
+      enabled: boolean;
+      botToken: string;
+      chatId: string;
+    };
+    webhook: {
+      enabled: boolean;
+      url: string;
+      secret?: string;
+    };
+    rateLimit: {
+      perProbeMs: number;
+      globalMaxPerHour: number;
+    };
+    dedup: {
+      info: number;
+      warning: number;
+      critical: number;
+      emergency: number;
+    };
+  };
+
+  // ─── Consent (Phase 2+) ───
+  consent: {
+    channels: ConsentChannelType[];
+    timeoutMs: number;
+    telegram?: {
+      allowedUserIds: string[];
+    };
+  };
+
   // ─── Community Plugins ───
   plugins?: string[];                // e.g. ["clawdoctor-plugin-security-extra"]
 }
+
+export type ConsentChannelType = "telegram" | "cli" | "webhook" | "dashboard";
 
 export const DEFAULT_CONFIG: ClawDoctorConfig = {
   locale: "en",
@@ -142,5 +193,47 @@ export const DEFAULT_CONFIG: ClawDoctorConfig = {
     eventMaxAgeDays:        90,
     diagnosisMaxAgeDays:    365,
     healthScoreMaxAgeDays:  365,
+  },
+
+  monitor: {
+    probes: {
+      gateway:  { enabled: true,  intervalMs: 30_000,  params: {} },
+      cron:     { enabled: false, intervalMs: 60_000,  params: {} },
+      auth:     { enabled: false, intervalMs: 60_000,  params: {} },
+      session:  { enabled: true,  intervalMs: 60_000,  params: {} },
+      budget:   { enabled: false, intervalMs: 300_000, dailyLimitUsd: 10 },
+      cost:     { enabled: true,  intervalMs: 300_000, spikeMultiplier: 3, minSessionsForBaseline: 20 },
+    },
+    triage: {
+      autoGreen: true,
+      defaultOnTimeout: "reject",
+    },
+  },
+
+  page: {
+    telegram: {
+      enabled: false,
+      botToken: "",
+      chatId: "",
+    },
+    webhook: {
+      enabled: false,
+      url: "",
+    },
+    rateLimit: {
+      perProbeMs: 300_000,
+      globalMaxPerHour: 30,
+    },
+    dedup: {
+      info: 21_600_000,
+      warning: 3_600_000,
+      critical: 900_000,
+      emergency: 0,
+    },
+  },
+
+  consent: {
+    channels: ["cli"],
+    timeoutMs: 1_800_000,
   },
 };

@@ -35,7 +35,7 @@ interface ChannelState {
 // ─── Rate limit state ───
 
 interface RateLimitState {
-  readonly hourStart: number;
+  hourStart: number;
   count: number;
 }
 
