@@ -8,7 +8,7 @@ import type Database from "better-sqlite3";
 
 // ─── Schema version ───
 
-const CURRENT_SCHEMA_VERSION = 2;
+const CURRENT_SCHEMA_VERSION = 3;
 
 // ─── Migration: version 1 — initial schema ───
 
@@ -122,11 +122,81 @@ function migration2(db: Database.Database): void {
   })();
 }
 
+// ─── Migration: version 3 — continuous monitoring tables ───
+
+function migration3(db: Database.Database): void {
+  db.transaction(() => {
+    db.exec(`ALTER TABLE health_scores ADD COLUMN infra REAL;`);
+
+    db.exec(`
+      CREATE TABLE chart_entries (
+        id              TEXT PRIMARY KEY,
+        timestamp       INTEGER NOT NULL,
+        probe_id        TEXT,
+        disease_id      TEXT,
+        agent_id        TEXT,
+        triage_level    TEXT,
+        intervention_id TEXT,
+        action          TEXT NOT NULL,
+        outcome         TEXT NOT NULL,
+        consent_channel TEXT,
+        consent_response TEXT,
+        snapshot_id     TEXT,
+        details         TEXT
+      );
+      CREATE INDEX idx_chart_ts ON chart_entries(timestamp);
+      CREATE INDEX idx_chart_probe ON chart_entries(probe_id);
+      CREATE INDEX idx_chart_outcome ON chart_entries(outcome);
+    `);
+
+    db.exec(`
+      CREATE TABLE consent_requests (
+        id              TEXT PRIMARY KEY,
+        timestamp       INTEGER NOT NULL,
+        triage_level    TEXT NOT NULL,
+        intervention_id TEXT NOT NULL,
+        disease_id      TEXT NOT NULL,
+        agent_id        TEXT,
+        status          TEXT NOT NULL DEFAULT 'pending',
+        channels        TEXT NOT NULL,
+        responded_at    INTEGER,
+        responded_via   TEXT,
+        responded_by    TEXT,
+        expires_at      INTEGER NOT NULL,
+        context         TEXT
+      );
+      CREATE INDEX idx_consent_status ON consent_requests(status);
+      CREATE INDEX idx_consent_expires ON consent_requests(expires_at);
+    `);
+
+    db.exec(`
+      CREATE TABLE page_dedup (
+        key             TEXT PRIMARY KEY,
+        priority        TEXT NOT NULL,
+        last_sent_at    INTEGER NOT NULL
+      );
+    `);
+
+    db.exec(`
+      CREATE TABLE intervention_retries (
+        disease_id      TEXT NOT NULL,
+        agent_id        TEXT NOT NULL DEFAULT 'default',
+        intervention_id TEXT NOT NULL,
+        retry_count     INTEGER NOT NULL DEFAULT 0,
+        last_attempted  INTEGER NOT NULL,
+        suppressed      INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY (disease_id, agent_id, intervention_id)
+      );
+    `);
+  })();
+}
+
 // ─── Migration registry ───
 
 const MIGRATIONS: Record<number, (db: Database.Database) => void> = {
   1: migration1,
   2: migration2,
+  3: migration3,
 };
 
 // ─── Migrate if needed ───
