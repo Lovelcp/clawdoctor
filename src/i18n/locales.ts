@@ -18,6 +18,7 @@ export const UI_STRINGS = {
   behavior: { en: "Agent Behavior", zh: "行为模式" },
   cost: { en: "Cost Metabolism", zh: "成本代谢" },
   security: { en: "Security Immunity", zh: "安全免疫" },
+  infra: { en: "Infrastructure", zh: "基础设施" },
   // Grade names
   gradeA: { en: "Excellent", zh: "优秀" },
   gradeB: { en: "Good", zh: "良好" },

@@ -668,6 +668,7 @@
       "page.behavior": { en: "Agent Behavior", zh: "Agent 行为" },
       "page.cost": { en: "Cost Metabolism", zh: "成本代谢" },
       "page.security": { en: "Security Immunity", zh: "安全免疫" },
+      "page.infra": { en: "Infrastructure", zh: "基础设施" },
       "page.prescriptions.subtitle": { en: "{count} prescriptions", zh: "{count} 个处方" },
       "page.timeline.subtitle": { en: "{total} events recorded", zh: "已记录 {total} 个事件" },
       "page.deptDiagnosis": { en: "{count} diagnosis results", zh: "{count} 个诊断结果" },
@@ -917,11 +918,13 @@
       vitals: 'page.vitals', skill: 'page.skills',
       memory: 'page.memory', behavior: 'page.behavior',
       cost: 'page.cost', security: 'page.security',
+      infra: 'page.infra',
     };
 
     const DEPT_ROUTES = {
       vitals: '/vitals', skill: '/skills', memory: '/memory',
       behavior: '/behavior', cost: '/cost', security: '/security',
+      infra: '/infra',
     };
 
     // ─── API ───
@@ -1913,6 +1916,7 @@
       '/behavior': () => renderDeptPage('behavior', 'page.behavior'),
       '/cost': () => renderDeptPage('cost', 'page.cost'),
       '/security': () => renderDeptPage('security', 'page.security'),
+      '/infra': () => renderDeptPage('infra', 'page.infra'),
       '/rx': renderRx,
       '/timeline': renderTimeline,
       '/settings': renderSettings,
