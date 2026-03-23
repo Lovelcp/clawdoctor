@@ -6,6 +6,7 @@ import { memoryDiseases } from "./memory.js";
 import { behaviorDiseases } from "./behavior.js";
 import { costDiseases } from "./cost.js";
 import { securityDiseases } from "./security.js";
+import { infraDiseases } from "./infra.js";
 
 const ALL_DISEASES: DiseaseDefinition[] = [
   ...vitalsDiseasess,
@@ -14,6 +15,7 @@ const ALL_DISEASES: DiseaseDefinition[] = [
   ...behaviorDiseases,
   ...costDiseases,
   ...securityDiseases,
+  ...infraDiseases,
 ];
 
 export interface DiseaseRegistry {

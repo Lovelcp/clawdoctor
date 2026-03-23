@@ -262,4 +262,48 @@ export const costDiseases: DiseaseDefinition[] = [
     defaultSeverity: "info",
     tags: ["cost", "compaction", "efficiency"],
   },
+  {
+    id: "CST-010",
+    department: "cost",
+    category: "anomaly",
+    name: { en: "Cost Spike Fever", zh: "成本飙升热" },
+    description: {
+      en: "Session cost exceeds Nx the rolling average (N configurable, default 3x), indicating an anomalous cost spike requiring investigation. Requires a minimum of 20 sessions for baseline.",
+      zh: "会话成本超过滚动平均值的 N 倍（N 可配置，默认 3 倍），表明出现需要调查的异常成本飙升。需要至少 20 个会话作为基线。",
+    },
+    rootCauses: [
+      {
+        en: "A new complex task triggered unexpectedly high token consumption",
+        zh: "新的复杂任务触发了意外的高 Token 消耗",
+      },
+      {
+        en: "Death loop or infinite retry within a single session",
+        zh: "单个会话内的死循环或无限重试",
+      },
+      {
+        en: "Model upgrade caused higher per-call token usage",
+        zh: "模型升级导致每次调用的 Token 使用量增加",
+      },
+    ],
+    detection: {
+      type: "rule",
+      metric: "cost.sessionSpikeMultiplier",
+      direction: "higher_is_worse",
+      defaultThresholds: { warning: 2.0, critical: 3.0 },
+    },
+    prescriptionTemplate: {
+      level: "guided",
+      actionTypes: ["command", "config_change"],
+      promptTemplate:
+        "Cost spike fever: session cost is {spikeMultiplier}x the rolling average. Identify the spike source, analyze token consumption breakdown, and generate cost containment recommendations.",
+      estimatedImprovementTemplate: {
+        en: "Identifies and prevents recurrence of cost spikes",
+        zh: "识别并防止成本飙升再次发生",
+      },
+      risk: "medium",
+    },
+    relatedDiseases: ["CST-001", "CST-005", "INFRA-005"],
+    defaultSeverity: "critical",
+    tags: ["cost", "spike", "anomaly", "session"],
+  },
 ];

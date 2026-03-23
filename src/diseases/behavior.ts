@@ -389,4 +389,48 @@ export const behaviorDiseases: DiseaseDefinition[] = [
     defaultSeverity: "info",
     tags: ["behavior", "verbosity", "efficiency"],
   },
+  {
+    id: "BHV-010",
+    department: "behavior",
+    category: "reliability",
+    name: { en: "Session Coma", zh: "会话昏迷" },
+    description: {
+      en: "A session has been inactive beyond the configurable threshold (default 2h), verified by file mtime and event gap, indicating a stuck or abandoned session consuming resources.",
+      zh: "会话已超过可配置的阈值（默认 2 小时）处于不活跃状态，通过文件修改时间和事件间隔验证，表明会话卡住或被遗弃正在消耗资源。",
+    },
+    rootCauses: [
+      {
+        en: "Session waiting for external input that never arrived",
+        zh: "会话等待从未到达的外部输入",
+      },
+      {
+        en: "Agent process hung on a blocking operation",
+        zh: "Agent 进程在阻塞操作上挂起",
+      },
+      {
+        en: "User abandoned the session without ending it",
+        zh: "用户放弃了会话但未结束它",
+      },
+    ],
+    detection: {
+      type: "rule",
+      metric: "behavior.sessionInactiveMinutes",
+      direction: "higher_is_worse",
+      defaultThresholds: { warning: 120, critical: 360 },
+    },
+    prescriptionTemplate: {
+      level: "guided",
+      actionTypes: ["command"],
+      promptTemplate:
+        "Session coma detected: session {sessionKey} has been inactive for {inactiveMinutes} minutes. Verify if the session is stuck, and generate instructions to safely terminate or resume it.",
+      estimatedImprovementTemplate: {
+        en: "Frees resources held by inactive session",
+        zh: "释放不活跃会话占用的资源",
+      },
+      risk: "medium",
+    },
+    relatedDiseases: ["BHV-002", "CST-004"],
+    defaultSeverity: "warning",
+    tags: ["behavior", "session", "inactive", "stuck"],
+  },
 ];

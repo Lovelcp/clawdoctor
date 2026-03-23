@@ -44,13 +44,23 @@ const VALID_METRIC_KEYS = new Set([
   "security.staleCredentials",
   // Behavior metrics
   "behavior.abortRate",
+  "behavior.sessionInactiveMinutes",
+  // Infrastructure metrics
+  "infra.gatewayProcessDown",
+  "infra.cronConsecutiveFailures",
+  "infra.cronOverdueMinutes",
+  "infra.authFailureCount",
+  "infra.dailySpendOverBudget",
+  "infra.deliveryFailureCount",
+  // Cost monitoring metrics
+  "cost.sessionSpikeMultiplier",
 ]);
 
 describe("getDiseaseRegistry", () => {
   const registry = getDiseaseRegistry();
 
-  it("contains exactly 43 disease definitions", () => {
-    expect(registry.getAll()).toHaveLength(43);
+  it("contains exactly 51 disease definitions", () => {
+    expect(registry.getAll()).toHaveLength(51);
   });
 
   it("returns correct counts per department", () => {
@@ -62,9 +72,10 @@ describe("getDiseaseRegistry", () => {
     expect(byCounts["vitals"]).toBe(5);
     expect(byCounts["skill"]).toBe(10);
     expect(byCounts["memory"]).toBe(7);
-    expect(byCounts["behavior"]).toBe(7);
-    expect(byCounts["cost"]).toBe(6);
+    expect(byCounts["behavior"]).toBe(8);
+    expect(byCounts["cost"]).toBe(7);
     expect(byCounts["security"]).toBe(8);
+    expect(byCounts["infra"]).toBe(6);
   });
 
   it("lookup by ID returns correct disease (SK-001)", () => {
@@ -195,5 +206,27 @@ describe("getDiseaseRegistry", () => {
 
   it("SEC-005 is hybrid type", () => {
     expect(registry.getById("SEC-005")?.detection.type).toBe("hybrid");
+  });
+
+  it("INFRA diseases are all rule type", () => {
+    const infra = registry.getByDepartment("infra");
+    expect(infra).toHaveLength(6);
+    expect(infra.every((d) => d.detection.type === "rule")).toBe(true);
+  });
+
+  it("BHV-010 is rule type with warning severity", () => {
+    const d = registry.getById("BHV-010");
+    expect(d).toBeDefined();
+    expect(d!.detection.type).toBe("rule");
+    expect(d!.defaultSeverity).toBe("warning");
+    expect(d!.department).toBe("behavior");
+  });
+
+  it("CST-010 is rule type with critical severity", () => {
+    const d = registry.getById("CST-010");
+    expect(d).toBeDefined();
+    expect(d!.detection.type).toBe("rule");
+    expect(d!.defaultSeverity).toBe("critical");
+    expect(d!.department).toBe("cost");
   });
 });
